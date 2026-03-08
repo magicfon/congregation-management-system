@@ -1,0 +1,32 @@
+# See https://vercel.com/docs/projects/overview
+vercel:
+PROJECT: congregation-management-system
+Region: Cong-region (project settings:
+- Project ID: 
+- Framework Presets:
+- Environment IDs
+- Service IDs
+- Add-on a domain ( the as `*.vercel.app`
+
+## API
+
+The API endpoints:
+- `/api/territories` - Territory CRUD
+- `/api/reports` - Reports CRUD
+- `/api/schedules` - Schedules CRUD
+- `/api/persons` - Persons CRUD
+- `/api/stats` - Statistics
+
+## Database
+
+- Type: `postgres`
+- database: `congregation`
+- userId: `user_id`
+- dialect: `postgres`
+- schema: `public`
+
+tables are
+- territories
+- reports
+- schedules
+- persons
