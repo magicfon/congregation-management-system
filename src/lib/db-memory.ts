@@ -1,5 +1,6 @@
 // 簡單的內存存儲（用於演示）
 // 生產環境請配置 Vercel Postgres
+// Version: 2 (force rebuild)
 
 interface Territory {
   id: number
