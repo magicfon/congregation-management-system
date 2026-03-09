@@ -32,6 +32,10 @@
     --radius: 0.625rem;
   }
 
+  html {
+    color-scheme: dark;
+  }
+
   * {
     @apply border-border;
   }
