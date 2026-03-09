@@ -266,7 +266,7 @@ function TerritoryItem({ territory }: { territory: Territory }) {
 }
 
 function ActionButton({ icon, label }: { icon: string; label: string }) {
-  const icons: Record<string, JSX.Element> = {
+  const icons: Record<string, React.ReactNode> = {
     plus: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />

@@ -1,0 +1,9 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/init/route": "/api/init",
+  "/api/reports/route": "/api/reports",
+  "/api/schedules/route": "/api/schedules",
+  "/api/stats/route": "/api/stats",
+  "/api/territories/route": "/api/territories",
+  "/page": "/"
+}
