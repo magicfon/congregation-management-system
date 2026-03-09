@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sql } from '@vercel/postgres'
+import { getTerritories, createTerritory, updateTerritory, deleteTerritory } from '@/lib/db-memory'
 
 // 獲取所有區域
 export async function GET() {
   try {
-    const { rows } = await sql`
-      SELECT 
-        id, code, number, responsible_brother, split_date, last_completed_date, days_idle, status
-      FROM territories
-      ORDER BY code
-    `
-    
-    return NextResponse.json({ territories: rows })
+    const territories = await getTerritories()
+    return NextResponse.json({ territories })
   } catch (error) {
     console.error('Failed to fetch territories:', error)
     return NextResponse.json({ error: 'Failed to fetch territories' }, { status: 500 })
@@ -22,15 +16,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { code, number, responsible_brother, split_date, status } = body
-    
-    const { rows } = await sql`
-      INSERT INTO territories (code, number, responsible_brother, split_date, status)
-      VALUES (${code}, ${number}, ${responsible_brother}, ${split_date}, ${status || 'active'})
-      RETURNING id
-    `
-    
-    return NextResponse.json({ id: rows[0].id }, { status: 201 })
+    const territory = await createTerritory(body)
+    return NextResponse.json({ id: territory.id }, { status: 201 })
   } catch (error) {
     console.error('Failed to create territory:', error)
     return NextResponse.json({ error: 'Failed to create territory' }, { status: 500 })
@@ -41,21 +28,15 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    const id = parseInt(searchParams.get('id') || '0')
     const body = await request.json()
     
-    await sql`
-      UPDATE territories 
-      SET code = ${body.code}, 
-          number = ${body.number}, 
-          responsible_brother = ${body.responsible_brother}, 
-          split_date = ${body.split_date}, 
-          status = ${body.status},
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
-    `
+    const territory = await updateTerritory(id, body)
+    if (!territory) {
+      return NextResponse.json({ error: 'Territory not found' }, { status: 404 })
+    }
     
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ territory })
   } catch (error) {
     console.error('Failed to update territory:', error)
     return NextResponse.json({ error: 'Failed to update territory' }, { status: 500 })
@@ -66,9 +47,12 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    const id = parseInt(searchParams.get('id') || '0')
     
-    await sql`DELETE FROM territories WHERE id = ${id}`
+    const success = await deleteTerritory(id)
+    if (!success) {
+      return NextResponse.json({ error: 'Territory not found' }, { status: 404 })
+    }
     
     return NextResponse.json({ success: true })
   } catch (error) {
