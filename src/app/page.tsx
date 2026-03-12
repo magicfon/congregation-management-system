@@ -75,8 +75,8 @@ export default function Dashboard() {
         <h1 className="text-xl font-semibold text-[#2196F3]">會眾管理系統</h1>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span className="text-sm text-[#AAAAAA]">Connected</span>
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            <span className="text-sm text-[#AAAAAA]">Disconnected</span>
           </div>
           <button 
             onClick={loadData}
