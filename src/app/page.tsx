@@ -1,9 +1,16 @@
 'use client'
 
+import DashboardNew from '@/components/DashboardNew'
+
+export default function Page() {
+  return <DashboardNew />
+}
+
+/* Original Dashboard (backup)
 import { useState, useEffect } from 'react'
 import { Territory, Schedule } from '@/types'
 
-export default function Dashboard() {
+function DashboardOriginal() {
   const [territories, setTerritories] = useState<Territory[]>([])
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [stats, setStats] = useState<any>(null)
