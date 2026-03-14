@@ -1,0 +1,39 @@
+{
+  "name": "congregation-management-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "bcryptjs": "^2.4.3",
+    "date-fns": "^3.0.0",
+    "next": "^14.2.0",
+    "next-auth": "^4.24.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@fast-kit/spec-kit": "^0.1.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "20.19.37",
+    "@types/react": "18.3.28",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "postcss": "^8.5.8",
+    "prisma": "^5.0.0",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.21.0",
+    "typescript": "5.9.3"
+  }
+}

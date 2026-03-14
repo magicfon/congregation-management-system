@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 區域模型
+model Area {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  assignedTo    String?  // Member ID
+  lastActivityAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  schedules     Schedule[]
+  reports       Report[]
+
+  @@map("areas")
+}
+
+// 成員模型
+model Member {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  role      String   // e.g., "admin", "publisher", "elder"
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schedules Schedule[]
+  reports   Report[]
+
+  @@map("members")
+}
+
+// 排班模型
+model Schedule {
+  id        String   @id @default(cuid())
+  areaId    String
+  memberId  String
+  date      DateTime
+  timeSlot  String   // e.g., "morning", "afternoon", "evening"
+  status    String   @default("scheduled") // "scheduled", "completed", "cancelled"
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  area      Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("schedules")
+}
+
+// 回報模型
+model Report {
+  id          String   @id @default(cuid())
+  areaId      String
+  memberId    String
+  content     String
+  status      String   @default("pending") // "pending", "reviewed", "approved"
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  area        Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+// 系統設定
+model Setting {
+  id                  String   @id @default(cuid())
+  key                 String   @unique
+  value               String
+  description         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("settings")
+}

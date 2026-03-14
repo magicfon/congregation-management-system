@@ -1,0 +1,50 @@
+{
+  "workflowId": "2026-03-14-congregation-management-system",
+  "projectName": "會眾管理系統",
+  "version": "1.0.0",
+  "createdAt": "2026-03-14T10:10:56.229Z",
+  "updatedAt": "2026-03-14T11:30:00.000Z",
+  "currentPhase": "completed",
+  "phases": {
+    "constitute": {
+      "status": "completed",
+      "quality": 100,
+      "startedAt": "2026-03-14T10:10:56.229Z",
+      "completedAt": "2026-03-14T10:15:00.000Z",
+      "artifacts": ["CONSTITUTION.md"]
+    },
+    "specify": {
+      "status": "completed",
+      "quality": 100,
+      "startedAt": "2026-03-14T10:15:00.000Z",
+      "completedAt": "2026-03-14T10:20:00.000Z",
+      "artifacts": ["SPECIFICATION.md"]
+    },
+    "plan": {
+      "status": "completed",
+      "quality": 100,
+      "startedAt": "2026-03-14T10:20:00.000Z",
+      "completedAt": "2026-03-14T10:25:00.000Z",
+      "artifacts": ["PLAN.md"]
+    },
+    "implement": {
+      "status": "completed",
+      "quality": 100,
+      "startedAt": "2026-03-14T10:25:00.000Z",
+      "completedAt": "2026-03-14T11:30:00.000Z",
+      "artifacts": ["TASKS.md"],
+      "stats": {
+        "totalTasks": 72,
+        "completedTasks": 72,
+        "inProgressTasks": 0,
+        "pendingTasks": 0
+      }
+    }
+  },
+  "buildStatus": {
+    "success": true,
+    "testedAt": "2026-03-14T11:28:00.000Z",
+    "errors": 0,
+    "warnings": 0
+  }
+}
