@@ -3,6 +3,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout'
 import { formatDistanceToNow } from 'date-fns'
 import { zhTW } from 'date-fns/locale'
 
+// Force dynamic rendering to avoid build-time database connection
+export const dynamic = 'force-dynamic'
+
 async function getStats() {
   const [areaCount, memberCount, scheduleCount, reportCount, recentAreas] = await Promise.all([
     prisma.area.count(),

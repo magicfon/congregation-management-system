@@ -61,7 +61,7 @@ async function main() {
   await prisma.setting.upsert({
     where: { key: 'idle_threshold_days' },
     update: {},
-    create: { key: 'idle_threshold_days', value: '30', description: '閒置區域警告天數閾值' },
+    create: { key: 'idle_threshold_days', value: '30' },
   })
   console.log('✓ 建立預設設定')
 
