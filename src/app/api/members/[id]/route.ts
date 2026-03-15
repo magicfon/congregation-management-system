@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hash } from 'bcryptjs'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '../../../../lib/supabase'
 
 export async function GET(
   _request: NextRequest,
