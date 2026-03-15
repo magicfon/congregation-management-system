@@ -1,7 +1,7 @@
 import { type NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { compare } from 'bcryptjs'
-import { prisma } from '@/lib/db'
+import { supabase } from './supabase'
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -22,11 +22,13 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const member = await prisma.member.findUnique({
-          where: { email: credentials.email },
-        })
+        const { data: member, error } = await supabase
+          .from('members')
+          .select('*')
+          .eq('email', credentials.email)
+          .single()
 
-        if (!member || !member.active) {
+        if (error || !member || !member.active) {
           return null
         }
 

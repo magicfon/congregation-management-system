@@ -1,97 +1,158 @@
-import { prisma } from '@/lib/db'
-import DashboardLayout from '@/components/layout/DashboardLayout'
+'use client'
+
+import { useState, useEffect } from 'react'
+import DashboardLayout from '../../components/layout/DashboardLayout'
 import { formatDistanceToNow } from 'date-fns'
 import { zhTW } from 'date-fns/locale'
+import { supabase } from '../../lib/supabase'
 
-// Force dynamic rendering to avoid build-time database connection
-export const dynamic = 'force-dynamic'
-
-async function getStats() {
-  const [areaCount, memberCount, scheduleCount, reportCount, recentAreas] = await Promise.all([
-    prisma.area.count(),
-    prisma.member.count(),
-    prisma.schedule.count({ where: { status: 'scheduled' } }),
-    prisma.report.count({ where: { status: 'pending' } }),
-    prisma.area.findMany({
-      orderBy: { lastActivityAt: 'asc' },
-      take: 5,
-      select: { id: true, name: true, lastActivityAt: true, assignedTo: true },
-    }),
-  ])
-  return { areaCount, memberCount, scheduleCount, reportCount, recentAreas }
+interface Area {
+  id: string
+  name: string
+  lastActivityAt: string
+  assignedTo: string | null
 }
 
-export default async function DashboardPage() {
-  const { areaCount, memberCount, scheduleCount, reportCount, recentAreas } = await getStats()
+interface Stats {
+  areaCount: number
+  memberCount: number
+  scheduleCount: number
+  reportCount: number
+  recentAreas: Area[]
+}
 
-  const stats = [
-    { label: '區域總數', value: areaCount, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
-    { label: '成員數', value: memberCount, color: 'text-mc-success', bg: 'bg-mc-success/10 border-mc-success/20' },
-    { label: '待執行排班', value: scheduleCount, color: 'text-mc-warning', bg: 'bg-mc-warning/10 border-mc-warning/20' },
-    { label: '待審回報', value: reportCount, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
+export default function DashboardPage() {
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        // Get area count
+        const { count: areaCount } = await supabase
+          .from('areas')
+          .select('id', { count: 'exact', head: true })
+
+        // Get member count
+        const { count: memberCount } = await supabase
+          .from('members')
+          .select('id', { count: 'exact', head: true })
+
+        // Get scheduled count
+        const { count: scheduleCount } = await supabase
+          .from('schedules')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'scheduled')
+
+        // Get pending reports count
+        const { count: reportCount } = await supabase
+          .from('reports')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending')
+
+        // Get recent areas
+        const { data: recentAreas } = await supabase
+          .from('areas')
+          .select('id, name, lastActivityAt, assignedTo')
+          .order('lastActivityAt', { ascending: true })
+          .limit(5)
+
+        setStats({
+          areaCount: areaCount || 0,
+          memberCount: memberCount || 0,
+          scheduleCount: scheduleCount || 0,
+          reportCount: reportCount || 0,
+          recentAreas: recentAreas || []
+        })
+      } catch (error) {
+        console.error('Failed to fetch stats:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [])
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="p-8">
+          <div className="text-mc-text-secondary">載入中...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (!stats) {
+    return (
+      <DashboardLayout>
+        <div className="p-8">
+          <div className="text-mc-text-secondary">無法載入數據</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  const statsData = [
+    { label: '區域總數', value: stats.areaCount, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
+    { label: '成員數', value: stats.memberCount, color: 'text-mc-success', bg: 'bg-mc-success/10 border-mc-success/20' },
+    { label: '待執行排班', value: stats.scheduleCount, color: 'text-mc-warning', bg: 'bg-mc-warning/10 border-mc-warning/20' },
+    { label: '待審核回報', value: stats.reportCount, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
   ]
 
   return (
     <DashboardLayout>
       <div className="p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-mc-text">儀表板</h1>
-          <p className="text-mc-text/50 text-sm mt-1">會眾服務管理總覽</p>
-        </div>
+        <h1 className="text-2xl font-semibold text-mc-text mb-6">儀表板</h1>
 
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {stats.map((stat) => (
-            <div key={stat.label} className={`bg-mc-card border rounded-xl p-5 ${stat.bg}`}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {statsData.map((stat) => (
+            <div
+              key={stat.label}
+              className={`${stat.bg} border rounded-lg p-6`}
+            >
+              <div className="text-mc-text-secondary text-sm mb-1">{stat.label}</div>
               <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
-              <div className="text-mc-text/60 text-sm mt-1">{stat.label}</div>
             </div>
           ))}
         </div>
 
-        {/* Recent idle areas */}
-        <div className="bg-mc-card border border-white/5 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-semibold text-mc-text">最久未活動區域</h2>
-            <a href="/areas" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-              查看全部 →
-            </a>
-          </div>
-
-          {recentAreas.length === 0 ? (
-            <p className="text-mc-text/40 text-sm text-center py-8">尚無區域資料</p>
-          ) : (
-            <div className="space-y-3">
-              {recentAreas.map((area) => {
-                const daysSince = Math.floor(
+        <div className="bg-mc-card border border-mc-border rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-mc-text mb-4">閒置區域警告</h2>
+          <div className="space-y-3">
+            {stats.recentAreas.length === 0 ? (
+              <div className="text-mc-text-secondary text-sm">暫無閒置區域</div>
+            ) : (
+              stats.recentAreas.map((area) => {
+                const daysInactive = Math.floor(
                   (Date.now() - new Date(area.lastActivityAt).getTime()) / (1000 * 60 * 60 * 24)
                 )
-                const isIdle = daysSince >= 30
                 return (
-                  <div key={area.id} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${isIdle ? 'bg-mc-warning' : 'bg-mc-success'}`} />
-                      <div>
-                        <div className="text-sm font-medium text-mc-text">{area.name}</div>
-                        {area.assignedTo && (
-                          <div className="text-xs text-mc-text/40">負責人：{area.assignedTo}</div>
-                        )}
-                      </div>
+                  <div key={area.id} className="flex items-center justify-between py-2 border-b border-mc-border last:border-0">
+                    <div>
+                      <div className="text-mc-text">{area.name}</div>
+                      {area.assignedTo && (
+                        <div className="text-sm text-mc-text-secondary">負責人：{area.assignedTo}</div>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <div className={`text-xs font-medium ${isIdle ? 'text-mc-warning' : 'text-mc-text/50'}`}>
-                        {formatDistanceToNow(new Date(area.lastActivityAt), { locale: zhTW, addSuffix: true })}
-                      </div>
-                      {isIdle && (
-                        <div className="text-xs text-mc-warning/70 mt-0.5">閒置警告</div>
+                    <div className="text-sm text-mc-warning">
+                      {daysInactive > 30 ? (
+                        <span className="text-red-400">
+                          已閒置 {daysInactive} 天
+                        </span>
+                      ) : (
+                        formatDistanceToNow(new Date(area.lastActivityAt), {
+                          addSuffix: true,
+                          locale: zhTW,
+                        })
                       )}
                     </div>
                   </div>
                 )
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
         </div>
       </div>
     </DashboardLayout>

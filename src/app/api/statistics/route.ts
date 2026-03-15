@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { supabase } from '../../../lib/supabase'
 
 const IDLE_THRESHOLD_DAYS = 30
 

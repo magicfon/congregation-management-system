@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { supabase } from '../../../lib/supabase'
 
 export async function GET(
   _request: NextRequest,
