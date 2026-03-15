@@ -1,11 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gkclvxkuvyoenpvzubxm.supabase.co'
-const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY || ''
-
-if (!supabaseSecretKey) {
-  console.warn('Warning: SUPABASE_SECRET_KEY not configured')
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseSecretKey, {
   auth: {
