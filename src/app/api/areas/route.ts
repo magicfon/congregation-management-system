@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('=== API /areas GET ===')
-    console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-    console.log('Has Secret Key:', !!process.env.SUPABASE_SECRET_KEY)
-
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
 
@@ -18,28 +14,23 @@ export async function GET(request: NextRequest) {
       query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
     }
 
-    const { data: areas, error } = await query.order('createdAt', { ascending: false })
+    const { data: areas, error } = await query.order('createdat', { ascending: false })
 
-    if (error) {
-      console.error('Supabase query error:', error)
-      throw error
-    }
-
-    console.log('Found areas:', areas?.length || 0)
+    if (error) throw error
 
     // Get counts for each area
     const areasWithCounts = await Promise.all(
       (areas || []).map(async (area) => {
-        const [schedulesCount, reportsCount] = await Promise.all([
-          supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('areaId', area.id),
-          supabase.from('reports').select('id', { count: 'exact', head: true }).eq('areaId', area.id)
+        const [schedulesResult, reportsResult] = await Promise.all([
+          supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('areaid', area.id),
+          supabase.from('reports').select('id', { count: 'exact', head: true }).eq('areaid', area.id)
         ])
 
         return {
           ...area,
           _count: {
-            schedules: schedulesCount.count || 0,
-            reports: reportsCount.count || 0
+            schedules: schedulesResult.count || 0,
+            reports: reportsResult.count || 0
           }
         }
       })
@@ -48,14 +39,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(areasWithCounts)
   } catch (error) {
     console.error('GET /api/areas error:', error)
-    return NextResponse.json({
-      error: '無法取得區域列表',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      env: {
-        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        hasKey: !!process.env.SUPABASE_SECRET_KEY
-      }
-    }, { status: 500 })
+    return NextResponse.json({ error: '無法取得區域列表' }, { status: 500 })
   }
 }
 
@@ -73,8 +57,8 @@ export async function POST(request: NextRequest) {
       .insert({
         name: name.trim(),
         description: description?.trim() || null,
-        assignedTo: assignedTo?.trim() || null,
-        lastActivityAt: new Date().toISOString(),
+        assignedto: assignedTo?.trim() || null,
+        lastactivityat: new Date().toISOString(),
       })
       .select()
       .single()

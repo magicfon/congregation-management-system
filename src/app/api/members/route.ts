@@ -1,44 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hash } from 'bcryptjs'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const search = searchParams.get('search')
     const role = searchParams.get('role')
-    const activeParam = searchParams.get('active')
+    const active = searchParams.get('active')
 
-    const members = await supabase.from("members").findMany({
-      where: {
-        ...(search
-          ? {
-              OR: [
-                { name: { contains: search } },
-                { email: { contains: search } },
-                { phone: { contains: search } },
-              ],
-            }
-          : {}),
-        ...(role ? { role } : {}),
-        ...(activeParam === 'false' ? { active: false } : { active: true }),
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        active: true,
-        createdAt: true,
-        _count: {
-          select: { schedules: true, reports: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+    let query = supabase
+      .from('members')
+      .select('*')
 
-    return NextResponse.json(members)
+    if (role) {
+      query = query.eq('role', role)
+    }
+
+    if (active !== null) {
+      query = query.eq('active', active === 'true')
+    }
+
+    const { data: members, error } = await query.order('createdat', { ascending: false })
+
+    if (error) throw error
+
+    // Get counts for each member
+    const membersWithCounts = await Promise.all(
+      (members || []).map(async (member) => {
+        const [schedulesResult, reportsResult] = await Promise.all([
+          supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('memberid', member.id),
+          supabase.from('reports').select('id', { count: 'exact', head: true }).eq('memberid', member.id)
+        ])
+
+        return {
+          ...member,
+          _count: {
+            schedules: schedulesResult.count || 0,
+            reports: reportsResult.count || 0
+          }
+        }
+      })
+    )
+
+    return NextResponse.json(membersWithCounts)
   } catch (error) {
     console.error('GET /api/members error:', error)
     return NextResponse.json({ error: '無法取得成員列表' }, { status: 500 })
@@ -50,34 +53,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, email, password, phone, role } = body
 
-    if (!name?.trim()) return NextResponse.json({ error: '姓名為必填' }, { status: 400 })
-    if (!email?.trim()) return NextResponse.json({ error: '電子郵件為必填' }, { status: 400 })
-    if (!password || password.length < 6) return NextResponse.json({ error: '密碼至少需要 6 個字元' }, { status: 400 })
-    if (!role) return NextResponse.json({ error: '角色為必填' }, { status: 400 })
+    if (!name?.trim() || !email?.trim() || !password?.trim()) {
+      return NextResponse.json({ error: '姓名、Email 和密碼為必填' }, { status: 400 })
+    }
 
-    const existing = await supabase.from("members").findUnique({ where: { email: email.trim() } })
-    if (existing) return NextResponse.json({ error: '此電子郵件已被使用' }, { status: 409 })
-
-    const hashedPassword = await hash(password, 12)
-
-    const member = await supabase.from("members").create({
-      data: {
+    const { data: member, error } = await supabase
+      .from('members')
+      .insert({
         name: name.trim(),
         email: email.trim(),
-        password: hashedPassword,
+        password: password.trim(),
         phone: phone?.trim() || null,
-        role,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
+        role: role || 'publisher',
         active: true,
-        createdAt: true,
-      },
-    })
+      })
+      .select()
+      .single()
+
+    if (error) throw error
 
     return NextResponse.json(member, { status: 201 })
   } catch (error) {

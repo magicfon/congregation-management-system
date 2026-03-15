@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase'
+import { supabase } from '@/lib/supabase-server'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get area
     const { data: area, error } = await supabase
       .from('areas')
       .select('*')
@@ -21,7 +20,7 @@ export async function GET(
     const { data: schedules } = await supabase
       .from('schedules')
       .select('*, members(id, name)')
-      .eq('areaId', params.id)
+      .eq('areaid', params.id)
       .order('date', { ascending: false })
       .limit(10)
 
@@ -29,20 +28,20 @@ export async function GET(
     const { data: reports } = await supabase
       .from('reports')
       .select('*, members(id, name)')
-      .eq('areaId', params.id)
-      .order('submittedAt', { ascending: false })
+      .eq('areaid', params.id)
+      .order('submittedat', { ascending: false })
       .limit(10)
 
     // Get counts
     const { count: schedulesCount } = await supabase
       .from('schedules')
       .select('id', { count: 'exact', head: true })
-      .eq('areaId', params.id)
+      .eq('areaid', params.id)
 
     const { count: reportsCount } = await supabase
       .from('reports')
       .select('id', { count: 'exact', head: true })
-      .eq('areaId', params.id)
+      .eq('areaid', params.id)
 
     const result = {
       ...area,
@@ -88,7 +87,7 @@ export async function PUT(
       .update({
         name: name.trim(),
         description: description?.trim() || null,
-        assignedTo: assignedTo?.trim() || null,
+        assignedto: assignedTo?.trim() || null,
       })
       .eq('id', params.id)
       .select()
