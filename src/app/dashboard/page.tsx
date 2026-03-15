@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic'
-import DashboardLayout from '@/components/layout/DashboardLayout'
+import DashboardLayout from '../../components/layout/DashboardLayout'
 import { formatDistanceToNow } from 'date-fns'
 import { zhTW } from 'date-fns/locale'
 

@@ -1,35 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '../../../lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
     const areaId = searchParams.get('areaId')
     const memberId = searchParams.get('memberId')
-    const status = searchParams.get('status')
-    const from = searchParams.get('from')
-    const to = searchParams.get('to')
 
-    const schedules = await supabase.from("schedules").findMany({
-      where: {
-        ...(areaId ? { areaId } : {}),
-        ...(memberId ? { memberId } : {}),
-        ...(status ? { status } : {}),
-        ...(from || to
-          ? {
-              date: {
-                ...(from ? { gte: new Date(from) } : {}),
-                ...(to ? { lte: new Date(to) } : {}),
-              },
-            }
-          : {}),
-      },
-      include: {
-        area: { select: { id: true, name: true } },
-        member: { select: { id: true, name: true } },
-      },
-      orderBy: { date: 'desc' },
-    })
+    let query = supabase
+      .from('schedules')
+      .select('*, areas(id, name), members(id, name)')
+
+    if (status) {
+      query = query.eq('status', status)
+    }
+
+    if (areaId) {
+      query = query.eq('areaid', areaId)
+    }
+
+    if (memberId) {
+      query = query.eq('memberid', memberId)
+    }
+
+    const { data: schedules, error } = await query.order('date', { ascending: false })
+
+    if (error) throw error
 
     return NextResponse.json(schedules)
   } catch (error) {
@@ -41,27 +38,26 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { areaId, memberId, date, timeSlot, notes } = body
+    const { areaId, memberId, date, timeSlot, status, notes } = body
 
-    if (!areaId) return NextResponse.json({ error: '區域為必填' }, { status: 400 })
-    if (!memberId) return NextResponse.json({ error: '成員為必填' }, { status: 400 })
-    if (!date) return NextResponse.json({ error: '日期為必填' }, { status: 400 })
-    if (!timeSlot) return NextResponse.json({ error: '時段為必填' }, { status: 400 })
+    if (!areaId?.trim() || !memberId?.trim() || !date) {
+      return NextResponse.json({ error: '區域、成員和日期為必填' }, { status: 400 })
+    }
 
-    const schedule = await supabase.from("schedules").create({
-      data: {
-        areaId,
-        memberId,
-        date: new Date(date),
-        timeSlot,
+    const { data: schedule, error } = await supabase
+      .from('schedules')
+      .insert({
+        areaid: areaId.trim(),
+        memberid: memberId.trim(),
+        date: new Date(date).toISOString(),
+        timeslot: timeSlot || 'morning',
+        status: status || 'scheduled',
         notes: notes?.trim() || null,
-        status: 'scheduled',
-      },
-      include: {
-        area: { select: { id: true, name: true } },
-        member: { select: { id: true, name: true } },
-      },
-    })
+      })
+      .select()
+      .single()
+
+    if (error) throw error
 
     return NextResponse.json(schedule, { status: 201 })
   } catch (error) {

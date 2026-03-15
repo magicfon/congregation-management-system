@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase'
+import { supabase } from '../../../../lib/supabase-server'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const schedule = await supabase.from("schedules").findUnique({
-      where: { id: params.id },
-      include: {
-        area: { select: { id: true, name: true } },
-        member: { select: { id: true, name: true } },
-      },
-    })
+    const { data: schedule, error } = await supabase
+      .from('schedules')
+      .select('*, areas(id, name), members(id, name)')
+      .eq('id', params.id)
+      .single()
 
-    if (!schedule) return NextResponse.json({ error: '排班不存在' }, { status: 404 })
+    if (error || !schedule) {
+      return NextResponse.json({ error: '排班不存在' }, { status: 404 })
+    }
 
     return NextResponse.json(schedule)
   } catch (error) {
@@ -29,34 +29,29 @@ export async function PUT(
 ) {
   try {
     const body = await request.json()
-    const { areaId, memberId, date, timeSlot, status, notes } = body
+    const { status, notes } = body
 
-    const existing = await supabase.from("schedules").findUnique({ where: { id: params.id } })
-    if (!existing) return NextResponse.json({ error: '排班不存在' }, { status: 404 })
+    const { data: existing } = await supabase
+      .from('schedules')
+      .select('id, status')
+      .eq('id', params.id)
+      .single()
 
-    const schedule = await supabase.from("schedules").update({
-      where: { id: params.id },
-      data: {
-        ...(areaId ? { areaId } : {}),
-        ...(memberId ? { memberId } : {}),
-        ...(date ? { date: new Date(date) } : {}),
-        ...(timeSlot ? { timeSlot } : {}),
-        ...(status ? { status } : {}),
-        notes: notes !== undefined ? (notes?.trim() || null) : existing.notes,
-      },
-      include: {
-        area: { select: { id: true, name: true } },
-        member: { select: { id: true, name: true } },
-      },
-    })
-
-    // Update area lastActivityAt when schedule is completed
-    if (status === 'completed') {
-      await supabase.from("areas").update({
-        where: { id: schedule.areaId },
-        data: { lastActivityAt: new Date() },
-      })
+    if (!existing) {
+      return NextResponse.json({ error: '排班不存在' }, { status: 404 })
     }
+
+    const { data: schedule, error } = await supabase
+      .from('schedules')
+      .update({
+        status: status || existing.status,
+        notes: notes?.trim() || null,
+      })
+      .eq('id', params.id)
+      .select()
+      .single()
+
+    if (error) throw error
 
     return NextResponse.json(schedule)
   } catch (error) {
@@ -70,10 +65,22 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const existing = await supabase.from("schedules").findUnique({ where: { id: params.id } })
-    if (!existing) return NextResponse.json({ error: '排班不存在' }, { status: 404 })
+    const { data: existing } = await supabase
+      .from('schedules')
+      .select('id')
+      .eq('id', params.id)
+      .single()
 
-    await supabase.from("schedules").delete({ where: { id: params.id } })
+    if (!existing) {
+      return NextResponse.json({ error: '排班不存在' }, { status: 404 })
+    }
+
+    const { error } = await supabase
+      .from('schedules')
+      .delete()
+      .eq('id', params.id)
+
+    if (error) throw error
 
     return NextResponse.json({ message: '排班已刪除' })
   } catch (error) {

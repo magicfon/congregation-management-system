@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase'
+import { supabase } from '../../../../lib/supabase-server'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const report = await supabase.from("reports").findUnique({
-      where: { id: params.id },
-      include: {
-        area: { select: { id: true, name: true } },
-        member: { select: { id: true, name: true } },
-      },
-    })
+    const { data: report, error } = await supabase
+      .from('reports')
+      .select('*, areas(id, name), members(id, name)')
+      .eq('id', params.id)
+      .single()
 
-    if (!report) return NextResponse.json({ error: '回報不存在' }, { status: 404 })
+    if (error || !report) {
+      return NextResponse.json({ error: '回報不存在' }, { status: 404 })
+    }
 
     return NextResponse.json(report)
   } catch (error) {
@@ -29,30 +29,30 @@ export async function PUT(
 ) {
   try {
     const body = await request.json()
-    const { content, status, reviewedBy } = body
+    const { status, reviewedBy, reviewedAt } = body
 
-    const existing = await supabase.from("reports").findUnique({ where: { id: params.id } })
-    if (!existing) return NextResponse.json({ error: '回報不存在' }, { status: 404 })
+    const { data: existing } = await supabase
+      .from('reports')
+      .select('id, status')
+      .eq('id', params.id)
+      .single()
 
-    const isReviewing = status === 'reviewed' || status === 'approved'
+    if (!existing) {
+      return NextResponse.json({ error: '回報不存在' }, { status: 404 })
+    }
 
-    const report = await supabase.from("reports").update({
-      where: { id: params.id },
-      data: {
-        ...(content !== undefined ? { content: content.trim() } : {}),
-        ...(status ? { status } : {}),
-        ...(isReviewing
-          ? {
-              reviewedBy: reviewedBy ?? existing.reviewedBy,
-              reviewedAt: existing.reviewedAt ?? new Date(),
-            }
-          : {}),
-      },
-      include: {
-        area: { select: { id: true, name: true } },
-        member: { select: { id: true, name: true } },
-      },
-    })
+    const { data: report, error } = await supabase
+      .from('reports')
+      .update({
+        status: status || existing.status,
+        reviewedby: reviewedBy?.trim() || null,
+        reviewedat: reviewedAt ? new Date(reviewedAt).toISOString() : null,
+      })
+      .eq('id', params.id)
+      .select()
+      .single()
+
+    if (error) throw error
 
     return NextResponse.json(report)
   } catch (error) {
@@ -66,10 +66,22 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const existing = await supabase.from("reports").findUnique({ where: { id: params.id } })
-    if (!existing) return NextResponse.json({ error: '回報不存在' }, { status: 404 })
+    const { data: existing } = await supabase
+      .from('reports')
+      .select('id')
+      .eq('id', params.id)
+      .single()
 
-    await supabase.from("reports").delete({ where: { id: params.id } })
+    if (!existing) {
+      return NextResponse.json({ error: '回報不存在' }, { status: 404 })
+    }
+
+    const { error } = await supabase
+      .from('reports')
+      .delete()
+      .eq('id', params.id)
+
+    if (error) throw error
 
     return NextResponse.json({ message: '回報已刪除' })
   } catch (error) {

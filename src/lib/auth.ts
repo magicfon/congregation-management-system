@@ -2,6 +2,7 @@ import { type NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { compare } from 'bcryptjs'
 import { supabase } from './supabase'
+import { supabase as supabaseServer } from './supabase-server'
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -11,7 +12,9 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   providers: [
+    // Email / password login
     CredentialsProvider({
+      id: 'credentials',
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -34,6 +37,37 @@ export const authOptions: NextAuthOptions = {
 
         const isPasswordValid = await compare(credentials.password, member.password)
         if (!isPasswordValid) {
+          return null
+        }
+
+        return {
+          id: member.id,
+          email: member.email,
+          name: member.name,
+          role: member.role,
+        }
+      },
+    }),
+
+    // LINE LIFF login — authenticates by LINE UID stored in members.lineuid
+    CredentialsProvider({
+      id: 'line',
+      name: 'LINE',
+      credentials: {
+        lineuid: { label: 'LINE UID', type: 'text' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.lineuid) {
+          return null
+        }
+
+        const { data: member, error } = await supabaseServer
+          .from('members')
+          .select('*')
+          .eq('lineuid', credentials.lineuid)
+          .single()
+
+        if (error || !member || !member.active) {
           return null
         }
 
