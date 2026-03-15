@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const report = await prisma.report.findUnique({
+    const report = await supabase.from("reports").findUnique({
       where: { id: params.id },
       include: {
         area: { select: { id: true, name: true } },
@@ -31,12 +31,12 @@ export async function PUT(
     const body = await request.json()
     const { content, status, reviewedBy } = body
 
-    const existing = await prisma.report.findUnique({ where: { id: params.id } })
+    const existing = await supabase.from("reports").findUnique({ where: { id: params.id } })
     if (!existing) return NextResponse.json({ error: '回報不存在' }, { status: 404 })
 
     const isReviewing = status === 'reviewed' || status === 'approved'
 
-    const report = await prisma.report.update({
+    const report = await supabase.from("reports").update({
       where: { id: params.id },
       data: {
         ...(content !== undefined ? { content: content.trim() } : {}),
@@ -66,10 +66,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const existing = await prisma.report.findUnique({ where: { id: params.id } })
+    const existing = await supabase.from("reports").findUnique({ where: { id: params.id } })
     if (!existing) return NextResponse.json({ error: '回報不存在' }, { status: 404 })
 
-    await prisma.report.delete({ where: { id: params.id } })
+    await supabase.from("reports").delete({ where: { id: params.id } })
 
     return NextResponse.json({ message: '回報已刪除' })
   } catch (error) {

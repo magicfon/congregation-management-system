@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const member = await prisma.member.findUnique({
+    const member = await supabase.from("members").findUnique({
       where: { id: params.id },
       select: {
         id: true,
@@ -41,10 +41,10 @@ export async function PUT(
     if (!name?.trim()) return NextResponse.json({ error: '姓名為必填' }, { status: 400 })
     if (!email?.trim()) return NextResponse.json({ error: '電子郵件為必填' }, { status: 400 })
 
-    const existing = await prisma.member.findUnique({ where: { id: params.id } })
+    const existing = await supabase.from("members").findUnique({ where: { id: params.id } })
     if (!existing) return NextResponse.json({ error: '成員不存在' }, { status: 404 })
 
-    const emailConflict = await prisma.member.findFirst({
+    const emailConflict = await supabase.from("members").findFirst({
       where: { email: email.trim(), NOT: { id: params.id } },
     })
     if (emailConflict) return NextResponse.json({ error: '此電子郵件已被使用' }, { status: 409 })
@@ -61,7 +61,7 @@ export async function PUT(
       updateData.password = await hash(password, 12)
     }
 
-    const member = await prisma.member.update({
+    const member = await supabase.from("members").update({
       where: { id: params.id },
       data: updateData,
       select: {
@@ -87,10 +87,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const existing = await prisma.member.findUnique({ where: { id: params.id } })
+    const existing = await supabase.from("members").findUnique({ where: { id: params.id } })
     if (!existing) return NextResponse.json({ error: '成員不存在' }, { status: 404 })
 
-    await prisma.member.delete({ where: { id: params.id } })
+    await supabase.from("members").delete({ where: { id: params.id } })
 
     return NextResponse.json({ message: '成員已刪除' })
   } catch (error) {

@@ -9,18 +9,18 @@ export async function GET() {
 
     // Summary counts
     const [totalAreas, totalMembers, activeMembers, totalSchedules, totalReports] = await Promise.all([
-      prisma.area.count(),
-      prisma.member.count(),
-      prisma.member.count({ where: { active: true } }),
-      prisma.schedule.count(),
-      prisma.report.count(),
+      supabase.from("areas").count(),
+      supabase.from("members").count(),
+      supabase.from("members").count({ where: { active: true } }),
+      supabase.from("schedules").count(),
+      supabase.from("reports").count(),
     ])
 
     const [completedSchedules, cancelledSchedules, pendingReports, approvedReports] = await Promise.all([
-      prisma.schedule.count({ where: { status: 'completed' } }),
-      prisma.schedule.count({ where: { status: 'cancelled' } }),
-      prisma.report.count({ where: { status: 'pending' } }),
-      prisma.report.count({ where: { status: 'approved' } }),
+      supabase.from("schedules").count({ where: { status: 'completed' } }),
+      supabase.from("schedules").count({ where: { status: 'cancelled' } }),
+      supabase.from("reports").count({ where: { status: 'pending' } }),
+      supabase.from("reports").count({ where: { status: 'approved' } }),
     ])
 
     const pendingSchedules = totalSchedules - completedSchedules - cancelledSchedules
@@ -28,7 +28,7 @@ export async function GET() {
     const approvalRate = totalReports > 0 ? Math.round((approvedReports / totalReports) * 100) : 0
 
     // Area activity with idle detection
-    const areas = await prisma.area.findMany({
+    const areas = await supabase.from("areas").findMany({
       include: {
         _count: { select: { schedules: true, reports: true } },
       },
@@ -39,7 +39,7 @@ export async function GET() {
     const memberIds = areas.map((a) => a.assignedTo).filter(Boolean) as string[]
     const memberMap: Record<string, string> = {}
     if (memberIds.length > 0) {
-      const membersData = await prisma.member.findMany({
+      const membersData = await supabase.from("members").findMany({
         where: { id: { in: memberIds } },
         select: { id: true, name: true },
       })
@@ -66,7 +66,7 @@ export async function GET() {
     const idleAreas = areaActivity.filter((a) => a.isIdle)
 
     // Member activity
-    const memberActivity = await prisma.member.findMany({
+    const memberActivity = await supabase.from("members").findMany({
       where: { active: true },
       select: {
         id: true,
@@ -94,13 +94,13 @@ export async function GET() {
       weekEnd.setDate(weekEnd.getDate() + 7)
 
       const [scheduled, completed, cancelled] = await Promise.all([
-        prisma.schedule.count({
+        supabase.from("schedules").count({
           where: { date: { gte: weekStart, lt: weekEnd }, status: 'scheduled' },
         }),
-        prisma.schedule.count({
+        supabase.from("schedules").count({
           where: { date: { gte: weekStart, lt: weekEnd }, status: 'completed' },
         }),
-        prisma.schedule.count({
+        supabase.from("schedules").count({
           where: { date: { gte: weekStart, lt: weekEnd }, status: 'cancelled' },
         }),
       ])

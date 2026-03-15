@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const schedule = await prisma.schedule.findUnique({
+    const schedule = await supabase.from("schedules").findUnique({
       where: { id: params.id },
       include: {
         area: { select: { id: true, name: true } },
@@ -31,10 +31,10 @@ export async function PUT(
     const body = await request.json()
     const { areaId, memberId, date, timeSlot, status, notes } = body
 
-    const existing = await prisma.schedule.findUnique({ where: { id: params.id } })
+    const existing = await supabase.from("schedules").findUnique({ where: { id: params.id } })
     if (!existing) return NextResponse.json({ error: '排班不存在' }, { status: 404 })
 
-    const schedule = await prisma.schedule.update({
+    const schedule = await supabase.from("schedules").update({
       where: { id: params.id },
       data: {
         ...(areaId ? { areaId } : {}),
@@ -52,7 +52,7 @@ export async function PUT(
 
     // Update area lastActivityAt when schedule is completed
     if (status === 'completed') {
-      await prisma.area.update({
+      await supabase.from("areas").update({
         where: { id: schedule.areaId },
         data: { lastActivityAt: new Date() },
       })
@@ -70,10 +70,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const existing = await prisma.schedule.findUnique({ where: { id: params.id } })
+    const existing = await supabase.from("schedules").findUnique({ where: { id: params.id } })
     if (!existing) return NextResponse.json({ error: '排班不存在' }, { status: 404 })
 
-    await prisma.schedule.delete({ where: { id: params.id } })
+    await supabase.from("schedules").delete({ where: { id: params.id } })
 
     return NextResponse.json({ message: '排班已刪除' })
   } catch (error) {

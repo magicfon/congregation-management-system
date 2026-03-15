@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from')
     const to = searchParams.get('to')
 
-    const schedules = await prisma.schedule.findMany({
+    const schedules = await supabase.from("schedules").findMany({
       where: {
         ...(areaId ? { areaId } : {}),
         ...(memberId ? { memberId } : {}),
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     if (!date) return NextResponse.json({ error: '日期為必填' }, { status: 400 })
     if (!timeSlot) return NextResponse.json({ error: '時段為必填' }, { status: 400 })
 
-    const schedule = await prisma.schedule.create({
+    const schedule = await supabase.from("schedules").create({
       data: {
         areaId,
         memberId,

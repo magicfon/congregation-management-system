@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const memberId = searchParams.get('memberId')
     const status = searchParams.get('status')
 
-    const reports = await prisma.report.findMany({
+    const reports = await supabase.from("reports").findMany({
       where: {
         ...(areaId ? { areaId } : {}),
         ...(memberId ? { memberId } : {}),
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (!memberId) return NextResponse.json({ error: '成員為必填' }, { status: 400 })
     if (!content?.trim()) return NextResponse.json({ error: '回報內容為必填' }, { status: 400 })
 
-    const report = await prisma.report.create({
+    const report = await supabase.from("reports").create({
       data: {
         areaId,
         memberId,
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Update area lastActivityAt on new report
-    await prisma.area.update({
+    await supabase.from("areas").update({
       where: { id: areaId },
       data: { lastActivityAt: new Date() },
     })

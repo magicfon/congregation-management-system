@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get('role')
     const activeParam = searchParams.get('active')
 
-    const members = await prisma.member.findMany({
+    const members = await supabase.from("members").findMany({
       where: {
         ...(search
           ? {
@@ -55,12 +55,12 @@ export async function POST(request: NextRequest) {
     if (!password || password.length < 6) return NextResponse.json({ error: '密碼至少需要 6 個字元' }, { status: 400 })
     if (!role) return NextResponse.json({ error: '角色為必填' }, { status: 400 })
 
-    const existing = await prisma.member.findUnique({ where: { email: email.trim() } })
+    const existing = await supabase.from("members").findUnique({ where: { email: email.trim() } })
     if (existing) return NextResponse.json({ error: '此電子郵件已被使用' }, { status: 409 })
 
     const hashedPassword = await hash(password, 12)
 
-    const member = await prisma.member.create({
+    const member = await supabase.from("members").create({
       data: {
         name: name.trim(),
         email: email.trim(),
