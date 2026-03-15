@@ -3,6 +3,10 @@ import { supabase } from '../../../lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('=== API /areas GET ===')
+    console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+    console.log('Has Secret Key:', !!process.env.SUPABASE_SECRET_KEY)
+
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
 
@@ -16,7 +20,12 @@ export async function GET(request: NextRequest) {
 
     const { data: areas, error } = await query.order('createdAt', { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase query error:', error)
+      throw error
+    }
+
+    console.log('Found areas:', areas?.length || 0)
 
     // Get counts for each area
     const areasWithCounts = await Promise.all(
@@ -25,7 +34,7 @@ export async function GET(request: NextRequest) {
           supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('areaId', area.id),
           supabase.from('reports').select('id', { count: 'exact', head: true }).eq('areaId', area.id)
         ])
-        
+
         return {
           ...area,
           _count: {
@@ -39,7 +48,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(areasWithCounts)
   } catch (error) {
     console.error('GET /api/areas error:', error)
-    return NextResponse.json({ error: '無法取得區域列表' }, { status: 500 })
+    return NextResponse.json({
+      error: '無法取得區域列表',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      env: {
+        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasKey: !!process.env.SUPABASE_SECRET_KEY
+      }
+    }, { status: 500 })
   }
 }
 
