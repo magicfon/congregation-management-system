@@ -33,26 +33,26 @@ export default async function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-mc-text">儀表板</h1>
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-xl md:text-2xl font-bold text-mc-text">儀表板</h1>
           <p className="text-mc-text/50 text-sm mt-1">會眾服務管理總覽</p>
         </div>
 
         {/* Stats grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           {stats.map((stat) => (
-            <div key={stat.label} className={`bg-mc-card border rounded-xl p-5 ${stat.bg}`}>
-              <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
-              <div className="text-mc-text/60 text-sm mt-1">{stat.label}</div>
+            <div key={stat.label} className={`bg-mc-card border rounded-xl p-4 md:p-5 ${stat.bg}`}>
+              <div className={`text-2xl md:text-3xl font-bold ${stat.color}`}>{stat.value}</div>
+              <div className="text-mc-text/60 text-xs md:text-sm mt-1">{stat.label}</div>
             </div>
           ))}
         </div>
 
         {/* Recent idle areas */}
-        <div className="bg-mc-card border border-mc-border rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-mc-text mb-4">閒置區域警告</h2>
+        <div className="bg-mc-card border border-white/5 rounded-xl p-4 md:p-6">
+          <h2 className="text-base md:text-lg font-semibold text-mc-text mb-4">閒置區域警告</h2>
           <div className="space-y-3">
             {recentAreas.length === 0 ? (
               <p className="text-mc-text/50 text-sm">暫無閒置區域</p>
@@ -62,14 +62,14 @@ export default async function DashboardPage() {
                   (Date.now() - new Date(area.lastactivityat).getTime()) / (1000 * 60 * 60 * 24)
                 )
                 return (
-                  <div key={area.id} className="flex items-center justify-between py-2 border-b border-mc-border last:border-0">
+                  <div key={area.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                     <div>
-                      <div className="text-mc-text">{area.name}</div>
+                      <div className="text-sm text-mc-text">{area.name}</div>
                       {area.assignedto && (
-                        <div className="text-sm text-mc-text/50">負責人：{area.assignedto}</div>
+                        <div className="text-xs text-mc-text/50">負責人：{area.assignedto}</div>
                       )}
                     </div>
-                    <div className="text-sm text-mc-warning">
+                    <div className="text-sm text-mc-warning shrink-0 ml-4">
                       {daysInactive > 30 ? (
                         <span className="text-red-400">已閒置 {daysInactive} 天</span>
                       ) : (

@@ -192,26 +192,27 @@ export default function AreasPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6 md:mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-mc-text">區域管理</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-mc-text">區域管理</h1>
             <p className="text-mc-text/50 text-sm mt-1">管理所有服務區域</p>
           </div>
           <button
             onClick={() => setModalArea(null)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-mc-highlight hover:bg-blue-700 text-white text-sm font-medium transition-colors border border-blue-500/30"
+            className="flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-lg bg-mc-highlight hover:bg-blue-700 text-white text-sm font-medium transition-colors border border-blue-500/30 min-h-[44px]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            新增區域
+            <span className="hidden sm:inline">新增區域</span>
+            <span className="sm:hidden">新增</span>
           </button>
         </div>
 
         {/* Search */}
-        <div className="relative mb-6">
+        <div className="relative mb-4 md:mb-6">
           <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-mc-text/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -219,18 +220,78 @@ export default function AreasPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="搜尋區域名稱或描述…"
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-mc-card border border-white/5 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/40 transition-colors text-sm"
+            className="w-full pl-10 pr-4 py-3 md:py-2.5 rounded-lg bg-mc-card border border-white/5 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/40 transition-colors text-sm min-h-[44px]"
           />
         </div>
 
-        {/* Table */}
-        <div className="bg-mc-card border border-white/5 rounded-xl overflow-hidden">
+        {/* Mobile card list */}
+        <div className="md:hidden space-y-3">
+          {loading ? (
+            <div className="text-center py-16 text-mc-text/30 text-sm">載入中…</div>
+          ) : areas.length === 0 ? (
+            <div className="text-center py-16 text-mc-text/30 text-sm">
+              {search ? '找不到符合的區域' : '尚無區域資料，點擊「新增」開始'}
+            </div>
+          ) : (
+            areas.map((area) => {
+              const idle = daysSince(area.lastActivityAt)
+              const isIdle = idle >= 30
+              return (
+                <div key={area.id} className="bg-mc-card border border-white/5 rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${isIdle ? 'bg-mc-warning' : 'bg-mc-success'}`} />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-mc-text">{area.name}</div>
+                        {area.description && (
+                          <div className="text-xs text-mc-text/40 mt-0.5 line-clamp-2">{area.description}</div>
+                        )}
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+                          <span className="text-xs text-mc-text/50">負責人：{area.assignedTo ?? '—'}</span>
+                          <span className={`text-xs ${isIdle ? 'text-mc-warning' : 'text-mc-text/50'}`}>
+                            {idle === 0 ? '今天活動' : `${idle} 天前`}{isIdle ? ' · 閒置警告' : ''}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => setModalArea(area)}
+                        className="p-2.5 rounded-lg border border-white/10 text-mc-text/60 hover:text-mc-text hover:bg-mc-accent transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+                        aria-label="編輯"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setDeleteArea(area)}
+                        className="p-2.5 rounded-lg border border-mc-error/20 text-mc-error/70 hover:text-mc-error hover:bg-mc-error/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+                        aria-label="刪除"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+          {!loading && areas.length > 0 && (
+            <div className="text-xs text-mc-text/30 text-center py-2">共 {areas.length} 個區域</div>
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block bg-mc-card border border-white/5 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5 bg-mc-accent/50">
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">區域名稱</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider hidden md:table-cell">負責人</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">負責人</th>
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider hidden lg:table-cell">排班 / 回報</th>
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">最後活動</th>
                   <th className="text-right px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">操作</th>
@@ -264,7 +325,7 @@ export default function AreasPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4 hidden md:table-cell">
+                        <td className="px-5 py-4">
                           <span className="text-sm text-mc-text/60">{area.assignedTo ?? '—'}</span>
                         </td>
                         <td className="px-5 py-4 hidden lg:table-cell">

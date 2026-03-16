@@ -222,27 +222,28 @@ export default function MembersPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6 md:mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-mc-text">成員管理</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-mc-text">成員管理</h1>
             <p className="text-mc-text/50 text-sm mt-1">管理會眾成員帳號</p>
           </div>
           <button
             onClick={() => setModalMember(null)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-mc-highlight hover:bg-blue-700 text-white text-sm font-medium transition-colors border border-blue-500/30"
+            className="flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-lg bg-mc-highlight hover:bg-blue-700 text-white text-sm font-medium transition-colors border border-blue-500/30 min-h-[44px]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            新增成員
+            <span className="hidden sm:inline">新增成員</span>
+            <span className="sm:hidden">新增</span>
           </button>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <div className="relative flex-1 min-w-48">
+        <div className="space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-3 mb-4 md:mb-6">
+          <div className="relative md:flex-1 md:min-w-48">
             <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-mc-text/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -250,15 +251,15 @@ export default function MembersPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="搜尋姓名、郵件或電話…"
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-mc-card border border-white/5 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/40 transition-colors text-sm"
+              className="w-full pl-10 pr-4 py-3 md:py-2.5 rounded-lg bg-mc-card border border-white/5 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/40 transition-colors text-sm min-h-[44px]"
             />
           </div>
-          <div className="flex gap-2">
-            {[['', '全部角色'], ['publisher', '傳道員'], ['elder', '長老'], ['admin', '管理員']].map(([val, label]) => (
+          <div className="flex items-center gap-2 flex-wrap">
+            {[['', '全部'], ['publisher', '傳道員'], ['elder', '長老'], ['admin', '管理員']].map(([val, label]) => (
               <button
                 key={val}
                 onClick={() => setFilterRole(val)}
-                className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
+                className={`px-3 py-2 rounded-lg text-sm border transition-colors min-h-[44px] ${
                   filterRole === val
                     ? 'bg-mc-highlight text-white border-blue-500/30'
                     : 'border-white/10 text-mc-text/60 hover:text-mc-text hover:bg-mc-accent'
@@ -267,26 +268,94 @@ export default function MembersPage() {
                 {label}
               </button>
             ))}
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-mc-text/50 hover:text-mc-text transition-colors min-h-[44px] px-1">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="w-4 h-4 accent-blue-500"
+              />
+              已停用
+            </label>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-mc-text/50 hover:text-mc-text transition-colors">
-            <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-              className="accent-blue-500"
-            />
-            顯示已停用
-          </label>
         </div>
 
-        {/* Table */}
-        <div className="bg-mc-card border border-white/5 rounded-xl overflow-hidden">
+        {/* Mobile card list */}
+        <div className="md:hidden space-y-3">
+          {loading ? (
+            <div className="text-center py-16 text-mc-text/30 text-sm">載入中…</div>
+          ) : members.length === 0 ? (
+            <div className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</div>
+          ) : (
+            members.map((m) => (
+              <div key={m.id} className={`bg-mc-card border border-white/5 rounded-xl p-4 ${!m.active ? 'opacity-60' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${ROLE_COLORS[m.role]}`}>
+                      {m.name.slice(0, 1)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-mc-text">{m.name}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${ROLE_COLORS[m.role] ?? 'text-mc-text/50 bg-white/5 border-white/10'}`}>
+                          {ROLE_LABELS[m.role] ?? m.role}
+                        </span>
+                        {!m.active && <span className="text-xs text-mc-text/30">已停用</span>}
+                      </div>
+                      <div className="text-xs text-mc-text/50 mt-0.5 truncate">{m.email}</div>
+                      {m.phone && <div className="text-xs text-mc-text/40">{m.phone}</div>}
+                      <div className="text-xs text-mc-text/40 mt-1">
+                        {m._count.schedules} 排班 · {m._count.reports} 回報
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={() => setModalMember(m)}
+                      className="p-2.5 rounded-lg border border-white/10 text-mc-text/60 hover:text-mc-text hover:bg-mc-accent transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+                      aria-label="編輯"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleToggleActive(m)}
+                      className={`p-2.5 rounded-lg border transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center ${
+                        m.active
+                          ? 'border-mc-error/20 text-mc-error/70 hover:text-mc-error hover:bg-mc-error/10'
+                          : 'border-mc-success/20 text-mc-success/70 hover:text-mc-success hover:bg-mc-success/10'
+                      }`}
+                      aria-label={m.active ? '停用' : '啟用'}
+                    >
+                      {m.active ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+          {!loading && members.length > 0 && (
+            <div className="text-xs text-mc-text/30 text-center py-2">共 {members.length} 位成員</div>
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block bg-mc-card border border-white/5 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5 bg-mc-accent/50">
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">姓名</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider hidden md:table-cell">聯絡方式</th>
+                  <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">聯絡方式</th>
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">角色</th>
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider hidden lg:table-cell">活動記錄</th>
                   <th className="text-right px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">操作</th>
@@ -311,7 +380,7 @@ export default function MembersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 hidden md:table-cell">
+                      <td className="px-5 py-4">
                         <div className="text-xs text-mc-text/50">{m.email}</div>
                         {m.phone && <div className="text-xs text-mc-text/40">{m.phone}</div>}
                       </td>
