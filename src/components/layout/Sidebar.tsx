@@ -70,30 +70,37 @@ const navItems = [
 type Props = {
   open: boolean
   onClose: () => void
+  collapsed: boolean
+  onToggleCollapse: () => void
 }
 
-export default function Sidebar({ open, onClose }: Props) {
+export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: Props) {
   const pathname = usePathname()
 
   return (
     <aside
       className={`
-        fixed left-0 top-0 h-full w-64 bg-mc-card border-r border-white/5 flex flex-col z-30
-        transition-transform duration-300 ease-in-out
+        fixed left-0 top-0 h-full bg-mc-card border-r border-white/5 flex flex-col z-30
+        overflow-hidden
+        transition-[width,transform] duration-200 ease-in-out
+        w-64
         ${open ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0
+        ${collapsed ? 'md:w-16' : 'md:w-64'}
       `}
     >
       {/* Brand */}
-      <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="border-b border-white/5 flex items-center h-[57px] flex-shrink-0">
+        {/* Icon — always visible, centered when collapsed */}
+        <div className={`flex items-center gap-3 transition-[padding] duration-200 ${collapsed ? 'md:px-0 md:justify-center md:w-full px-5' : 'px-5 flex-1'}`}>
           <div className="w-8 h-8 rounded-lg bg-mc-highlight border border-blue-500/30 flex items-center justify-center flex-shrink-0">
             <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </div>
-          <div>
+          {/* Text — hidden when desktop collapsed */}
+          <div className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${collapsed ? 'md:max-w-0 md:opacity-0' : 'max-w-xs opacity-100'}`}>
             <div className="text-sm font-semibold text-mc-text leading-tight">會眾管理系統</div>
             <div className="text-xs text-mc-text/40">Mission Control</div>
           </div>
@@ -102,7 +109,7 @@ export default function Sidebar({ open, onClose }: Props) {
         {/* Close button — mobile only */}
         <button
           onClick={onClose}
-          className="md:hidden p-1.5 rounded-lg text-mc-text/40 hover:text-mc-text hover:bg-mc-accent transition-colors"
+          className="md:hidden mr-3 flex-shrink-0 p-1.5 rounded-lg text-mc-text/40 hover:text-mc-text hover:bg-mc-accent transition-colors"
           aria-label="關閉選單"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,7 +119,7 @@ export default function Sidebar({ open, onClose }: Props) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
           const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
           return (
@@ -120,30 +127,60 @@ export default function Sidebar({ open, onClose }: Props) {
               key={item.href}
               href={item.href}
               onClick={onClose}
-              className={`flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-lg text-sm transition-all ${
+              title={collapsed ? item.label : undefined}
+              className={`flex items-center rounded-lg text-sm transition-all duration-150 ${
                 active
                   ? 'bg-mc-highlight text-white border border-blue-500/30'
                   : 'text-mc-text/60 hover:text-mc-text hover:bg-mc-accent'
-              }`}
+              } ${collapsed ? 'md:justify-center md:px-0 md:py-2.5 gap-3 px-3 py-3' : 'gap-3 px-3 py-3 md:py-2.5'}`}
             >
               <span className={`flex-shrink-0 ${active ? 'text-blue-400' : ''}`}>{item.icon}</span>
-              {item.label}
+              <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${collapsed ? 'md:max-w-0 md:opacity-0' : 'max-w-xs opacity-100'}`}>
+                {item.label}
+              </span>
             </Link>
           )
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-3 pb-4 border-t border-white/5 pt-4">
+      {/* Desktop collapse toggle */}
+      <div className="hidden md:block px-2 py-2 border-t border-white/5">
+        <button
+          onClick={onToggleCollapse}
+          title={collapsed ? '展開側邊欄' : '收起側邊欄'}
+          className={`w-full flex items-center rounded-lg py-2.5 text-mc-text/40 hover:text-mc-text hover:bg-mc-accent transition-colors ${
+            collapsed ? 'justify-center px-0' : 'gap-3 px-3'
+          }`}
+        >
+          <svg
+            className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+          </svg>
+          <span className={`text-sm overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${collapsed ? 'max-w-0 opacity-0' : 'max-w-xs opacity-100'}`}>
+            收起側邊欄
+          </span>
+        </button>
+      </div>
+
+      {/* Footer — logout */}
+      <div className="px-2 pb-3 pt-1">
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
-          className="w-full flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-lg text-sm text-mc-text/50 hover:text-mc-error hover:bg-mc-error/10 transition-all"
+          title={collapsed ? '登出' : undefined}
+          className={`w-full flex items-center rounded-lg py-3 md:py-2.5 text-sm text-mc-text/50 hover:text-mc-error hover:bg-mc-error/10 transition-all ${
+            collapsed ? 'md:justify-center md:px-0 gap-3 px-3' : 'gap-3 px-3'
+          }`}
         >
           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          登出
+          <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${collapsed ? 'md:max-w-0 md:opacity-0' : 'max-w-xs opacity-100'}`}>
+            登出
+          </span>
         </button>
       </div>
     </aside>

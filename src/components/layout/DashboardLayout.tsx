@@ -4,14 +4,28 @@ import { useState } from 'react'
 import Sidebar from './Sidebar'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Desktop collapse — persisted to localStorage
+  const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('sidebar-collapsed') === 'true'
+  })
+
+  function toggleCollapse() {
+    setDesktopCollapsed((prev) => {
+      const next = !prev
+      localStorage.setItem('sidebar-collapsed', String(next))
+      return next
+    })
+  }
 
   return (
     <div className="min-h-screen bg-mc-bg">
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-mc-card border-b border-white/5 flex items-center gap-3 px-4 z-20">
         <button
-          onClick={() => setSidebarOpen(true)}
+          onClick={() => setMobileOpen(true)}
           className="p-2 rounded-lg text-mc-text/60 hover:text-mc-text hover:bg-mc-accent transition-colors"
           aria-label="開啟選單"
         >
@@ -31,16 +45,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </header>
 
       {/* Backdrop — mobile only */}
-      {sidebarOpen && (
+      {mobileOpen && (
         <div
           className="md:hidden fixed inset-0 bg-black/60 z-20"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setMobileOpen(false)}
         />
       )}
 
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        collapsed={desktopCollapsed}
+        onToggleCollapse={toggleCollapse}
+      />
 
-      <main className="md:ml-64 pt-14 md:pt-0 min-h-screen overflow-auto">
+      {/* Main — shifts right when desktop sidebar expands/collapses */}
+      <main
+        className={`pt-14 md:pt-0 min-h-screen overflow-auto transition-[margin] duration-200 ease-in-out ${
+          desktopCollapsed ? 'md:ml-16' : 'md:ml-64'
+        }`}
+      >
         {children}
       </main>
     </div>
