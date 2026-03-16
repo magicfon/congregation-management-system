@@ -1,16 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   // Desktop collapse — persisted to localStorage
-  const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem('sidebar-collapsed') === 'true'
-  })
+  // Start with false on both server and client to avoid hydration mismatch,
+  // then read localStorage after hydration via useEffect.
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false)
+
+  useEffect(() => {
+    setDesktopCollapsed(localStorage.getItem('sidebar-collapsed') === 'true')
+  }, [])
 
   function toggleCollapse() {
     setDesktopCollapsed((prev) => {
