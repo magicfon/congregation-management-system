@@ -55,10 +55,14 @@ export const authOptions: NextAuthOptions = {
     }),
 
     // ── LINE OAuth ────────────────────────────────────────────────────────────
-    LineProvider({
-      clientId: process.env.LINE_CLIENT_ID ?? '',
-      clientSecret: process.env.LINE_CLIENT_SECRET ?? '',
-    }),
+    // Only register the provider when credentials are set; an empty clientId
+    // causes NextAuth to throw "server configuration" errors at startup.
+    ...(process.env.LINE_CLIENT_ID && process.env.LINE_CLIENT_SECRET
+      ? [LineProvider({
+          clientId: process.env.LINE_CLIENT_ID,
+          clientSecret: process.env.LINE_CLIENT_SECRET,
+        })]
+      : []),
   ],
 
   callbacks: {
