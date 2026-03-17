@@ -15,6 +15,7 @@ type MemberRow = {
 }
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET || 'OpenClaw2026Secret',
   session: {
     strategy: 'jwt',
   },
