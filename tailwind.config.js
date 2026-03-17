@@ -8,15 +8,10 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Mission Control Dark Theme
-        'mc-bg': '#0F0F23',
-        'mc-card': '#1A1A2E',
-        'mc-accent': '#16213E',
-        'mc-highlight': '#0F3460',
-        'mc-text': '#E8E8E8',
-        'mc-success': '#4ADE80',
-        'mc-warning': '#FBBF24',
-        'mc-error': '#F87171',
+        'mc-bg': 'hsl(240, 10%, 3.9%)',
+        'mc-surface': 'hsl(240, 10%, 5.5%)',
+        'mc-border': 'hsl(240, 10%, 10%)',
+        'mc-text': 'hsl(0, 0%, 90%)',
       },
     },
   },
