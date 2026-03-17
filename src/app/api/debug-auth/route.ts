@@ -15,7 +15,7 @@ export async function GET() {
     // 嘗試導入 auth.ts
     let authImport = 'SUCCESS'
     try {
-      const { authOptions } = await import('@/lib/auth')
+      const { authOptions } = await import('../../../lib/auth')
       authImport = `SUCCESS - Providers: ${authOptions.providers.length}`
     } catch (error) {
       authImport = `FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`
