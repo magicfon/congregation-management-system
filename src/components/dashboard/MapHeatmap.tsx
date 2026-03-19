@@ -52,24 +52,24 @@ const MAP_CONFIGS: MapConfig[] = [
     name: '楠梓區',
     range: '1-89',
     image: '/maps/nanzih-1-89.png',
-    bounds: [[0, 0], [1000, 1000]],
-    areaPolygons: generateGridPolygons(1, 89, 10, 9)
+    bounds: [[0, 0], [5512, 7884]], // 实际尺寸：[height, width]
+    areaPolygons: generateGridPolygons(1, 89, 10, 9, 7884, 5512)
   },
   {
     id: 'chiaotou',
     name: '橋頭',
     range: '90-148',
     image: '/maps/chiaotou-90-148.png',
-    bounds: [[0, 0], [1000, 1000]],
-    areaPolygons: generateGridPolygons(90, 148, 8, 8)
+    bounds: [[0, 0], [4534, 4827]], // 实际尺寸
+    areaPolygons: generateGridPolygons(90, 148, 8, 8, 4827, 4534)
   },
   {
     id: 'tzuguan',
     name: '梓官',
     range: '149-213',
     image: '/maps/tzuguan-149-213.png',
-    bounds: [[0, 0], [1000, 1000]],
-    areaPolygons: generateGridPolygons(149, 213, 10, 7)
+    bounds: [[0, 0], [4038, 4828]], // 实际尺寸
+    areaPolygons: generateGridPolygons(149, 213, 10, 7, 4828, 4038)
   }
 ]
 
@@ -78,11 +78,13 @@ function generateGridPolygons(
   startId: number,
   endId: number,
   cols: number,
-  rows: number
+  rows: number,
+  imageWidth: number,
+  imageHeight: number
 ): Record<string, [number, number][]> {
   const polygons: Record<string, [number, number][]> = {}
-  const cellWidth = 1000 / cols
-  const cellHeight = 1000 / rows
+  const cellWidth = imageWidth / cols
+  const cellHeight = imageHeight / rows
   const padding = 20
 
   let currentId = startId
