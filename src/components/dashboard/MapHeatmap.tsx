@@ -51,7 +51,7 @@ const MAP_CONFIGS: MapConfig[] = [
     id: 'nanzih',
     name: '楠梓區',
     range: '1-89',
-    image: '/maps/nanzih-1-89.svg',
+    image: '/maps/nanzih-1-89.png',
     bounds: [[0, 0], [1000, 1000]],
     areaPolygons: generateGridPolygons(1, 89, 10, 9)
   },
@@ -59,7 +59,7 @@ const MAP_CONFIGS: MapConfig[] = [
     id: 'chiaotou',
     name: '橋頭',
     range: '90-148',
-    image: '/maps/chiaotou-90-148.svg',
+    image: '/maps/chiaotou-90-148.png',
     bounds: [[0, 0], [1000, 1000]],
     areaPolygons: generateGridPolygons(90, 148, 8, 8)
   },
@@ -67,7 +67,7 @@ const MAP_CONFIGS: MapConfig[] = [
     id: 'tzuguan',
     name: '梓官',
     range: '149-213',
-    image: '/maps/tzuguan-149-213.svg',
+    image: '/maps/tzuguan-149-213.png',
     bounds: [[0, 0], [1000, 1000]],
     areaPolygons: generateGridPolygons(149, 213, 10, 7)
   }
