@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import DashboardLayout from '../../components/layout/DashboardLayout'
+import IdleHeatmap from '../../components/dashboard/IdleHeatmap'
 import { formatDistanceToNow } from 'date-fns'
 import { zhTW } from 'date-fns/locale'
 
@@ -84,6 +85,11 @@ export default async function DashboardPage() {
               })
             )}
           </div>
+        </div>
+
+        {/* Idle Heatmap */}
+        <div className="mt-6 md:mt-8">
+          <IdleHeatmap />
         </div>
       </div>
     </DashboardLayout>
