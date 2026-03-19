@@ -241,7 +241,9 @@
             <button id="btnDelete" onclick="setMode('delete')">🗑️ 刪除</button>
             <button class="secondary" onclick="undoLast()">↩️ 復原</button>
             <button class="danger" onclick="clearAll()">🗑️ 清除全部</button>
-            <button onclick="exportJSON()">💾 導出 JSON</button>
+            <button class="secondary" onclick="saveToLocalStorage()">💾 保存到本地</button>
+            <button class="secondary" onclick="loadFromLocalStorage()">📂 从本地载入</button>
+            <button onclick="exportJSON()">📤 導出 JSON</button>
             <button onclick="copyToClipboard()">📋 複製</button>
         </div>
         
@@ -270,7 +272,11 @@
             </div>
             
             <div id="selectedInfo" class="selected-info" style="display: none;">
-                <strong>選中區域：</strong><span id="selectedDetails"></span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <strong>選中區域：</strong>
+                    <input type="number" id="editAreaId" style="width: 80px; padding: 4px 8px;" />
+                    <button onclick="updateAreaId()" style="padding: 4px 12px; font-size: 13px;">更新編號</button>
+                </div>
             </div>
             
             <div class="instructions">
@@ -791,12 +797,12 @@
         
         function updateSelectedInfo() {
             const selectedDiv = document.getElementById('selectedInfo');
-            const detailsSpan = document.getElementById('selectedDetails');
+            const editInput = document.getElementById('editAreaId');
             
             if (selectedAreaIndex >= 0) {
                 const area = areas[selectedAreaIndex];
                 selectedDiv.style.display = 'block';
-                detailsSpan.textContent = `ID ${area.id}`;
+                editInput.value = area.id;
                 document.getElementById('selectedArea').textContent = area.id;
             } else {
                 selectedDiv.style.display = 'none';
@@ -873,6 +879,99 @@
             navigator.clipboard.writeText(JSON.stringify(output, null, 2))
                 .then(() => alert('已複製到剪貼板！'))
                 .catch(err => console.error('複製失敗:', err));
+        }
+        
+        // 保存到本地存储
+        function saveToLocalStorage() {
+            if (!currentMapId) {
+                alert('請先載入地圖');
+                return;
+            }
+            
+            const data = {
+                mapId: currentMapId,
+                imageSize: [canvas.width, canvas.height],
+                totalAreas: areas.length,
+                areas: areas.map(a => ({
+                    id: a.id,
+                    center: [a.center.y, a.center.x],
+                    polygon: a.polygon.map(p => [p.y, p.x])
+                })),
+                savedAt: new Date().toISOString()
+            };
+            
+            const key = 'area-marker-' + currentMapId;
+            localStorage.setItem(key, JSON.stringify(data, null, 2));
+            
+            alert(`✅ 已保存 ${areas.length} 個區域到本地\n\n下次可以點擊「📂 从本地载入」恢复`);
+        }
+        
+        // 从本地存储载入
+        function loadFromLocalStorage() {
+            if (!currentMapId) {
+                alert('請先載入地圖');
+                return;
+            }
+            
+            const key = 'area-marker-' + currentMapId;
+            const savedData = localStorage.getItem(key);
+            
+            if (!savedData) {
+                alert('⚠️ 沒有找到保存的數據\n\n請先點擊「💾 保存到本地」');
+                return;
+            }
+            
+            try {
+                const data = JSON.parse(savedData);
+                
+                areas = data.areas.map(area => ({
+                    id: area.id,
+                    center: { x: area.center[1], y: area.center[0] },
+                    polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
+                }));
+                
+                currentId = areas.length > 0 ? Math.max(...areas.map(a => a.id)) + 1 : 1;
+                selectedAreaIndex = -1;
+                
+                updateStats();
+                draw();
+                
+                const savedTime = new Date(data.savedAt).toLocaleString('zh-TW');
+                alert(`✅ 已從本地載入 ${areas.length} 個區域\n\n保存時間：${savedTime}`);
+            } catch (error) {
+                console.error('載入失敗:', error);
+                alert('❌ 載入失敗：' + error.message);
+            }
+        }
+        
+        // 更新区域编号
+        function updateAreaId() {
+            if (selectedAreaIndex < 0) {
+                alert('請先選擇一個區域');
+                return;
+            }
+            
+            const newId = parseInt(document.getElementById('editAreaId').value);
+            
+            if (!newId || newId < 1) {
+                alert('請輸入有效的編號（大於 0）');
+                return;
+            }
+            
+            // 检查是否重复
+            const duplicate = areas.findIndex((a, idx) => a.id === newId && idx !== selectedAreaIndex);
+            if (duplicate >= 0) {
+                alert(`⚠️ 編號 ${newId} 已存在\n\n請使用不同的編號`);
+                return;
+            }
+            
+            areas[selectedAreaIndex].id = newId;
+            updateStats();
+            draw();
+            
+            // 更新下一个 ID
+            currentId = Math.max(...areas.map(a => a.id)) + 1;
+            document.getElementById('currentId').textContent = currentId;
         }
         
         // 初始化
