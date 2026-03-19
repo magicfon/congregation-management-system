@@ -52,8 +52,8 @@ const MAP_CONFIGS: MapConfig[] = [
     name: '楠梓區',
     range: '1-89',
     image: '/maps/nanzih-1-89.png',
-    bounds: [[0, 0], [5512, 7884]], // 实际尺寸：[height, width]
-    areaPolygons: generateGridPolygons(1, 89, 10, 9, 7884, 5512)
+    bounds: [[0, 0], [5512, 7884]], // 实际尺寸
+    areaPolygons: {} // 将从 JSON 加载
   },
   {
     id: 'chiaotou',
@@ -61,7 +61,7 @@ const MAP_CONFIGS: MapConfig[] = [
     range: '90-148',
     image: '/maps/chiaotou-90-148.png',
     bounds: [[0, 0], [4534, 4827]], // 实际尺寸
-    areaPolygons: generateGridPolygons(90, 148, 8, 8, 4827, 4534)
+    areaPolygons: {} // 将从 JSON 加载
   },
   {
     id: 'tzuguan',
@@ -69,7 +69,7 @@ const MAP_CONFIGS: MapConfig[] = [
     range: '149-213',
     image: '/maps/tzuguan-149-213.png',
     bounds: [[0, 0], [4038, 4828]], // 实际尺寸
-    areaPolygons: generateGridPolygons(149, 213, 10, 7, 4828, 4038)
+    areaPolygons: {} // 将从 JSON 加载
   }
 ]
 
