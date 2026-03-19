@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>區域標註工具 - 專業版</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: system-ui, -apple-system, sans-serif;
             background: #0f0f1e;
@@ -18,85 +19,111 @@
             padding: 20px;
             overflow-x: hidden;
         }
-        
+
         .container {
             max-width: 100%;
             margin: 0 auto;
         }
-        
+
         h1 {
             margin-bottom: 20px;
             color: #60a5fa;
             font-size: 24px;
         }
-        
+
         .controls {
             background: #1a1a2e;
-            padding: 20px;
+            padding: 12px 16px;
             border-radius: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
         }
-        
+
         .controls button {
             background: #3b82f6;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             transition: background 0.2s;
+            white-space: nowrap;
         }
-        
+
         .controls button:hover {
             background: #2563eb;
         }
-        
+
         .controls button.secondary {
             background: #475569;
         }
-        
+
         .controls button.secondary:hover {
             background: #64748b;
         }
-        
+
         .controls button.danger {
             background: #ef4444;
         }
-        
+
         .controls button.danger:hover {
             background: #dc2626;
         }
-        
+
         .controls button.active {
             background: #10b981;
         }
-        
+
+        .controls button.cloud-save {
+            background: #7c3aed;
+        }
+
+        .controls button.cloud-save:hover {
+            background: #6d28d9;
+        }
+
+        .controls button.cloud-load {
+            background: #0891b2;
+        }
+
+        .controls button.cloud-load:hover {
+            background: #0e7490;
+        }
+
         .controls select, .controls input {
             background: #1e293b;
             color: #e5e5e5;
             border: 1px solid #334155;
-            padding: 8px 12px;
+            padding: 7px 10px;
             border-radius: 6px;
+            font-size: 13px;
         }
-        
+
+        .controls-divider {
+            width: 1px;
+            height: 28px;
+            background: #334155;
+            flex-shrink: 0;
+        }
+
         .mode-indicator {
             display: inline-block;
-            padding: 6px 14px;
+            padding: 5px 12px;
             border-radius: 12px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
+            white-space: nowrap;
         }
-        
+
         .mode-view { background: #64748b; }
         .mode-add { background: #10b981; }
         .mode-edit { background: #f59e0b; }
         .mode-delete { background: #ef4444; }
-        
+
         .map-container {
             position: relative;
             background: #1a1a2e;
@@ -106,45 +133,45 @@
             max-height: 80vh;
             border: 2px solid #334155;
         }
-        
+
         #mapCanvas {
             display: block;
             cursor: crosshair;
         }
-        
+
         .info-panel {
             background: #1a1a2e;
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
         }
-        
+
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
-        
+
         .stat {
             background: #1e293b;
             padding: 15px;
             border-radius: 6px;
             text-align: center;
         }
-        
+
         .stat-value {
             font-size: 24px;
             font-weight: bold;
             color: #60a5fa;
         }
-        
+
         .stat-label {
             font-size: 12px;
             color: #94a3b8;
             margin-top: 5px;
         }
-        
+
         .instructions {
             background: #1e293b;
             padding: 15px;
@@ -152,27 +179,27 @@
             font-size: 14px;
             line-height: 1.8;
         }
-        
+
         .instructions h3 {
             margin-bottom: 10px;
             color: #60a5fa;
         }
-        
+
         .instructions ul {
             margin-left: 20px;
         }
-        
+
         .instructions li {
             margin-bottom: 8px;
         }
-        
+
         .instructions code {
             background: #0f172a;
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 13px;
         }
-        
+
         #output {
             background: #0f172a;
             padding: 15px;
@@ -183,34 +210,70 @@
             overflow-y: auto;
             margin-top: 15px;
         }
-        
-        .selected-info {
-            background: #1e293b;
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            border-left: 3px solid #60a5fa;
-        }
-        
+
         .zoom-controls {
             display: flex;
             gap: 5px;
             align-items: center;
             background: #1e293b;
-            padding: 5px 10px;
+            padding: 4px 8px;
             border-radius: 6px;
         }
-        
+
         .zoom-controls span {
-            min-width: 60px;
+            min-width: 50px;
             text-align: center;
+            font-size: 13px;
+        }
+
+        #editIdControls {
+            display: none;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #editIdControls.visible {
+            display: flex;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #1e293b;
+            color: #e5e5e5;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+            z-index: 9999;
+            border-left: 4px solid #10b981;
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast.warn {
+            border-left-color: #f59e0b;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🗺️ 區域標註工具 - 專業版</h1>
-        
+
+        <!-- Row 1: Map loading and zoom -->
         <div class="controls">
             <select id="mapSelect">
                 <option value="">選擇地圖...</option>
@@ -218,39 +281,63 @@
                 <option value="chiaotou">橋頭 (90-148)</option>
                 <option value="tzuguan">梓官 (149-213)</option>
             </select>
-            
-            <input type="number" id="startId" placeholder="起始編號" value="1" style="width: 100px;">
-            
+
+            <input type="number" id="startId" placeholder="起始編號" value="1" style="width: 90px;">
+
             <button onclick="loadMap()">載入地圖</button>
-            <button class="secondary" onclick="loadCV2Areas()">📥 載入 CV2 檢測區域</button>
-            
+            <button class="secondary" onclick="loadCV2Areas()">📥 CV2 區域</button>
+
+            <div class="controls-divider"></div>
+
             <div class="zoom-controls">
                 <button onclick="zoomOut()">➖</button>
                 <span id="zoomLevel">100%</span>
                 <button onclick="zoomIn()">➕</button>
                 <button class="secondary" onclick="resetZoom()">重置</button>
             </div>
-            
+
             <span class="mode-indicator" id="modeIndicator">模式：瀏覽</span>
         </div>
-        
+
+        <!-- Row 2: Mode buttons and actions -->
         <div class="controls">
             <button id="btnView" class="active" onclick="setMode('view')">👁️ 瀏覽</button>
             <button id="btnAdd" onclick="setMode('add')">➕ 新增</button>
             <button id="btnEdit" onclick="setMode('edit')">✏️ 編輯</button>
             <button id="btnDelete" onclick="setMode('delete')">🗑️ 刪除</button>
+
+            <!-- 更新編號：僅在編輯模式顯示 -->
+            <div id="editIdControls">
+                <div class="controls-divider"></div>
+                <input type="number" id="editAreaId" placeholder="選中編號" style="width: 80px;">
+                <button onclick="updateAreaId()">更新編號</button>
+            </div>
+
+            <div class="controls-divider"></div>
+
             <button class="secondary" onclick="undoLast()">↩️ 復原</button>
             <button class="danger" onclick="clearAll()">🗑️ 清除全部</button>
-            <button class="secondary" onclick="saveToLocalStorage()">💾 保存到本地</button>
-            <button class="secondary" onclick="loadFromLocalStorage()">📂 从本地载入</button>
+
+            <div class="controls-divider"></div>
+
+            <button class="secondary" onclick="saveToLocalStorage()">💾 本地保存</button>
+            <button class="secondary" onclick="loadFromLocalStorage()">📂 本地載入</button>
+
+            <div class="controls-divider"></div>
+
+            <button class="cloud-save" onclick="saveToCloud()">💾 保存到雲端</button>
+            <button class="cloud-load" onclick="loadFromCloud()">📂 從雲端載入</button>
+
+            <div class="controls-divider"></div>
+
             <button onclick="exportJSON()">📤 導出 JSON</button>
             <button onclick="copyToClipboard()">📋 複製</button>
         </div>
-        
+
         <div class="map-container" id="mapContainer">
             <canvas id="mapCanvas"></canvas>
         </div>
-        
+
         <div class="info-panel">
             <div class="stats">
                 <div class="stat">
@@ -270,15 +357,7 @@
                     <div class="stat-label">選中區域</div>
                 </div>
             </div>
-            
-            <div id="selectedInfo" class="selected-info" style="display: none;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <strong>選中區域：</strong>
-                    <input type="number" id="editAreaId" style="width: 80px; padding: 4px 8px;" />
-                    <button onclick="updateAreaId()" style="padding: 4px 12px; font-size: 13px;">更新編號</button>
-                </div>
-            </div>
-            
+
             <div class="instructions">
                 <h3>📖 使用說明</h3>
                 <ul>
@@ -289,63 +368,78 @@
                             <li>Shift+點擊 = 畫多邊形（雙擊完成）</li>
                         </ul>
                     </li>
-                    <li><strong>✏️ 編輯模式</strong>：
-                        <ul>
-                            <li>點擊區域 = 選中</li>
-                            <li>拖拽頂點 = 調整形狀</li>
-                            <li>拖拽中心 = 移動區域</li>
-                        </ul>
-                    </li>
+                    <li><strong>✏️ 編輯模式</strong>：點擊區域選中後可修改編號；拖拽頂點調整形狀；拖拽中心移動區域</li>
                     <li><strong>🗑️ 刪除模式</strong>：點擊區域刪除</li>
                     <li><strong>縮放</strong>：使用 +/- 按鈕或滑鼠滾輪</li>
+                    <li><strong>☁️ 雲端</strong>：載入地圖時自動從雲端載入已保存標注</li>
                 </ul>
             </div>
-            
+
             <pre id="output"></pre>
         </div>
     </div>
-    
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
     <script>
+        // Supabase setup
+        const SUPABASE_URL = 'https://gkclvxkuvyoenpvzubxm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2x2eGt1dnlvZW5wdnp1YnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MzI4NTMsImV4cCI6MjA4OTEwODg1M30.GnXkq0Sl47enU8Tk3Rh8vLZ3dpcU_Av-7v7qGOz5mL8';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('mapContainer');
-        
+
         let currentImage = null;
         let areas = [];
         let currentMode = 'view';
         let currentPolygon = [];
         let currentId = 1;
         let currentMapId = '';
-        
+
         // 编辑相关
         let selectedAreaIndex = -1;
         let dragType = null; // 'move', 'vertex'
         let dragIndex = -1;
         let isDragging = false;
         let lastMousePos = { x: 0, y: 0 };
-        
+
         // 缩放和平移
         let zoom = 1;
         let panX = 0;
         let panY = 0;
         let isPanning = false;
         let panStart = { x: 0, y: 0 };
-        
+
         // 顶点半径
         const VERTEX_RADIUS = 8;
-        
+
+        // Toast notification
+        let toastTimer = null;
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast show' + (type !== 'success' ? ' ' + type : '');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.className = 'toast';
+            }, 3000);
+        }
+
         // 设置模式
         function setMode(mode) {
             currentMode = mode;
             selectedAreaIndex = -1;
             currentPolygon = [];
-            
+
             // 更新按钮样式
             ['btnView', 'btnAdd', 'btnEdit', 'btnDelete'].forEach(id => {
                 document.getElementById(id).classList.remove('active');
             });
             document.getElementById('btn' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
-            
+
             // 更新指示器
             const modeNames = {
                 view: '瀏覽',
@@ -356,26 +450,35 @@
             const indicator = document.getElementById('modeIndicator');
             indicator.textContent = '模式：' + modeNames[mode];
             indicator.className = 'mode-indicator mode-' + mode;
-            
+
             // 更新光标
             canvas.style.cursor = mode === 'view' ? 'grab' : 'crosshair';
-            
+
+            // 编辑模式下才显示「更新编号」区域
+            const editIdControls = document.getElementById('editIdControls');
+            if (mode === 'edit') {
+                editIdControls.classList.add('visible');
+            } else {
+                editIdControls.classList.remove('visible');
+            }
+
+            updateSelectedInfo();
             draw();
         }
-        
+
         // 缩放控制
         function zoomIn() {
             zoom = Math.min(3, zoom * 1.2);
             updateZoomDisplay();
             draw();
         }
-        
+
         function zoomOut() {
             zoom = Math.max(0.1, zoom / 1.2);
             updateZoomDisplay();
             draw();
         }
-        
+
         function resetZoom() {
             zoom = 1;
             panX = 0;
@@ -383,92 +486,126 @@
             updateZoomDisplay();
             draw();
         }
-        
+
         function updateZoomDisplay() {
             document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
         }
-        
+
         // 载入地图
         async function loadMap() {
             const mapSelect = document.getElementById('mapSelect');
             const mapId = mapSelect.value;
-            
+
             if (!mapId) {
                 alert('請選擇地圖');
                 return;
             }
-            
+
             currentMapId = mapId;
             currentId = parseInt(document.getElementById('startId').value) || 1;
-            
+
             let mapFile;
             switch(mapId) {
                 case 'nanzih': mapFile = '/maps/nanzih-1-89.png'; break;
                 case 'chiaotou': mapFile = '/maps/chiaotou-90-148.png'; break;
                 case 'tzuguan': mapFile = '/maps/tzuguan-149-213.png'; break;
             }
-            
+
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            
-            img.onload = () => {
+
+            img.onload = async () => {
                 currentImage = img;
                 canvas.width = img.width;
                 canvas.height = img.height;
-                
+
                 // 重置视图
                 resetZoom();
-                
+
                 areas = [];
                 currentPolygon = [];
                 selectedAreaIndex = -1;
                 updateStats();
-                
+
                 document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
+
+                // 自动从云端载入已保存标注
+                await autoLoadFromCloud();
             };
-            
+
             img.src = mapFile;
         }
-        
+
+        // 载入地图后自动从云端载入
+        async function autoLoadFromCloud() {
+            try {
+                const { data, error } = await supabase
+                    .from('area_annotations')
+                    .select('data, updated_at')
+                    .eq('map_id', currentMapId)
+                    .single();
+
+                if (error || !data) return;
+
+                const saved = data.data;
+                areas = saved.areas.map(area => ({
+                    id: area.id,
+                    center: { x: area.center[1], y: area.center[0] },
+                    polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
+                }));
+
+                currentId = areas.length > 0 ? Math.max(...areas.map(a => a.id)) + 1 : 1;
+                selectedAreaIndex = -1;
+                updateStats();
+                draw();
+
+                const savedTime = new Date(data.updated_at).toLocaleString('zh-TW');
+                showToast(`☁️ 已從雲端載入 ${areas.length} 個區域（${savedTime}）`);
+            } catch (e) {
+                // 静默失败，不影响正常使用
+                console.warn('autoLoadFromCloud:', e);
+            }
+        }
+
         // 载入 CV2 检测区域
         async function loadCV2Areas() {
             if (!currentMapId) {
                 alert('請先載入地圖');
                 return;
             }
-            
+
             let jsonFile;
             switch(currentMapId) {
                 case 'nanzih': jsonFile = '/maps/nanzih-areas-cv2.json'; break;
                 case 'chiaotou': jsonFile = '/maps/chiaotou-areas-cv2.json'; break;
                 case 'tzuguan': jsonFile = '/maps/tzuguan-areas-cv2.json'; break;
             }
-            
+
             try {
                 const response = await fetch(jsonFile);
                 const data = await response.json();
-                
+
                 if (data.areas && data.areas.length > 0) {
                     areas = data.areas.map(area => ({
                         id: area.id,
                         center: { x: area.center[1], y: area.center[0] },
                         polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
                     }));
-                    
+
                     currentId = areas.length + 1;
                     updateStats();
                     draw();
-                    
-                    alert(`✅ 已載入 ${areas.length} 個 CV2 檢測區域\n\n切換到「✏️ 編輯模式」調整區域`);
+
+                    showToast(`✅ 已載入 ${areas.length} 個 CV2 區域`);
                 } else {
-                    alert('⚠️ 沒有找到檢測區域');
+                    showToast('沒有找到檢測區域', 'warn');
                 }
             } catch (error) {
                 console.error('載入失敗:', error);
-                alert('❌ 載入失敗：' + error.message);
+                showToast('載入失敗：' + error.message, 'error');
             }
         }
-        
+
         // 坐标转换
         function screenToImage(x, y) {
             const rect = canvas.getBoundingClientRect();
@@ -477,38 +614,38 @@
                 y: (y - rect.top - panY) / zoom
             };
         }
-        
+
         function imageToScreen(x, y) {
             return {
                 x: x * zoom + panX,
                 y: y * zoom + panY
             };
         }
-        
+
         // 绘制
         function draw() {
             if (!currentImage) return;
-            
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
+
             // 应用缩放和平移
             ctx.save();
             ctx.translate(panX, panY);
             ctx.scale(zoom, zoom);
-            
+
             // 绘制地图
             ctx.drawImage(currentImage, 0, 0);
-            
+
             // 绘制所有区域
             areas.forEach((area, index) => {
                 const isSelected = index === selectedAreaIndex;
-                
+
                 // 绘制多边形
                 ctx.beginPath();
                 ctx.strokeStyle = isSelected ? '#f59e0b' : '#10b981';
                 ctx.fillStyle = isSelected ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.2)';
                 ctx.lineWidth = isSelected ? 3 / zoom : 2 / zoom;
-                
+
                 if (area.polygon.length > 2) {
                     ctx.moveTo(area.polygon[0].x, area.polygon[0].y);
                     area.polygon.forEach(p => ctx.lineTo(p.x, p.y));
@@ -516,24 +653,24 @@
                     ctx.fill();
                 }
                 ctx.stroke();
-                
+
                 // 绘制编号
                 const center = area.center;
                 ctx.fillStyle = isSelected ? '#f59e0b' : '#3b82f6';
                 ctx.font = `bold ${24 / zoom}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                
+
                 // 背景
                 const text = area.id.toString();
                 const bgWidth = 30 / zoom;
                 const bgHeight = 24 / zoom;
                 ctx.fillRect(center.x - bgWidth/2, center.y - bgHeight/2, bgWidth, bgHeight);
-                
+
                 // 文字
                 ctx.fillStyle = '#ffffff';
                 ctx.fillText(text, center.x, center.y);
-                
+
                 // 编辑模式下绘制顶点
                 if (currentMode === 'edit' && isSelected) {
                     area.polygon.forEach((p, pIndex) => {
@@ -547,18 +684,18 @@
                     });
                 }
             });
-            
+
             // 绘制正在画的多边形
             if (currentPolygon.length > 0) {
                 ctx.beginPath();
                 ctx.strokeStyle = '#f59e0b';
                 ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
                 ctx.lineWidth = 2 / zoom;
-                
+
                 ctx.moveTo(currentPolygon[0].x, currentPolygon[0].y);
                 currentPolygon.forEach(p => ctx.lineTo(p.x, p.y));
                 ctx.stroke();
-                
+
                 // 绘制点
                 currentPolygon.forEach(p => {
                     ctx.beginPath();
@@ -567,10 +704,10 @@
                     ctx.fill();
                 });
             }
-            
+
             ctx.restore();
         }
-        
+
         // 查找点击的区域
         function findAreaAt(x, y) {
             for (let i = areas.length - 1; i >= 0; i--) {
@@ -581,28 +718,28 @@
             }
             return -1;
         }
-        
+
         // 点是否在多边形内
         function isPointInPolygon(x, y, polygon) {
             let inside = false;
             for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
                 const xi = polygon[i].x, yi = polygon[i].y;
                 const xj = polygon[j].x, yj = polygon[j].y;
-                
+
                 if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
                     inside = !inside;
                 }
             }
             return inside;
         }
-        
+
         // 查找点击的顶点
         function findVertexAt(x, y, areaIndex) {
             if (areaIndex < 0) return -1;
-            
+
             const area = areas[areaIndex];
             const threshold = VERTEX_RADIUS * 2 / zoom;
-            
+
             for (let i = 0; i < area.polygon.length; i++) {
                 const dx = area.polygon[i].x - x;
                 const dy = area.polygon[i].y - y;
@@ -612,14 +749,14 @@
             }
             return -1;
         }
-        
+
         // 鼠标事件
         canvas.addEventListener('mousedown', (e) => {
             if (!currentImage) return;
-            
+
             const pos = screenToImage(e.clientX, e.clientY);
             lastMousePos = { x: e.clientX, y: e.clientY };
-            
+
             if (currentMode === 'view') {
                 isPanning = true;
                 panStart = { x: e.clientX - panX, y: e.clientY - panY };
@@ -648,11 +785,11 @@
             }
             else if (currentMode === 'edit') {
                 selectedAreaIndex = findAreaAt(pos.x, pos.y);
-                
+
                 if (selectedAreaIndex >= 0) {
                     // 检查是否点击了顶点
                     dragIndex = findVertexAt(pos.x, pos.y, selectedAreaIndex);
-                    
+
                     if (dragIndex >= 0) {
                         dragType = 'vertex';
                         isDragging = true;
@@ -661,16 +798,16 @@
                         const area = areas[selectedAreaIndex];
                         const dx = area.center.x - pos.x;
                         const dy = area.center.y - pos.y;
-                        
+
                         if (Math.sqrt(dx*dx + dy*dy) < 20 / zoom) {
                             dragType = 'move';
                             isDragging = true;
                         }
                     }
-                    
+
                     updateSelectedInfo();
                 }
-                
+
                 draw();
             }
             else if (currentMode === 'delete') {
@@ -682,10 +819,10 @@
                 }
             }
         });
-        
+
         canvas.addEventListener('mousemove', (e) => {
             if (!currentImage) return;
-            
+
             if (isPanning && currentMode === 'view') {
                 panX = e.clientX - panStart.x;
                 panY = e.clientY - panStart.y;
@@ -695,12 +832,12 @@
                 const pos = screenToImage(e.clientX, e.clientY);
                 const dx = pos.x - screenToImage(lastMousePos.x, lastMousePos.y).x;
                 const dy = pos.y - screenToImage(lastMousePos.x, lastMousePos.y).y;
-                
+
                 if (dragType === 'vertex') {
                     // 移动顶点
                     areas[selectedAreaIndex].polygon[dragIndex].x = pos.x;
                     areas[selectedAreaIndex].polygon[dragIndex].y = pos.y;
-                    
+
                     // 重新计算中心
                     recalculateCenter(selectedAreaIndex);
                 }
@@ -713,11 +850,11 @@
                     areas[selectedAreaIndex].center.x += dx;
                     areas[selectedAreaIndex].center.y += dy;
                 }
-                
+
                 lastMousePos = { x: e.clientX, y: e.clientY };
                 draw();
             }
-            
+
             // 更新光标
             if (currentMode === 'edit' && !isDragging) {
                 const pos = screenToImage(e.clientX, e.clientY);
@@ -725,23 +862,23 @@
                 canvas.style.cursor = vertexIdx >= 0 ? 'move' : 'crosshair';
             }
         });
-        
+
         canvas.addEventListener('mouseup', () => {
             if (isPanning && currentMode === 'view') {
                 isPanning = false;
                 canvas.style.cursor = 'grab';
             }
-            
+
             isDragging = false;
             dragType = null;
             dragIndex = -1;
         });
-        
+
         canvas.addEventListener('dblclick', (e) => {
             if (currentMode === 'add' && currentPolygon.length > 2) {
                 const pos = screenToImage(e.clientX, e.clientY);
                 currentPolygon.push({ x: pos.x, y: pos.y });
-                
+
                 const center = getPolygonCenter(currentPolygon);
                 areas.push({
                     id: currentId,
@@ -750,66 +887,64 @@
                 });
                 currentId++;
                 currentPolygon = [];
-                
+
                 updateStats();
                 draw();
             }
         });
-        
+
         // 滚轮缩放
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
-            
+
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
             const newZoom = Math.max(0.1, Math.min(3, zoom * delta));
-            
+
             // 以鼠标位置为中心缩放
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
-            
+
             panX = mouseX - (mouseX - panX) * (newZoom / zoom);
             panY = mouseY - (mouseY - panY) * (newZoom / zoom);
-            
+
             zoom = newZoom;
             updateZoomDisplay();
             draw();
         });
-        
+
         // 辅助函数
         function getPolygonCenter(polygon) {
             const x = polygon.reduce((sum, p) => sum + p.x, 0) / polygon.length;
             const y = polygon.reduce((sum, p) => sum + p.y, 0) / polygon.length;
             return { x, y };
         }
-        
+
         function recalculateCenter(index) {
             const area = areas[index];
             area.center = getPolygonCenter(area.polygon);
         }
-        
+
         function updateStats() {
             document.getElementById('totalAreas').textContent = areas.length;
             document.getElementById('currentId').textContent = currentId;
             updateSelectedInfo();
             updateOutput();
         }
-        
+
         function updateSelectedInfo() {
-            const selectedDiv = document.getElementById('selectedInfo');
             const editInput = document.getElementById('editAreaId');
-            
-            if (selectedAreaIndex >= 0) {
+
+            if (selectedAreaIndex >= 0 && currentMode === 'edit') {
                 const area = areas[selectedAreaIndex];
-                selectedDiv.style.display = 'block';
                 editInput.value = area.id;
                 document.getElementById('selectedArea').textContent = area.id;
             } else {
-                selectedDiv.style.display = 'none';
+                editInput.value = '';
                 document.getElementById('selectedArea').textContent = '無';
             }
         }
-        
+
         function updateOutput() {
             const output = {
                 totalAreas: areas.length,
@@ -821,7 +956,7 @@
             };
             document.getElementById('output').textContent = JSON.stringify(output, null, 2);
         }
-        
+
         function undoLast() {
             if (currentPolygon.length > 0) {
                 currentPolygon.pop();
@@ -833,7 +968,7 @@
             updateStats();
             draw();
         }
-        
+
         function clearAll() {
             if (confirm('確定要清除所有標註嗎？')) {
                 areas = [];
@@ -844,7 +979,7 @@
                 draw();
             }
         }
-        
+
         function exportJSON() {
             const output = {
                 imageSize: [canvas.width, canvas.height],
@@ -855,7 +990,7 @@
                     polygon: a.polygon.map(p => [p.y, p.x])
                 }))
             };
-            
+
             const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -864,7 +999,7 @@
             a.click();
             URL.revokeObjectURL(url);
         }
-        
+
         function copyToClipboard() {
             const output = {
                 imageSize: [canvas.width, canvas.height],
@@ -875,19 +1010,19 @@
                     polygon: a.polygon.map(p => [p.y, p.x])
                 }))
             };
-            
+
             navigator.clipboard.writeText(JSON.stringify(output, null, 2))
-                .then(() => alert('已複製到剪貼板！'))
-                .catch(err => console.error('複製失敗:', err));
+                .then(() => showToast('已複製到剪貼板'))
+                .catch(err => showToast('複製失敗', 'error'));
         }
-        
+
         // 保存到本地存储
         function saveToLocalStorage() {
             if (!currentMapId) {
                 alert('請先載入地圖');
                 return;
             }
-            
+
             const data = {
                 mapId: currentMapId,
                 imageSize: [canvas.width, canvas.height],
@@ -899,81 +1034,155 @@
                 })),
                 savedAt: new Date().toISOString()
             };
-            
+
             const key = 'area-marker-' + currentMapId;
-            localStorage.setItem(key, JSON.stringify(data, null, 2));
-            
-            alert(`✅ 已保存 ${areas.length} 個區域到本地\n\n下次可以點擊「📂 从本地载入」恢复`);
+            localStorage.setItem(key, JSON.stringify(data));
+            showToast(`✅ 已保存 ${areas.length} 個區域到本地`);
         }
-        
+
         // 从本地存储载入
         function loadFromLocalStorage() {
             if (!currentMapId) {
                 alert('請先載入地圖');
                 return;
             }
-            
+
             const key = 'area-marker-' + currentMapId;
             const savedData = localStorage.getItem(key);
-            
+
             if (!savedData) {
-                alert('⚠️ 沒有找到保存的數據\n\n請先點擊「💾 保存到本地」');
+                showToast('沒有找到本地保存的數據', 'warn');
                 return;
             }
-            
+
             try {
                 const data = JSON.parse(savedData);
-                
+
                 areas = data.areas.map(area => ({
                     id: area.id,
                     center: { x: area.center[1], y: area.center[0] },
                     polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
                 }));
-                
+
                 currentId = areas.length > 0 ? Math.max(...areas.map(a => a.id)) + 1 : 1;
                 selectedAreaIndex = -1;
-                
+
                 updateStats();
                 draw();
-                
+
                 const savedTime = new Date(data.savedAt).toLocaleString('zh-TW');
-                alert(`✅ 已從本地載入 ${areas.length} 個區域\n\n保存時間：${savedTime}`);
+                showToast(`✅ 本地載入 ${areas.length} 個區域（${savedTime}）`);
             } catch (error) {
                 console.error('載入失敗:', error);
-                alert('❌ 載入失敗：' + error.message);
+                showToast('載入失敗：' + error.message, 'error');
             }
         }
-        
+
+        // 保存到云端
+        async function saveToCloud() {
+            if (!currentMapId) {
+                alert('請先載入地圖');
+                return;
+            }
+
+            const payload = {
+                imageSize: [canvas.width, canvas.height],
+                totalAreas: areas.length,
+                areas: areas.map(a => ({
+                    id: a.id,
+                    center: [a.center.y, a.center.x],
+                    polygon: a.polygon.map(p => [p.y, p.x])
+                }))
+            };
+
+            try {
+                const { error } = await supabase
+                    .from('area_annotations')
+                    .upsert({
+                        map_id: currentMapId,
+                        data: payload,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'map_id' });
+
+                if (error) throw error;
+
+                showToast(`☁️ 已保存 ${areas.length} 個區域到雲端`);
+            } catch (error) {
+                console.error('雲端保存失敗:', error);
+                showToast('雲端保存失敗：' + error.message, 'error');
+            }
+        }
+
+        // 从云端载入
+        async function loadFromCloud() {
+            if (!currentMapId) {
+                alert('請先載入地圖');
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('area_annotations')
+                    .select('data, updated_at')
+                    .eq('map_id', currentMapId)
+                    .single();
+
+                if (error || !data) {
+                    showToast('雲端沒有找到此地圖的標注數據', 'warn');
+                    return;
+                }
+
+                const saved = data.data;
+                areas = saved.areas.map(area => ({
+                    id: area.id,
+                    center: { x: area.center[1], y: area.center[0] },
+                    polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
+                }));
+
+                currentId = areas.length > 0 ? Math.max(...areas.map(a => a.id)) + 1 : 1;
+                selectedAreaIndex = -1;
+                updateStats();
+                draw();
+
+                const savedTime = new Date(data.updated_at).toLocaleString('zh-TW');
+                showToast(`☁️ 從雲端載入 ${areas.length} 個區域（${savedTime}）`);
+            } catch (error) {
+                console.error('雲端載入失敗:', error);
+                showToast('雲端載入失敗：' + error.message, 'error');
+            }
+        }
+
         // 更新区域编号
         function updateAreaId() {
             if (selectedAreaIndex < 0) {
-                alert('請先選擇一個區域');
+                showToast('請先選擇一個區域', 'warn');
                 return;
             }
-            
+
             const newId = parseInt(document.getElementById('editAreaId').value);
-            
+
             if (!newId || newId < 1) {
-                alert('請輸入有效的編號（大於 0）');
+                showToast('請輸入有效的編號（大於 0）', 'warn');
                 return;
             }
-            
+
             // 检查是否重复
             const duplicate = areas.findIndex((a, idx) => a.id === newId && idx !== selectedAreaIndex);
             if (duplicate >= 0) {
-                alert(`⚠️ 編號 ${newId} 已存在\n\n請使用不同的編號`);
+                showToast(`編號 ${newId} 已存在`, 'warn');
                 return;
             }
-            
+
             areas[selectedAreaIndex].id = newId;
             updateStats();
             draw();
-            
+
             // 更新下一个 ID
             currentId = Math.max(...areas.map(a => a.id)) + 1;
             document.getElementById('currentId').textContent = currentId;
+            showToast(`✅ 編號已更新為 ${newId}`);
         }
-        
+
         // 初始化
         setMode('view');
     </script>
