@@ -749,6 +749,121 @@
             }
             return -1;
         }
+        
+        // 查找点击的边（用于添加新节点）
+        function findEdgeAt(x, y, areaIndex) {
+            if (areaIndex < 0) return -1;
+            
+            const area = areas[areaIndex];
+            const threshold = 15 / zoom; // 边线检测阈值
+            
+            for (let i = 0; i < area.polygon.length - 1; i++) {
+                const p1 = area.polygon[i];
+                const p2 = area.polygon[i + 1];
+                
+                // 计算点到线段的距离
+                const dist = pointToLineDistance(x, y, p1.x, p1.y, p2.x, p2.y);
+                
+                if (dist < threshold) {
+                    // 检查点是否在线段范围内
+                    const minX = Math.min(p1.x, p2.x) - threshold;
+                    const maxX = Math.max(p1.x, p2.x) + threshold;
+                    const minY = Math.min(p1.y, p2.y) - threshold;
+                    const maxY = Math.max(p1.y, p2.y) + threshold;
+                    
+                    if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                        return i;
+                    }
+                }
+            }
+            
+            return -1;
+        }
+        
+        // 计算点到线段的距离
+        function pointToLineDistance(px, py, x1, y1, x2, y2) {
+            const A = px - x1;
+            const B = py - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            let param = -1;
+            
+            if (lenSq !== 0) param = dot / lenSq;
+
+            let xx, yy;
+
+            if (param < 0) {
+                xx = x1;
+                yy = y1;
+            } else if (param > 1) {
+                xx = x2;
+                yy = y2;
+            } else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+
+            const dx = px - xx;
+            const dy = py - yy;
+            
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // 查找点击的边
+        function findEdgeAt(x, y, areaIndex) {
+            if (areaIndex < 0) return -1;
+
+            const area = areas[areaIndex];
+            const threshold = 10 / zoom; // 边的检测阈值
+
+            for (let i = 0; i < area.polygon.length - 1; i++) {
+                const p1 = area.polygon[i];
+                const p2 = area.polygon[i + 1];
+
+                // 计算点到线段的距离
+                const dist = pointToLineDistance(x, y, p1.x, p1.y, p2.x, p2.y);
+
+                if (dist < threshold) {
+                    return i; // 返回边的起始点索引
+                }
+            }
+
+            return -1;
+        }
+
+        // 计算点到线段的距离
+        function pointToLineDistance(px, py, x1, y1, x2, y2) {
+            const A = px - x1;
+            const B = py - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+
+            const dot = A * C + B * D;
+            const len_sq = C * C + D * D;
+            let param = -1;
+
+            if (len_sq !== 0) param = dot / len_sq;
+
+            let xx, yy;
+
+            if (param < 0) {
+                xx = x1;
+                yy = y1;
+            } else if (param > 1) {
+                xx = x2;
+                yy = y2;
+            } else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+
+            const dx = px - xx;
+            const dy = py - yy;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
 
         // 鼠标事件
         canvas.addEventListener('mousedown', (e) => {
@@ -802,6 +917,18 @@
                         if (Math.sqrt(dx*dx + dy*dy) < 20 / zoom) {
                             dragType = 'move';
                             isDragging = true;
+                        } else {
+                            // 检查是否点击了边线（添加新节点）
+                            const edgeIndex = findEdgeAt(pos.x, pos.y, selectedAreaIndex);
+                            if (edgeIndex >= 0) {
+                                // 在边上插入新节点
+                                const polygon = areas[selectedAreaIndex].polygon;
+                                polygon.splice(edgeIndex + 1, 0, { x: pos.x, y: pos.y });
+                                recalculateCenter(selectedAreaIndex);
+                                showToast('✅ 已添加新節點');
+                                draw();
+                                return;
+                            }
                         }
                     }
 
@@ -872,6 +999,38 @@
             isDragging = false;
             dragType = null;
             dragIndex = -1;
+        });
+
+        // 右键删除节点
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+
+            if (currentMode === 'edit' && selectedAreaIndex >= 0) {
+                const pos = screenToImage(e.clientX, e.clientY);
+                const vertexIndex = findVertexAt(pos.x, pos.y, selectedAreaIndex);
+
+                if (vertexIndex >= 0) {
+                    const area = areas[selectedAreaIndex];
+
+                    // 至少保留3个节点（三角形）
+                    if (area.polygon.length <= 4) { // 4个点 = 3个顶点 + 1个闭合点
+                        showToast('⚠️ 至少需要保留3個節點', 'warn');
+                        return;
+                    }
+
+                    // 删除节点
+                    area.polygon.splice(vertexIndex, 1);
+
+                    // 更新闭合点
+                    if (area.polygon.length > 0 && area.polygon[0] !== area.polygon[area.polygon.length - 1]) {
+                        area.polygon[area.polygon.length - 1] = { ...area.polygon[0] };
+                    }
+
+                    recalculateCenter(selectedAreaIndex);
+                    draw();
+                    showToast('✅ 已刪除節點');
+                }
+            }
         });
 
         canvas.addEventListener('dblclick', (e) => {
@@ -1159,28 +1318,45 @@
                 return;
             }
 
-            const newId = parseInt(document.getElementById('editAreaId').value);
+            const newIdStr = document.getElementById('editAreaId').value.trim();
 
-            if (!newId || newId < 1) {
-                showToast('請輸入有效的編號（大於 0）', 'warn');
+            if (!newIdStr) {
+                showToast('請輸入編號', 'warn');
                 return;
             }
 
             // 检查是否重复
-            const duplicate = areas.findIndex((a, idx) => a.id === newId && idx !== selectedAreaIndex);
+            const duplicate = areas.findIndex((a, idx) => a.id === newIdStr && idx !== selectedAreaIndex);
+
             if (duplicate >= 0) {
-                showToast(`編號 ${newId} 已存在`, 'warn');
-                return;
+                // 如果编号已存在，将已存在的编号改为 `${existingId}-2`
+                const oldId = areas[duplicate].id;
+                const newIdForDuplicate = oldId + '-2';
+
+                // 检查 -2 是否也已存在
+                const duplicate2 = areas.findIndex((a, idx) => a.id === newIdForDuplicate);
+                if (duplicate2 >= 0) {
+                    showToast(`編號 ${newIdStr} 和 ${newIdForDuplicate} 都已存在，請手動修改`, 'warn');
+                    return;
+                }
+
+                areas[duplicate].id = newIdForDuplicate;
+                areas[selectedAreaIndex].id = newIdStr;
+
+                updateStats();
+                draw();
+                showToast(`✅ 編號已更新：原 ${oldId} → ${newIdForDuplicate}，當前 → ${newIdStr}`);
+            } else {
+                areas[selectedAreaIndex].id = newIdStr;
+                updateStats();
+                draw();
+                showToast(`✅ 編號已更新為 ${newIdStr}`);
             }
 
-            areas[selectedAreaIndex].id = newId;
-            updateStats();
-            draw();
-
-            // 更新下一个 ID
-            currentId = Math.max(...areas.map(a => a.id)) + 1;
+            // 更新下一个 ID（尝试解析数字）
+            const numericIds = areas.map(a => parseInt(a.id)).filter(id => !isNaN(id));
+            currentId = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 1;
             document.getElementById('currentId').textContent = currentId;
-            showToast(`✅ 編號已更新為 ${newId}`);
         }
 
         // 初始化
