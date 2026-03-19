@@ -81,8 +81,8 @@ export const authOptions: NextAuthOptions = {
         .single()
 
       if (error || !member || !member.active) {
-        // Redirect back to login with a descriptive error code
-        return '/login?error=LineNotLinked'
+        // Redirect to debug page with the actual LINE UID so user can see it
+        return `/debug-line?line_uid=${lineUid}&error=LineNotLinked`
       }
 
       return true
