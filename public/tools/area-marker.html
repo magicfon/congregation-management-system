@@ -173,6 +173,7 @@
             <input type="number" id="startId" placeholder="起始編號" value="1" style="width: 100px;">
             
             <button onclick="loadMap()">載入地圖</button>
+            <button class="secondary" onclick="loadDetectedAreas()">📥 載入已檢測區域</button>
             <button class="secondary" onclick="undoLast()">↩️ 復原</button>
             <button class="secondary" onclick="clearAll()">🗑️ 清除</button>
             <button onclick="exportJSON()">💾 導出 JSON</button>
@@ -204,9 +205,11 @@
             <div class="instructions">
                 <h3>使用說明</h3>
                 <ul>
+                    <li><strong>載入地圖</strong>：選擇地圖後點擊「載入地圖」</li>
+                    <li><strong>載入已檢測區域</strong>：點擊按鈕自動載入檢測到的區域</li>
                     <li><strong>點擊標註</strong>：在地圖上點擊區域中心，自動標註當前編號</li>
                     <li><strong>畫多邊形</strong>：按住 Shift 鍵點擊多個點，雙擊完成</li>
-                    <li><strong>復原</strong>：點擊「復原」按鈕移除最後一個標註</li>
+                    <li><strong>調整區域</strong>：點擊已有區域可以調整</li>
                     <li><strong>導出</strong>：點擊「導出 JSON」保存結果</li>
                 </ul>
             </div>
@@ -221,22 +224,39 @@
         
         let currentImage = null;
         let areas = [];
-        let currentMode = 'assign'; // 'assign' or 'draw'
+        let currentMode = 'assign';
         let currentPolygon = [];
         let currentId = 1;
+        let currentMapId = '';
         
         // 載入地圖
         async function loadMap() {
             const mapSelect = document.getElementById('mapSelect');
-            const mapName = mapSelect.value;
+            const mapId = mapSelect.value;
             
-            if (!mapName) {
+            if (!mapId) {
                 alert('請選擇地圖');
                 return;
             }
             
+            currentMapId = mapId;
+            
             const startId = parseInt(document.getElementById('startId').value) || 1;
             currentId = startId;
+            
+            // 根據選擇的地圖設置文件名
+            let mapFile;
+            switch(mapId) {
+                case 'nanzih':
+                    mapFile = '/maps/nanzih-1-89.png';
+                    break;
+                case 'chiaotou':
+                    mapFile = '/maps/chiaotou-90-148.png';
+                    break;
+                case 'tzuguan':
+                    mapFile = '/maps/tzuguan-149-213.png';
+                    break;
+            }
             
             const img = new Image();
             img.crossOrigin = 'anonymous';
@@ -246,7 +266,6 @@
                 canvas.width = img.width;
                 canvas.height = img.height;
                 
-                // 計算縮放比例
                 const maxWidth = window.innerWidth - 40;
                 const scale = Math.min(1, maxWidth / img.width);
                 
@@ -259,8 +278,56 @@
                 draw();
             };
             
-            img.src = `/maps/${mapName}-1-89.png`;
+            img.src = mapFile;
             document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
+        }
+        
+        // 載入已檢測的區域
+        async function loadDetectedAreas() {
+            if (!currentMapId) {
+                alert('請先載入地圖');
+                return;
+            }
+            
+            // 根據選擇的地圖設置 JSON 文件
+            let jsonFile;
+            switch(currentMapId) {
+                case 'nanzih':
+                    jsonFile = '/maps/nanzih-areas-with-polygons.json';
+                    break;
+                case 'chiaotou':
+                    jsonFile = '/maps/chiaotou-areas-with-polygons.json';
+                    break;
+                case 'tzuguan':
+                    jsonFile = '/maps/tzuguan-areas-with-polygons.json';
+                    break;
+            }
+            
+            try {
+                const response = await fetch(jsonFile);
+                const data = await response.json();
+                
+                if (data.areas && data.areas.length > 0) {
+                    // 轉換格式
+                    areas = data.areas.map(area => ({
+                        id: area.id,
+                        center: { x: area.center[1], y: area.center[0] },
+                        polygon: area.polygon.map(p => ({ x: p[1], y: p[0] })),
+                        area: area.pixelCount || 0
+                    }));
+                    
+                    currentId = areas.length + 1;
+                    updateStats();
+                    draw();
+                    
+                    alert(`✅ 已載入 ${areas.length} 個檢測到的區域\n\n現在可以調整不準確的區域`);
+                } else {
+                    alert('⚠️ 沒有找到檢測到的區域');
+                }
+            } catch (error) {
+                console.error('載入失敗:', error);
+                alert('❌ 載入失敗：' + error.message);
+            }
         }
         
         // 繪製
@@ -294,9 +361,9 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 
-                // 背景
                 const text = area.id.toString();
-                const metrics = ctx.measureText(text);
+                
+                // 背景
                 ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
                 ctx.fillRect(center.x - 15, center.y - 12, 30, 24);
                 
@@ -439,8 +506,8 @@
                 totalAreas: areas.length,
                 areas: areas.map(a => ({
                     id: a.id,
-                    center: [a.center.y, a.center.x], // [y, x] for Leaflet
-                    polygon: a.polygon.map(p => [p.y, p.x]), // [[y, x], ...]
+                    center: [a.center.y, a.center.x],
+                    polygon: a.polygon.map(p => [p.y, p.x]),
                     area: a.area
                 }))
             };
@@ -489,7 +556,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${document.getElementById('mapSelect').value}-areas.json`;
+            a.download = `${document.getElementById('mapSelect').value}-areas-adjusted.json`;
             a.click();
             URL.revokeObjectURL(url);
         }
