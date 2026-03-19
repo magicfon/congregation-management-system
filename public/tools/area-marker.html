@@ -173,7 +173,8 @@
             <input type="number" id="startId" placeholder="起始編號" value="1" style="width: 100px;">
             
             <button onclick="loadMap()">載入地圖</button>
-            <button class="secondary" onclick="loadDetectedAreas()">📥 載入已檢測區域</button>
+            <button class="secondary" onclick="loadDetectedAreas()">📥 載入已檢測區域（舊版）</button>
+            <button class="secondary" onclick="loadCV2Areas()">🎯 載入 CV2 檢測區域</button>
             <button class="secondary" onclick="undoLast()">↩️ 復原</button>
             <button class="secondary" onclick="clearAll()">🗑️ 清除</button>
             <button onclick="exportJSON()">💾 導出 JSON</button>
@@ -280,6 +281,52 @@
             
             img.src = mapFile;
             document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
+        }
+        
+        // 載入 CV2 檢測的區域
+        async function loadCV2Areas() {
+            if (!currentMapId) {
+                alert('請先載入地圖');
+                return;
+            }
+            
+            let jsonFile;
+            switch(currentMapId) {
+                case 'nanzih':
+                    jsonFile = '/maps/nanzih-areas-cv2.json';
+                    break;
+                case 'chiaotou':
+                    jsonFile = '/maps/chiaotou-areas-cv2.json';
+                    break;
+                case 'tzuguan':
+                    jsonFile = '/maps/tzuguan-areas-cv2.json';
+                    break;
+            }
+            
+            try {
+                const response = await fetch(jsonFile);
+                const data = await response.json();
+                
+                if (data.areas && data.areas.length > 0) {
+                    areas = data.areas.map(area => ({
+                        id: area.id,
+                        center: area.center ? { x: area.center[1], y: area.center[0] } : { x: 0, y: 0 },
+                        polygon: area.polygon ? area.polygon.map(p => ({ x: p[1], y: p[0] })) : [],
+                        area: area.area || 0
+                    }));
+                    
+                    currentId = areas.length + 1;
+                    updateStats();
+                    draw();
+                    
+                    alert(`✅ 已載入 ${areas.length} 個 CV2 檢測的區域\n\n這是使用 OpenCV 檢測紫色邊界線的結果`);
+                } else {
+                    alert('⚠️ 沒有找到 CV2 檢測的區域');
+                }
+            } catch (error) {
+                console.error('載入失敗:', error);
+                alert('❌ 載入失敗：' + error.message);
+            }
         }
         
         // 載入已檢測的區域
