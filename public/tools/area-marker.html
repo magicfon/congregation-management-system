@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>區域標註工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f0f1e;
+            color: #e5e5e5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            margin-bottom: 20px;
+            color: #60a5fa;
+        }
+        
+        .controls {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .controls button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+        
+        .controls button:hover {
+            background: #2563eb;
+        }
+        
+        .controls button.secondary {
+            background: #475569;
+        }
+        
+        .controls button.secondary:hover {
+            background: #64748b;
+        }
+        
+        .controls select, .controls input {
+            background: #1e293b;
+            color: #e5e5e5;
+            border: 1px solid #334155;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-right: 10px;
+        }
+        
+        .map-container {
+            position: relative;
+            background: #1a1a2e;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        #mapCanvas {
+            display: block;
+            cursor: crosshair;
+            max-width: 100%;
+        }
+        
+        .info {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 5px;
+        }
+        
+        .instructions {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #60a5fa;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        #output {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .mode-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .mode-assign { background: #10b981; }
+        .mode-draw { background: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ 區域標註工具</h1>
+        
+        <div class="controls">
+            <select id="mapSelect">
+                <option value="">選擇地圖...</option>
+                <option value="nanzih">楠梓區 (1-89)</option>
+                <option value="chiaotou">橋頭 (90-148)</option>
+                <option value="tzuguan">梓官 (149-213)</option>
+            </select>
+            
+            <input type="number" id="startId" placeholder="起始編號" value="1" style="width: 100px;">
+            
+            <button onclick="loadMap()">載入地圖</button>
+            <button class="secondary" onclick="undoLast()">↩️ 復原</button>
+            <button class="secondary" onclick="clearAll()">🗑️ 清除</button>
+            <button onclick="exportJSON()">💾 導出 JSON</button>
+            <button onclick="copyToClipboard()">📋 複製到剪貼板</button>
+            
+            <span class="mode-indicator" id="modeIndicator">模式：指定編號</span>
+        </div>
+        
+        <div class="map-container">
+            <canvas id="mapCanvas"></canvas>
+        </div>
+        
+        <div class="info">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="totalAreas">0</div>
+                    <div class="stat-label">已標註區域</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="currentId">1</div>
+                    <div class="stat-label">當前編號</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="mapName">-</div>
+                    <div class="stat-label">當前地圖</div>
+                </div>
+            </div>
+            
+            <div class="instructions">
+                <h3>使用說明</h3>
+                <ul>
+                    <li><strong>點擊標註</strong>：在地圖上點擊區域中心，自動標註當前編號</li>
+                    <li><strong>畫多邊形</strong>：按住 Shift 鍵點擊多個點，雙擊完成</li>
+                    <li><strong>復原</strong>：點擊「復原」按鈕移除最後一個標註</li>
+                    <li><strong>導出</strong>：點擊「導出 JSON」保存結果</li>
+                </ul>
+            </div>
+            
+            <pre id="output"></pre>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let currentImage = null;
+        let areas = [];
+        let currentMode = 'assign'; // 'assign' or 'draw'
+        let currentPolygon = [];
+        let currentId = 1;
+        
+        // 載入地圖
+        async function loadMap() {
+            const mapSelect = document.getElementById('mapSelect');
+            const mapName = mapSelect.value;
+            
+            if (!mapName) {
+                alert('請選擇地圖');
+                return;
+            }
+            
+            const startId = parseInt(document.getElementById('startId').value) || 1;
+            currentId = startId;
+            
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+                currentImage = img;
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                // 計算縮放比例
+                const maxWidth = window.innerWidth - 40;
+                const scale = Math.min(1, maxWidth / img.width);
+                
+                canvas.style.width = (img.width * scale) + 'px';
+                canvas.style.height = (img.height * scale) + 'px';
+                
+                areas = [];
+                currentPolygon = [];
+                updateStats();
+                draw();
+            };
+            
+            img.src = `/maps/${mapName}-1-89.png`;
+            document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
+        }
+        
+        // 繪製
+        function draw() {
+            if (!currentImage) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(currentImage, 0, 0);
+            
+            // 繪製已標註的區域
+            areas.forEach((area, index) => {
+                // 繪製多邊形
+                ctx.beginPath();
+                ctx.strokeStyle = '#10b981';
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+                ctx.lineWidth = 2;
+                
+                if (area.polygon.length > 2) {
+                    ctx.moveTo(area.polygon[0].x, area.polygon[0].y);
+                    area.polygon.forEach(p => ctx.lineTo(p.x, p.y));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                
+                ctx.stroke();
+                
+                // 繪製編號
+                const center = area.center;
+                ctx.fillStyle = '#3b82f6';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // 背景
+                const text = area.id.toString();
+                const metrics = ctx.measureText(text);
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
+                ctx.fillRect(center.x - 15, center.y - 12, 30, 24);
+                
+                // 文字
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(text, center.x, center.y);
+            });
+            
+            // 繪製當前正在畫的多邊形
+            if (currentPolygon.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#f59e0b';
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
+                ctx.lineWidth = 2;
+                
+                ctx.moveTo(currentPolygon[0].x, currentPolygon[0].y);
+                currentPolygon.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+                
+                // 繪製點
+                currentPolygon.forEach(p => {
+                    ctx.beginPath();
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+        }
+        
+        // 點擊事件
+        canvas.addEventListener('click', (e) => {
+            if (!currentImage) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            
+            if (e.shiftKey) {
+                // 畫多邊形模式
+                currentMode = 'draw';
+                document.getElementById('modeIndicator').textContent = '模式：畫多邊形';
+                document.getElementById('modeIndicator').className = 'mode-indicator mode-draw';
+                
+                currentPolygon.push({ x, y });
+                draw();
+            } else {
+                // 指定編號模式
+                if (currentPolygon.length > 2) {
+                    // 完成多邊形
+                    const center = getPolygonCenter(currentPolygon);
+                    areas.push({
+                        id: currentId,
+                        center: center,
+                        polygon: currentPolygon,
+                        area: calculatePolygonArea(currentPolygon)
+                    });
+                    currentId++;
+                    currentPolygon = [];
+                } else {
+                    // 單點標註
+                    areas.push({
+                        id: currentId,
+                        center: { x, y },
+                        polygon: [{ x: x - 30, y: y - 30 }, { x: x + 30, y: y - 30 }, 
+                                  { x: x + 30, y: y + 30 }, { x: x - 30, y: y + 30 }],
+                        area: 3600
+                    });
+                    currentId++;
+                }
+                
+                currentMode = 'assign';
+                document.getElementById('modeIndicator').textContent = '模式：指定編號';
+                document.getElementById('modeIndicator').className = 'mode-indicator mode-assign';
+                
+                updateStats();
+                draw();
+            }
+        });
+        
+        // 雙擊完成多邊形
+        canvas.addEventListener('dblclick', (e) => {
+            if (currentPolygon.length > 2) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                const x = (e.clientX - rect.left) * scaleX;
+                const y = (e.clientY - rect.top) * scaleY;
+                
+                const center = getPolygonCenter(currentPolygon);
+                areas.push({
+                    id: currentId,
+                    center: center,
+                    polygon: currentPolygon,
+                    area: calculatePolygonArea(currentPolygon)
+                });
+                currentId++;
+                currentPolygon = [];
+                
+                updateStats();
+                draw();
+            }
+        });
+        
+        // 計算多邊形中心
+        function getPolygonCenter(polygon) {
+            const x = polygon.reduce((sum, p) => sum + p.x, 0) / polygon.length;
+            const y = polygon.reduce((sum, p) => sum + p.y, 0) / polygon.length;
+            return { x, y };
+        }
+        
+        // 計算多邊形面積
+        function calculatePolygonArea(polygon) {
+            let area = 0;
+            const n = polygon.length;
+            
+            for (let i = 0; i < n; i++) {
+                const j = (i + 1) % n;
+                area += polygon[i].x * polygon[j].y;
+                area -= polygon[j].x * polygon[i].y;
+            }
+            
+            return Math.abs(area / 2);
+        }
+        
+        // 更新統計
+        function updateStats() {
+            document.getElementById('totalAreas').textContent = areas.length;
+            document.getElementById('currentId').textContent = currentId;
+            
+            updateOutput();
+        }
+        
+        // 更新輸出
+        function updateOutput() {
+            const output = {
+                totalAreas: areas.length,
+                areas: areas.map(a => ({
+                    id: a.id,
+                    center: [a.center.y, a.center.x], // [y, x] for Leaflet
+                    polygon: a.polygon.map(p => [p.y, p.x]), // [[y, x], ...]
+                    area: a.area
+                }))
+            };
+            
+            document.getElementById('output').textContent = JSON.stringify(output, null, 2);
+        }
+        
+        // 復原
+        function undoLast() {
+            if (currentPolygon.length > 0) {
+                currentPolygon.pop();
+            } else if (areas.length > 0) {
+                areas.pop();
+                currentId--;
+            }
+            
+            updateStats();
+            draw();
+        }
+        
+        // 清除
+        function clearAll() {
+            if (confirm('確定要清除所有標註嗎？')) {
+                areas = [];
+                currentPolygon = [];
+                currentId = parseInt(document.getElementById('startId').value) || 1;
+                updateStats();
+                draw();
+            }
+        }
+        
+        // 導出 JSON
+        function exportJSON() {
+            const output = {
+                imageSize: [canvas.width, canvas.height],
+                totalAreas: areas.length,
+                areas: areas.map(a => ({
+                    id: a.id,
+                    center: [a.center.y, a.center.x],
+                    polygon: a.polygon.map(p => [p.y, p.x]),
+                    area: a.area
+                }))
+            };
+            
+            const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${document.getElementById('mapSelect').value}-areas.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // 複製到剪貼板
+        function copyToClipboard() {
+            const output = {
+                imageSize: [canvas.width, canvas.height],
+                totalAreas: areas.length,
+                areas: areas.map(a => ({
+                    id: a.id,
+                    center: [a.center.y, a.center.x],
+                    polygon: a.polygon.map(p => [p.y, p.x]),
+                    area: a.area
+                }))
+            };
+            
+            navigator.clipboard.writeText(JSON.stringify(output, null, 2))
+                .then(() => alert('已複製到剪貼板！'))
+                .catch(err => console.error('複製失敗:', err));
+        }
+    </script>
+</body>
+</html>
