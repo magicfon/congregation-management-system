@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地圖加載測試</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #e5e5e5;
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #2a2a3e;
+            border-radius: 8px;
+        }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .loading { color: #facc15; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ 地圖加載測試</h1>
+
+    <div id="nanzih" class="test-item">
+        <h3>楠梓區 (1-89)</h3>
+        <div id="nanzih-status" class="loading">載入中...</div>
+        <img id="nanzih-img" crossOrigin="anonymous" style="display: none;">
+    </div>
+
+    <div id="chiaotou" class="test-item">
+        <h3>橋頭 (90-148)</h3>
+        <div id="chiaotou-status" class="loading">載入中...</div>
+        <img id="chiaotou-img" crossOrigin="anonymous" style="display: none;">
+    </div>
+
+    <div id="tzuguan" class="test-item">
+        <h3>梓官 (149-213)</h3>
+        <div id="tzuguan-status" class="loading">載入中...</div>
+        <img id="tzuguan-img" crossOrigin="anonymous" style="display: none;">
+    </div>
+
+    <div id="console-log" class="test-item">
+        <h3>控制台日誌</h3>
+        <pre id="log"></pre>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const logs = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `[${timestamp}] [${type}] ${message}`;
+            logs.push(logEntry);
+            log.textContent = logs.join('\n');
+            console.log(logEntry);
+        }
+
+        function testImage(id, src) {
+            const img = document.getElementById(`${id}-img`);
+            const status = document.getElementById(`${id}-status`);
+
+            addLog(`開始載入: ${src}`);
+
+            img.onload = () => {
+                const width = img.width;
+                const height = img.height;
+                status.innerHTML = `<span class="success">✅ 成功 (${width}x${height}px)</span>`;
+                img.style.display = 'block';
+                addLog(`✅ ${src} 載入成功: ${width}x${height}`, 'success');
+            };
+
+            img.onerror = (error) => {
+                status.innerHTML = `<span class="error">❌ 失敗</span>`;
+                addLog(`❌ ${src} 載入失敗`, 'error');
+                addLog(`錯誤詳情: ${JSON.stringify(error)}`, 'error');
+            };
+
+            img.src = src;
+        }
+
+        // 測試所有地圖
+        addLog('開始地圖加載測試...');
+
+        testImage('nanzih', '/maps/nanzih-1-89.png');
+        testImage('chiaotou', '/maps/chiaotou-90-148.png');
+        testImage('tzuguan', '/maps/tzuguan-149-213.png');
+
+        // 測試 CORS
+        addLog('測試 CORS 配置...');
+        const testFetch = fetch('/maps/nanzih-1-89.png', {
+            method: 'HEAD',
+            mode: 'cors'
+        }).then(response => {
+            addLog(`CORS 測試: ${response.status} ${response.statusText}`, 'success');
+            addLog(`CORS headers: ${response.headers.get('access-control-allow-origin') || '未設置'}`);
+        }).catch(error => {
+            addLog(`CORS 測試失敗: ${error.message}`, 'error');
+        });
+    </script>
+</body>
+</html>
