@@ -515,22 +515,36 @@
             img.crossOrigin = 'anonymous';
 
             img.onload = async () => {
-                currentImage = img;
-                canvas.width = img.width;
-                canvas.height = img.height;
+                try {
+                    console.log('✅ 圖片載入成功:', mapFile, img.width, 'x', img.height);
 
-                // 重置视图
-                resetZoom();
+                    currentImage = img;
+                    canvas.width = img.width;
+                    canvas.height = img.height;
 
-                areas = [];
-                currentPolygon = [];
-                selectedAreaIndex = -1;
-                updateStats();
+                    // 重置视图
+                    resetZoom();
 
-                document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
+                    areas = [];
+                    currentPolygon = [];
+                    selectedAreaIndex = -1;
+                    updateStats();
 
-                // 自动从云端载入已保存标注
-                await autoLoadFromCloud();
+                    document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
+
+                    // 自动从云端载入已保存标注
+                    await autoLoadFromCloud();
+
+                    console.log('✅ 地圖載入完成');
+                } catch (error) {
+                    console.error('❌ 載入地圖時發生錯誤:', error);
+                    alert('載入地圖時發生錯誤: ' + error.message);
+                }
+            };
+
+            img.onerror = () => {
+                console.error('❌ 圖片載入失敗:', mapFile);
+                alert('圖片載入失敗: ' + mapFile);
             };
 
             img.src = mapFile;
