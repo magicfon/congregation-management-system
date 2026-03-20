@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>區域標註工具 - 簡化版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f0f1e;
+            color: #e5e5e5;
+            padding: 20px;
+        }
+        .controls {
+            background: #1a1a2e;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .controls button, .controls select {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .controls button:hover {
+            background: #2563eb;
+        }
+        .controls button.active {
+            background: #f59e0b;
+        }
+        #mapContainer {
+            background: #1a1a2e;
+            border-radius: 8px;
+            overflow: auto;
+            display: none;
+        }
+        #mapCanvas {
+            display: block;
+        }
+        .stats {
+            background: #1a1a2e;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: flex;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ 區域標註工具 - 簡化版</h1>
+
+    <div class="controls">
+        <select id="mapSelect">
+            <option value="">選擇地圖...</option>
+            <option value="nanzih">楠梓區 (1-89)</option>
+            <option value="chiaotou">橋頭 (90-148)</option>
+            <option value="tzuguan">梓官 (149-213)</option>
+        </select>
+        <button onclick="loadMap()">載入地圖</button>
+        <span>起始編號:</span>
+        <input type="number" id="startId" value="1" style="width: 60px; padding: 6px;">
+        <button onclick="clearAll()">清除全部</button>
+        <span>模式:</span>
+        <button id="btnView" onclick="setMode('view')" class="active">👁️ 瀏覽</button>
+        <button id="btnAdd" onclick="setMode('add')">➕ 新增</button>
+        <button id="btnDelete" onclick="setMode('delete')">🗑️ 刪除</button>
+    </div>
+
+    <div id="mapContainer">
+        <canvas id="mapCanvas"></canvas>
+    </div>
+
+    <div class="stats">
+        <span>已標註區域: <strong id="areaCount">0</strong></span>
+        <span>下一個編號: <strong id="nextId">1</strong></span>
+        <span>當前地圖: <strong id="mapName">無</strong></span>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('mapContainer');
+
+        let currentImage = null;
+        let areas = [];
+        let currentMode = 'view';
+        let currentId = 1;
+        let currentMapId = '';
+
+        // 缩放和平移
+        let zoom = 1;
+        let panX = 0, panY = 0;
+
+        // 载入地图
+        function loadMap() {
+            const mapSelect = document.getElementById('mapSelect');
+            const mapId = mapSelect.value;
+
+            if (!mapId) {
+                alert('請選擇地圖');
+                return;
+            }
+
+            currentMapId = mapId;
+            currentId = parseInt(document.getElementById('startId').value) || 1;
+
+            let mapFile;
+            switch(mapId) {
+                case 'nanzih': mapFile = '/maps/nanzih-1-89.png'; break;
+                case 'chiaotou': mapFile = '/maps/chiaotou-90-148.png'; break;
+                case 'tzuguan': mapFile = '/maps/tzuguan-149-213.png'; break;
+            }
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+
+            img.onload = () => {
+                console.log('✅ 地圖載入成功:', mapFile, img.width, 'x', img.height);
+                currentImage = img;
+                canvas.width = img.width;
+                canvas.height = img.height;
+                container.style.display = 'block';
+
+                // 重置状态
+                areas = [];
+                zoom = 1;
+                panX = 0;
+                panY = 0;
+                updateStats();
+                draw();
+
+                document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
+                console.log('✅ 載入完成');
+            };
+
+            img.onerror = (error) => {
+                console.error('❌ 地圖載入失敗:', mapFile, error);
+                alert('地圖載入失敗: ' + mapFile);
+            };
+
+            img.src = mapFile;
+            console.log('🔄 開始載入地圖:', mapFile);
+        }
+
+        // 设置模式
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.controls button').forEach(btn => btn.classList.remove('active'));
+            if (mode === 'view') document.getElementById('btnView').classList.add('active');
+            if (mode === 'add') document.getElementById('btnAdd').classList.add('active');
+            if (mode === 'delete') document.getElementById('btnDelete').classList.add('active');
+        }
+
+        // 绘制
+        function draw() {
+            if (!currentImage) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(panX, panY);
+            ctx.scale(zoom, zoom);
+
+            // 绘制地图
+            ctx.drawImage(currentImage, 0, 0);
+
+            // 绘制区域
+            areas.forEach(area => {
+                ctx.beginPath();
+                ctx.strokeStyle = '#10b981';
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+                ctx.lineWidth = 2 / zoom;
+
+                if (area.polygon.length > 2) {
+                    ctx.moveTo(area.polygon[0].x, area.polygon[0].y);
+                    area.polygon.forEach(p => ctx.lineTo(p.x, p.y));
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                // 绘制编号
+                const center = area.center;
+                ctx.fillStyle = '#3b82f6';
+                ctx.font = `bold ${24 / zoom}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const text = area.id.toString();
+                const bgWidth = 30 / zoom;
+                const bgHeight = 24 / zoom;
+                ctx.fillRect(center.x - bgWidth/2, center.y - bgHeight/2, bgWidth, bgHeight);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(text, center.x, center.y);
+            });
+
+            ctx.restore();
+        }
+
+        // 鼠标点击
+        canvas.addEventListener('click', (e) => {
+            if (!currentImage) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - panX) / zoom;
+            const y = (e.clientY - rect.top - panY) / zoom;
+
+            if (currentMode === 'add') {
+                areas.push({
+                    id: currentId++,
+                    center: { x, y },
+                    polygon: [
+                        { x: x - 50, y: y - 50 },
+                        { x: x + 50, y: y - 50 },
+                        { x: x + 50, y: y + 50 },
+                        { x: x - 50, y: y + 50 }
+                    ]
+                });
+                updateStats();
+                draw();
+            } else if (currentMode === 'delete') {
+                const index = areas.findIndex(area => {
+                    const dx = area.center.x - x;
+                    const dy = area.center.y - y;
+                    return Math.sqrt(dx*dx + dy*dy) < 50;
+                });
+                if (index >= 0) {
+                    areas.splice(index, 1);
+                    updateStats();
+                    draw();
+                }
+            }
+        });
+
+        // 更新统计
+        function updateStats() {
+            document.getElementById('areaCount').textContent = areas.length;
+            document.getElementById('nextId').textContent = currentId;
+        }
+
+        // 清除全部
+        function clearAll() {
+            if (confirm('確定要清除全部標註嗎？')) {
+                areas = [];
+                updateStats();
+                draw();
+            }
+        }
+
+        console.log('✅ 頁面已載入');
+    </script>
+</body>
+</html>
