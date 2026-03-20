@@ -532,8 +532,10 @@
 
                     document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
 
-                    // 自动从云端载入已保存标注
-                    await autoLoadFromCloud();
+                    // 自动从云端载入已保存标注（不阻塞地图显示）
+                    autoLoadFromCloud().catch(err => {
+                        console.warn('⚠️ 雲端載入失敗（不影響地圖顯示）:', err);
+                    });
 
                     console.log('✅ 地圖載入完成');
                 } catch (error) {
