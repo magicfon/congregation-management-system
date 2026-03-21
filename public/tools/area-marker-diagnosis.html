@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專業版診斷工具</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #e5e5e5;
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #2a2a3e;
+            border-radius: 8px;
+        }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .warning { color: #facc15; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2563eb; }
+        #log {
+            background: #0f0f1e;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 專業版診斷工具</h1>
+
+    <div class="test-item">
+        <h3>1. 檢查 Supabase CDN</h3>
+        <div id="supabase-cdn-status"></div>
+    </div>
+
+    <div class="test-item">
+        <h3>2. 檢查 Supabase 初始化</h3>
+        <div id="supabase-init-status"></div>
+    </div>
+
+    <div class="test-item">
+        <h3>3. 測試地圖載入</h3>
+        <button onclick="testMapLoad()">測試載入楠梓區地圖</button>
+        <div id="map-load-status"></div>
+    </div>
+
+    <div class="test-item">
+        <h3>4. 控制台日誌</h3>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const logs = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            const logEntry = `[${timestamp}] ${prefix} ${message}`;
+            logs.push(logEntry);
+            log.textContent = logs.join('\n');
+            log.scrollTop = log.scrollHeight;
+            console.log(logEntry);
+        }
+
+        // 1. 檢查 Supabase CDN
+        function checkSupabaseCDN() {
+            const status = document.getElementById('supabase-cdn-status');
+            if (typeof window.supabase !== 'undefined') {
+                status.innerHTML = '<span class="success">✅ Supabase CDN 已載入</span>';
+                addLog('Supabase CDN 已載入', 'success');
+                return true;
+            } else {
+                status.innerHTML = '<span class="error">❌ Supabase CDN 未載入</span>';
+                addLog('Supabase CDN 未載入', 'error');
+                return false;
+            }
+        }
+
+        // 2. 檢查 Supabase 初始化
+        function checkSupabaseInit() {
+            const status = document.getElementById('supabase-init-status');
+            const cdnLoaded = checkSupabaseCDN();
+
+            if (!cdnLoaded) {
+                status.innerHTML = '<span class="error">❌ 無法初始化（CDN 未載入）</span>';
+                return null;
+            }
+
+            try {
+                const SUPABASE_URL = 'https://gkclvxkuvyoenpvzubxm.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2x2eGt1dnlvZW5wdnp1YnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MzI4NTMsImV4cCI6MjA4OTEwODg1M30.GnXkq0Sl47enU8Tk3Rh8vLZ3dpcU_Av-7v7qGOz5mL8';
+                const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                status.innerHTML = '<span class="success">✅ Supabase 初始化成功</span>';
+                addLog('Supabase 初始化成功', 'success');
+                return supabase;
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ Supabase 初始化失敗: ${error.message}</span>`;
+                addLog(`Supabase 初始化失敗: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        // 3. 測試地圖載入
+        async function testMapLoad() {
+            const status = document.getElementById('map-load-status');
+            status.innerHTML = '<span class="warning">⏳ 載入中...</span>';
+            addLog('開始測試地圖載入...');
+
+            const mapFile = '/maps/nanzih-1-89.png';
+            addLog(`地圖路徑: ${mapFile}`);
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+
+            const timeout = setTimeout(() => {
+                status.innerHTML = '<span class="error">❌ 載入超時（10秒）</span>';
+                addLog('地圖載入超時', 'error');
+            }, 10000);
+
+            img.onload = () => {
+                clearTimeout(timeout);
+                status.innerHTML = `<span class="success">✅ 載入成功 (${img.width}x${img.height}px)</span>`;
+                addLog(`地圖載入成功: ${img.width}x${img.height}px`, 'success');
+            };
+
+            img.onerror = () => {
+                clearTimeout(timeout);
+                status.innerHTML = '<span class="error">❌ 載入失敗</span>';
+                addLog('地圖載入失敗', 'error');
+            };
+
+            img.src = mapFile;
+            addLog('已設置圖片 src');
+        }
+
+        // 頁面載入時執行檢查
+        addLog('=== 診斷開始 ===');
+        const supabase = checkSupabaseInit();
+        addLog('=== 初始檢查完成 ===');
+    </script>
+</body>
+</html>
