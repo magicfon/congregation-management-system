@@ -3,34 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 - 專業版</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <title>區域標註工具 - 簡化版</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: system-ui, -apple-system, sans-serif;
             background: #0f0f1e;
             color: #e5e5e5;
             padding: 20px;
-            overflow-x: hidden;
         }
-
-        .container {
-            max-width: 100%;
-            margin: 0 auto;
-        }
-
-        h1 {
-            margin-bottom: 20px;
-            color: #60a5fa;
-            font-size: 24px;
-        }
-
         .controls {
             background: #1a1a2e;
             padding: 12px 16px;
@@ -41,365 +26,71 @@
             gap: 8px;
             align-items: center;
         }
-
-        .controls button {
+        .controls button, .controls select {
             background: #3b82f6;
             color: white;
             border: none;
             padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 13px;
-            transition: background 0.2s;
-            white-space: nowrap;
+            font-size: 14px;
         }
-
         .controls button:hover {
             background: #2563eb;
         }
-
-        .controls button.secondary {
-            background: #475569;
-        }
-
-        .controls button.secondary:hover {
-            background: #64748b;
-        }
-
-        .controls button.danger {
-            background: #ef4444;
-        }
-
-        .controls button.danger:hover {
-            background: #dc2626;
-        }
-
         .controls button.active {
-            background: #10b981;
+            background: #f59e0b;
         }
-
-        .controls button.save-cloud {
-            background: #a855f7;
-        }
-
-        .controls button.save-cloud:hover {
-            background: #9333ea;
-        }
-
-        .controls button.load-cloud {
-            background: #3b82f6;
-        }
-
-        .controls button.load-cloud:hover {
-            background: #2563eb;
-        }
-
-        .controls select, .controls input {
-            background: #1e293b;
-            color: #e5e5e5;
-            border: 1px solid #334155;
-            padding: 7px 10px;
-            border-radius: 6px;
-            font-size: 13px;
-        }
-
-        .controls-divider {
-            width: 1px;
-            height: 28px;
-            background: #334155;
-            flex-shrink: 0;
-        }
-
-        .mode-indicator {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            white-space: nowrap;
-        }
-
-        .mode-view { background: #64748b; }
-        .mode-add { background: #10b981; }
-        .mode-edit { background: #f59e0b; }
-        .mode-delete { background: #ef4444; }
-
-        .map-container {
-            position: relative;
+        #mapContainer {
             background: #1a1a2e;
             border-radius: 8px;
             overflow: auto;
-            margin-bottom: 20px;
-            max-height: 80vh;
-            border: 2px solid #334155;
+            display: none;
         }
-
         #mapCanvas {
             display: block;
-            cursor: crosshair;
         }
-
-        .info-panel {
-            background: #1a1a2e;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
         .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .stat {
-            background: #1e293b;
-            padding: 15px;
-            border-radius: 6px;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #60a5fa;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #94a3b8;
-            margin-top: 5px;
-        }
-
-        .instructions {
-            background: #1e293b;
-            padding: 15px;
-            border-radius: 6px;
-            font-size: 14px;
-            line-height: 1.8;
-        }
-
-        .instructions h3 {
-            margin-bottom: 10px;
-            color: #60a5fa;
-        }
-
-        .instructions ul {
-            margin-left: 20px;
-        }
-
-        .instructions li {
-            margin-bottom: 8px;
-        }
-
-        .instructions code {
-            background: #0f172a;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-
-        #output {
-            background: #0f172a;
-            padding: 15px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 12px;
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 15px;
-        }
-
-        .zoom-controls {
-            display: flex;
-            gap: 5px;
-            align-items: center;
-            background: #1e293b;
-            padding: 4px 8px;
-            border-radius: 6px;
-        }
-
-        .zoom-controls span {
-            min-width: 50px;
-            text-align: center;
-            font-size: 13px;
-        }
-
-        #editIdControls {
-            display: none;
-            align-items: center;
-            gap: 6px;
-        }
-
-        #editIdControls.visible {
-            display: flex;
-        }
-
-        /* Toast notification */
-        .toast {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%) translateY(20px);
-            background: #1e293b;
-            color: #e5e5e5;
-            padding: 12px 24px;
+            background: #1a1a2e;
+            padding: 12px 16px;
             border-radius: 8px;
-            font-size: 14px;
-            opacity: 0;
-            transition: opacity 0.3s, transform 0.3s;
-            pointer-events: none;
-            z-index: 9999;
-            border-left: 4px solid #10b981;
-            white-space: nowrap;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        .toast.error {
-            border-left-color: #ef4444;
-        }
-
-        .toast.warn {
-            border-left-color: #f59e0b;
+            margin-top: 12px;
+            display: flex;
+            gap: 20px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🗺️ 區域標註工具 - 專業版</h1>
+    <h1>🗺️ 區域標註工具 - 簡化版</h1>
 
-        <!-- Row 1: Map loading and zoom -->
-        <div class="controls">
-            <select id="mapSelect">
-                <option value="">選擇地圖...</option>
-                <option value="nanzih">楠梓區 (1-89)</option>
-                <option value="chiaotou">橋頭 (90-148)</option>
-                <option value="tzuguan">梓官 (149-213)</option>
-            </select>
-
-            <input type="number" id="startId" placeholder="起始編號" value="1" style="width: 90px;">
-
-            <button onclick="loadMap()">載入地圖</button>
-            <button class="secondary" onclick="loadCV2Areas()">📥 CV2 區域</button>
-
-            <div class="controls-divider"></div>
-
-            <div class="zoom-controls">
-                <button onclick="zoomOut()">➖</button>
-                <span id="zoomLevel">100%</span>
-                <button onclick="zoomIn()">➕</button>
-                <button class="secondary" onclick="resetZoom()">重置</button>
-            </div>
-
-            <span class="mode-indicator" id="modeIndicator">模式：瀏覽</span>
-        </div>
-
-        <!-- Row 2: Mode buttons and actions -->
-        <div class="controls">
-            <button id="btnView" class="active" onclick="setMode('view')">👁️ 瀏覽</button>
-            <button id="btnAdd" onclick="setMode('add')">➕ 新增</button>
-            <button id="btnEdit" onclick="setMode('edit')">✏️ 編輯</button>
-            <button id="btnDelete" onclick="setMode('delete')">🗑️ 刪除</button>
-
-            <!-- 更新編號：僅在編輯模式顯示 -->
-            <div id="editIdControls">
-                <div class="controls-divider"></div>
-                <input type="number" id="editAreaId" placeholder="選中編號" style="width: 80px;">
-                <button onclick="updateAreaId()">更新編號</button>
-            </div>
-
-            <div class="controls-divider"></div>
-
-            <button class="secondary" onclick="undoLast()">↩️ 復原</button>
-            <button class="danger" onclick="clearAll()">🗑️ 清除全部</button>
-
-            <div class="controls-divider"></div>
-
-            <button class="secondary" onclick="saveToLocalStorage()">💾 本地保存</button>
-            <button class="secondary" onclick="loadFromLocalStorage()">📂 本地載入</button>
-
-            <div class="controls-divider"></div>
-
-            <button class="save-cloud" onclick="saveToCloud()">💾 保存到雲端</button>
-            <button class="load-cloud" onclick="loadFromCloud()">☁️ 從雲端載入</button>
-
-            <div class="controls-divider"></div>
-
-            <button onclick="exportJSON()">📤 導出 JSON</button>
-            <button onclick="copyToClipboard()">📋 複製</button>
-        </div>
-
-        <div class="map-container" id="mapContainer">
-            <canvas id="mapCanvas"></canvas>
-        </div>
-
-        <div class="info-panel">
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-value" id="totalAreas">0</div>
-                    <div class="stat-label">已標註區域</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="currentId">1</div>
-                    <div class="stat-label">下一個編號</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="mapName">-</div>
-                    <div class="stat-label">當前地圖</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="selectedArea">無</div>
-                    <div class="stat-label">選中區域</div>
-                </div>
-            </div>
-
-            <div class="instructions">
-                <h3>📖 使用說明</h3>
-                <ul>
-                    <li><strong>👁️ 瀏覽模式</strong>：查看和選中區域，拖拽平移地圖</li>
-                    <li><strong>➕ 新增模式</strong>：
-                        <ul>
-                            <li>點擊地圖 = 新增矩形區域</li>
-                            <li>Shift+點擊 = 畫多邊形（雙擊完成）</li>
-                        </ul>
-                    </li>
-                    <li><strong>✏️ 編輯模式</strong>：點擊區域選中後可修改編號；拖拽頂點調整形狀；拖拽中心移動區域</li>
-                    <li><strong>🗑️ 刪除模式</strong>：點擊區域刪除</li>
-                    <li><strong>縮放</strong>：使用 +/- 按鈕或滑鼠滾輪</li>
-                    <li><strong>☁️ 雲端</strong>：載入地圖時自動從雲端載入已保存標注</li>
-                </ul>
-            </div>
-
-            <pre id="output"></pre>
-        </div>
+    <div class="controls">
+        <select id="mapSelect">
+            <option value="">選擇地圖...</option>
+            <option value="nanzih">楠梓區 (1-89)</option>
+            <option value="chiaotou">橋頭 (90-148)</option>
+            <option value="tzuguan">梓官 (149-213)</option>
+        </select>
+        <button onclick="loadMap()">載入地圖</button>
+        <span>起始編號:</span>
+        <input type="number" id="startId" value="1" style="width: 60px; padding: 6px;">
+        <button onclick="clearAll()">清除全部</button>
+        <span>模式:</span>
+        <button id="btnView" onclick="setMode('view')" class="active">👁️ 瀏覽</button>
+        <button id="btnAdd" onclick="setMode('add')">➕ 新增</button>
+        <button id="btnDelete" onclick="setMode('delete')">🗑️ 刪除</button>
     </div>
 
-    <!-- Toast notification -->
-    <div class="toast" id="toast"></div>
+    <div id="mapContainer">
+        <canvas id="mapCanvas"></canvas>
+    </div>
+
+    <div class="stats">
+        <span>已標註區域: <strong id="areaCount">0</strong></span>
+        <span>下一個編號: <strong id="nextId">1</strong></span>
+        <span>當前地圖: <strong id="mapName">無</strong></span>
+    </div>
 
     <script>
-        // Supabase setup（带错误处理）
-        let supabase = null;
-        try {
-            const SUPABASE_URL = 'https://gkclvxkuvyoenpvzubxm.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2x2eGt1dnlvZW5wdnp1YnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MzI4NTMsImV4cCI6MjA4OTEwODg1M30.GnXkq0Sl47enU8Tk3Rh8vLZ3dpcU_Av-7v7qGOz5mL8';
-
-            if (typeof window.supabase !== 'undefined') {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('✅ Supabase 初始化成功');
-            } else {
-                console.warn('⚠️ Supabase CDN 未載入，雲端功能將被禁用');
-            }
-        } catch (error) {
-            console.error('❌ Supabase 初始化失敗:', error);
-            console.warn('⚠️ 雲端功能將被禁用');
-        }
-
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('mapContainer');
@@ -407,104 +98,15 @@
         let currentImage = null;
         let areas = [];
         let currentMode = 'view';
-        let currentPolygon = [];
         let currentId = 1;
         let currentMapId = '';
 
-        // 编辑相关
-        let selectedAreaIndex = -1;
-        let dragType = null; // 'move', 'vertex'
-        let dragIndex = -1;
-        let isDragging = false;
-        let lastMousePos = { x: 0, y: 0 };
-
         // 缩放和平移
         let zoom = 1;
-        let panX = 0;
-        let panY = 0;
-        let isPanning = false;
-        let panStart = { x: 0, y: 0 };
-
-        // 顶点半径
-        const VERTEX_RADIUS = 8;
-
-        // Toast notification
-        let toastTimer = null;
-        function showToast(msg, type = 'success') {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.className = 'toast show' + (type !== 'success' ? ' ' + type : '');
-            if (toastTimer) clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => {
-                toast.className = 'toast';
-            }, 3000);
-        }
-
-        // 设置模式
-        function setMode(mode) {
-            currentMode = mode;
-            selectedAreaIndex = -1;
-            currentPolygon = [];
-
-            // 更新按钮样式
-            ['btnView', 'btnAdd', 'btnEdit', 'btnDelete'].forEach(id => {
-                document.getElementById(id).classList.remove('active');
-            });
-            document.getElementById('btn' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
-
-            // 更新指示器
-            const modeNames = {
-                view: '瀏覽',
-                add: '新增',
-                edit: '編輯',
-                delete: '刪除'
-            };
-            const indicator = document.getElementById('modeIndicator');
-            indicator.textContent = '模式：' + modeNames[mode];
-            indicator.className = 'mode-indicator mode-' + mode;
-
-            // 更新光标
-            canvas.style.cursor = mode === 'view' ? 'grab' : 'crosshair';
-
-            // 编辑模式下才显示「更新编号」区域
-            const editIdControls = document.getElementById('editIdControls');
-            if (mode === 'edit') {
-                editIdControls.classList.add('visible');
-            } else {
-                editIdControls.classList.remove('visible');
-            }
-
-            updateSelectedInfo();
-            draw();
-        }
-
-        // 缩放控制
-        function zoomIn() {
-            zoom = Math.min(3, zoom * 1.2);
-            updateZoomDisplay();
-            draw();
-        }
-
-        function zoomOut() {
-            zoom = Math.max(0.1, zoom / 1.2);
-            updateZoomDisplay();
-            draw();
-        }
-
-        function resetZoom() {
-            zoom = 1;
-            panX = 0;
-            panY = 0;
-            updateZoomDisplay();
-            draw();
-        }
-
-        function updateZoomDisplay() {
-            document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
-        }
+        let panX = 0, panY = 0;
 
         // 载入地图
-        async function loadMap() {
+        function loadMap() {
             const mapSelect = document.getElementById('mapSelect');
             const mapId = mapSelect.value;
 
@@ -526,134 +128,41 @@
             const img = new Image();
             img.crossOrigin = 'anonymous';
 
-            img.onload = async () => {
-                try {
-                    console.log('✅ 圖片載入成功:', mapFile, img.width, 'x', img.height);
+            img.onload = () => {
+                console.log('✅ 地圖載入成功:', mapFile, img.width, 'x', img.height);
+                currentImage = img;
+                canvas.width = img.width;
+                canvas.height = img.height;
+                container.style.display = 'block';
 
-                    currentImage = img;
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-
-                    // 重置视图
-                    resetZoom();
-
-                    areas = [];
-                    currentPolygon = [];
-                    selectedAreaIndex = -1;
-                    updateStats();
-
-                    document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
-
-                    // 自动从云端载入已保存标注（不阻塞地图显示）
-                    autoLoadFromCloud().catch(err => {
-                        console.warn('⚠️ 雲端載入失敗（不影響地圖顯示）:', err);
-                    });
-
-                    console.log('✅ 地圖載入完成');
-                } catch (error) {
-                    console.error('❌ 載入地圖時發生錯誤:', error);
-                    alert('載入地圖時發生錯誤: ' + error.message);
-                }
-            };
-
-            img.onerror = () => {
-                console.error('❌ 圖片載入失敗:', mapFile);
-                alert('圖片載入失敗: ' + mapFile);
-            };
-
-            img.src = mapFile;
-        }
-
-        // 载入地图后自动从云端载入
-        async function autoLoadFromCloud() {
-            // 检查 Supabase 是否可用
-            if (!supabase) {
-                console.log('ℹ️ Supabase 未啟用，跳過雲端載入');
-                return;
-            }
-
-            try {
-                const { data, error } = await supabase
-                    .from('area_annotations')
-                    .select('data, updated_at')
-                    .eq('map_id', currentMapId)
-                    .single();
-
-                if (error || !data) return;
-
-                const saved = data.data;
-                areas = saved.areas.map(area => ({
-                    id: area.id,
-                    center: { x: area.center[1], y: area.center[0] },
-                    polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
-                }));
-
-                currentId = areas.length > 0 ? Math.max(...areas.map(a => a.id)) + 1 : 1;
-                selectedAreaIndex = -1;
+                // 重置状态
+                areas = [];
+                zoom = 1;
+                panX = 0;
+                panY = 0;
                 updateStats();
                 draw();
 
-                const savedTime = new Date(data.updated_at).toLocaleString('zh-TW');
-                showToast(`☁️ 已從雲端載入 ${areas.length} 個區域（${savedTime}）`);
-            } catch (e) {
-                // 静默失败，不影响正常使用
-                console.warn('autoLoadFromCloud:', e);
-            }
-        }
-
-        // 载入 CV2 检测区域
-        async function loadCV2Areas() {
-            if (!currentMapId) {
-                alert('請先載入地圖');
-                return;
-            }
-
-            let jsonFile;
-            switch(currentMapId) {
-                case 'nanzih': jsonFile = '/maps/nanzih-areas-cv2.json'; break;
-                case 'chiaotou': jsonFile = '/maps/chiaotou-areas-cv2.json'; break;
-                case 'tzuguan': jsonFile = '/maps/tzuguan-areas-cv2.json'; break;
-            }
-
-            try {
-                const response = await fetch(jsonFile);
-                const data = await response.json();
-
-                if (data.areas && data.areas.length > 0) {
-                    areas = data.areas.map(area => ({
-                        id: area.id,
-                        center: { x: area.center[1], y: area.center[0] },
-                        polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
-                    }));
-
-                    currentId = areas.length + 1;
-                    updateStats();
-                    draw();
-
-                    showToast(`✅ 已載入 ${areas.length} 個 CV2 區域`);
-                } else {
-                    showToast('沒有找到檢測區域', 'warn');
-                }
-            } catch (error) {
-                console.error('載入失敗:', error);
-                showToast('載入失敗：' + error.message, 'error');
-            }
-        }
-
-        // 坐标转换
-        function screenToImage(x, y) {
-            const rect = canvas.getBoundingClientRect();
-            return {
-                x: (x - rect.left - panX) / zoom,
-                y: (y - rect.top - panY) / zoom
+                document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
+                console.log('✅ 載入完成');
             };
+
+            img.onerror = (error) => {
+                console.error('❌ 地圖載入失敗:', mapFile, error);
+                alert('地圖載入失敗: ' + mapFile);
+            };
+
+            img.src = mapFile;
+            console.log('🔄 開始載入地圖:', mapFile);
         }
 
-        function imageToScreen(x, y) {
-            return {
-                x: x * zoom + panX,
-                y: y * zoom + panY
-            };
+        // 设置模式
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.controls button').forEach(btn => btn.classList.remove('active'));
+            if (mode === 'view') document.getElementById('btnView').classList.add('active');
+            if (mode === 'add') document.getElementById('btnAdd').classList.add('active');
+            if (mode === 'delete') document.getElementById('btnDelete').classList.add('active');
         }
 
         // 绘制
@@ -661,8 +170,6 @@
             if (!currentImage) return;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 应用缩放和平移
             ctx.save();
             ctx.translate(panX, panY);
             ctx.scale(zoom, zoom);
@@ -670,309 +177,67 @@
             // 绘制地图
             ctx.drawImage(currentImage, 0, 0);
 
-            // 绘制所有区域
-            areas.forEach((area, index) => {
-                const isSelected = index === selectedAreaIndex;
-
-                // 绘制多边形
+            // 绘制区域
+            areas.forEach(area => {
                 ctx.beginPath();
-                ctx.strokeStyle = isSelected ? '#f59e0b' : '#10b981';
-                ctx.fillStyle = isSelected ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.2)';
-                ctx.lineWidth = isSelected ? 3 / zoom : 2 / zoom;
+                ctx.strokeStyle = '#10b981';
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+                ctx.lineWidth = 2 / zoom;
 
                 if (area.polygon.length > 2) {
                     ctx.moveTo(area.polygon[0].x, area.polygon[0].y);
                     area.polygon.forEach(p => ctx.lineTo(p.x, p.y));
                     ctx.closePath();
                     ctx.fill();
+                    ctx.stroke();
                 }
-                ctx.stroke();
 
                 // 绘制编号
                 const center = area.center;
-                ctx.fillStyle = isSelected ? '#f59e0b' : '#3b82f6';
+                ctx.fillStyle = '#3b82f6';
                 ctx.font = `bold ${24 / zoom}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
 
-                // 背景
                 const text = area.id.toString();
                 const bgWidth = 30 / zoom;
                 const bgHeight = 24 / zoom;
                 ctx.fillRect(center.x - bgWidth/2, center.y - bgHeight/2, bgWidth, bgHeight);
 
-                // 文字
                 ctx.fillStyle = '#ffffff';
                 ctx.fillText(text, center.x, center.y);
-
-                // 编辑模式下绘制顶点
-                if (currentMode === 'edit' && isSelected) {
-                    area.polygon.forEach((p, pIndex) => {
-                        ctx.beginPath();
-                        ctx.fillStyle = '#f59e0b';
-                        ctx.arc(p.x, p.y, VERTEX_RADIUS / zoom, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2 / zoom;
-                        ctx.stroke();
-                    });
-                }
             });
-
-            // 绘制正在画的多边形
-            if (currentPolygon.length > 0) {
-                ctx.beginPath();
-                ctx.strokeStyle = '#f59e0b';
-                ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
-                ctx.lineWidth = 2 / zoom;
-
-                ctx.moveTo(currentPolygon[0].x, currentPolygon[0].y);
-                currentPolygon.forEach(p => ctx.lineTo(p.x, p.y));
-                ctx.stroke();
-
-                // 绘制点
-                currentPolygon.forEach(p => {
-                    ctx.beginPath();
-                    ctx.fillStyle = '#f59e0b';
-                    ctx.arc(p.x, p.y, VERTEX_RADIUS / zoom, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-            }
 
             ctx.restore();
         }
 
-        // 查找点击的区域
-        function findAreaAt(x, y) {
-            for (let i = areas.length - 1; i >= 0; i--) {
-                const area = areas[i];
-                if (isPointInPolygon(x, y, area.polygon)) {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
-        // 点是否在多边形内
-        function isPointInPolygon(x, y, polygon) {
-            let inside = false;
-            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-                const xi = polygon[i].x, yi = polygon[i].y;
-                const xj = polygon[j].x, yj = polygon[j].y;
-
-                if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
-                    inside = !inside;
-                }
-            }
-            return inside;
-        }
-
-        // 查找点击的顶点
-        function findVertexAt(x, y, areaIndex) {
-            if (areaIndex < 0) return -1;
-
-            const area = areas[areaIndex];
-            const threshold = VERTEX_RADIUS * 2 / zoom;
-
-            for (let i = 0; i < area.polygon.length; i++) {
-                const dx = area.polygon[i].x - x;
-                const dy = area.polygon[i].y - y;
-                if (Math.sqrt(dx*dx + dy*dy) < threshold) {
-                    return i;
-                }
-            }
-            return -1;
-        }
-        
-        // 查找点击的边（用于添加新节点）
-        function findEdgeAt(x, y, areaIndex) {
-            if (areaIndex < 0) return -1;
-            
-            const area = areas[areaIndex];
-            const threshold = 15 / zoom; // 边线检测阈值
-            
-            for (let i = 0; i < area.polygon.length - 1; i++) {
-                const p1 = area.polygon[i];
-                const p2 = area.polygon[i + 1];
-                
-                // 计算点到线段的距离
-                const dist = pointToLineDistance(x, y, p1.x, p1.y, p2.x, p2.y);
-                
-                if (dist < threshold) {
-                    // 检查点是否在线段范围内
-                    const minX = Math.min(p1.x, p2.x) - threshold;
-                    const maxX = Math.max(p1.x, p2.x) + threshold;
-                    const minY = Math.min(p1.y, p2.y) - threshold;
-                    const maxY = Math.max(p1.y, p2.y) + threshold;
-                    
-                    if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
-                        return i;
-                    }
-                }
-            }
-            
-            return -1;
-        }
-        
-        // 计算点到线段的距离
-        function pointToLineDistance(px, py, x1, y1, x2, y2) {
-            const A = px - x1;
-            const B = py - y1;
-            const C = x2 - x1;
-            const D = y2 - y1;
-
-            const dot = A * C + B * D;
-            const lenSq = C * C + D * D;
-            let param = -1;
-            
-            if (lenSq !== 0) param = dot / lenSq;
-
-            let xx, yy;
-
-            if (param < 0) {
-                xx = x1;
-                yy = y1;
-            } else if (param > 1) {
-                xx = x2;
-                yy = y2;
-            } else {
-                xx = x1 + param * C;
-                yy = y1 + param * D;
-            }
-
-            const dx = px - xx;
-            const dy = py - yy;
-            
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-
-        // 查找点击的边
-        function findEdgeAt(x, y, areaIndex) {
-            if (areaIndex < 0) return -1;
-
-            const area = areas[areaIndex];
-            const threshold = 10 / zoom; // 边的检测阈值
-
-            for (let i = 0; i < area.polygon.length - 1; i++) {
-                const p1 = area.polygon[i];
-                const p2 = area.polygon[i + 1];
-
-                // 计算点到线段的距离
-                const dist = pointToLineDistance(x, y, p1.x, p1.y, p2.x, p2.y);
-
-                if (dist < threshold) {
-                    return i; // 返回边的起始点索引
-                }
-            }
-
-            return -1;
-        }
-
-        // 计算点到线段的距离
-        function pointToLineDistance(px, py, x1, y1, x2, y2) {
-            const A = px - x1;
-            const B = py - y1;
-            const C = x2 - x1;
-            const D = y2 - y1;
-
-            const dot = A * C + B * D;
-            const len_sq = C * C + D * D;
-            let param = -1;
-
-            if (len_sq !== 0) param = dot / len_sq;
-
-            let xx, yy;
-
-            if (param < 0) {
-                xx = x1;
-                yy = y1;
-            } else if (param > 1) {
-                xx = x2;
-                yy = y2;
-            } else {
-                xx = x1 + param * C;
-                yy = y1 + param * D;
-            }
-
-            const dx = px - xx;
-            const dy = py - yy;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-
-        // 鼠标事件
-        canvas.addEventListener('mousedown', (e) => {
+        // 鼠标点击
+        canvas.addEventListener('click', (e) => {
             if (!currentImage) return;
 
-            const pos = screenToImage(e.clientX, e.clientY);
-            lastMousePos = { x: e.clientX, y: e.clientY };
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - panX) / zoom;
+            const y = (e.clientY - rect.top - panY) / zoom;
 
-            if (currentMode === 'view') {
-                isPanning = true;
-                panStart = { x: e.clientX - panX, y: e.clientY - panY };
-                canvas.style.cursor = 'grabbing';
-            }
-            else if (currentMode === 'add') {
-                if (e.shiftKey) {
-                    currentPolygon.push({ x: pos.x, y: pos.y });
-                    draw();
-                } else {
-                    // 添加矩形
-                    areas.push({
-                        id: currentId,
-                        center: { x: pos.x, y: pos.y },
-                        polygon: [
-                            { x: pos.x - 50, y: pos.y - 50 },
-                            { x: pos.x + 50, y: pos.y - 50 },
-                            { x: pos.x + 50, y: pos.y + 50 },
-                            { x: pos.x - 50, y: pos.y + 50 }
-                        ]
-                    });
-                    currentId++;
-                    updateStats();
-                    draw();
-                }
-            }
-            else if (currentMode === 'edit') {
-                selectedAreaIndex = findAreaAt(pos.x, pos.y);
-
-                if (selectedAreaIndex >= 0) {
-                    // 检查是否点击了顶点
-                    dragIndex = findVertexAt(pos.x, pos.y, selectedAreaIndex);
-
-                    if (dragIndex >= 0) {
-                        dragType = 'vertex';
-                        isDragging = true;
-                    } else {
-                        // 检查是否点击了中心
-                        const area = areas[selectedAreaIndex];
-                        const dx = area.center.x - pos.x;
-                        const dy = area.center.y - pos.y;
-
-                        if (Math.sqrt(dx*dx + dy*dy) < 20 / zoom) {
-                            dragType = 'move';
-                            isDragging = true;
-                        } else {
-                            // 检查是否点击了边线（添加新节点）
-                            const edgeIndex = findEdgeAt(pos.x, pos.y, selectedAreaIndex);
-                            if (edgeIndex >= 0) {
-                                // 在边上插入新节点
-                                const polygon = areas[selectedAreaIndex].polygon;
-                                polygon.splice(edgeIndex + 1, 0, { x: pos.x, y: pos.y });
-                                recalculateCenter(selectedAreaIndex);
-                                showToast('✅ 已添加新節點');
-                                draw();
-                                return;
-                            }
-                        }
-                    }
-
-                    updateSelectedInfo();
-                }
-
+            if (currentMode === 'add') {
+                areas.push({
+                    id: currentId++,
+                    center: { x, y },
+                    polygon: [
+                        { x: x - 50, y: y - 50 },
+                        { x: x + 50, y: y - 50 },
+                        { x: x + 50, y: y + 50 },
+                        { x: x - 50, y: y + 50 }
+                    ]
+                });
+                updateStats();
                 draw();
-            }
-            else if (currentMode === 'delete') {
-                const index = findAreaAt(pos.x, pos.y);
+            } else if (currentMode === 'delete') {
+                const index = areas.findIndex(area => {
+                    const dx = area.center.x - x;
+                    const dy = area.center.y - y;
+                    return Math.sqrt(dx*dx + dy*dy) < 50;
+                });
                 if (index >= 0) {
                     areas.splice(index, 1);
                     updateStats();
@@ -981,426 +246,22 @@
             }
         });
 
-        canvas.addEventListener('mousemove', (e) => {
-            if (!currentImage) return;
-
-            if (isPanning && currentMode === 'view') {
-                panX = e.clientX - panStart.x;
-                panY = e.clientY - panStart.y;
-                draw();
-            }
-            else if (isDragging && currentMode === 'edit' && selectedAreaIndex >= 0) {
-                const pos = screenToImage(e.clientX, e.clientY);
-                const dx = pos.x - screenToImage(lastMousePos.x, lastMousePos.y).x;
-                const dy = pos.y - screenToImage(lastMousePos.x, lastMousePos.y).y;
-
-                if (dragType === 'vertex') {
-                    // 移动顶点
-                    areas[selectedAreaIndex].polygon[dragIndex].x = pos.x;
-                    areas[selectedAreaIndex].polygon[dragIndex].y = pos.y;
-
-                    // 重新计算中心
-                    recalculateCenter(selectedAreaIndex);
-                }
-                else if (dragType === 'move') {
-                    // 移动整个区域
-                    areas[selectedAreaIndex].polygon.forEach(p => {
-                        p.x += dx;
-                        p.y += dy;
-                    });
-                    areas[selectedAreaIndex].center.x += dx;
-                    areas[selectedAreaIndex].center.y += dy;
-                }
-
-                lastMousePos = { x: e.clientX, y: e.clientY };
-                draw();
-            }
-
-            // 更新光标
-            if (currentMode === 'edit' && !isDragging) {
-                const pos = screenToImage(e.clientX, e.clientY);
-                const vertexIdx = selectedAreaIndex >= 0 ? findVertexAt(pos.x, pos.y, selectedAreaIndex) : -1;
-                canvas.style.cursor = vertexIdx >= 0 ? 'move' : 'crosshair';
-            }
-        });
-
-        canvas.addEventListener('mouseup', () => {
-            if (isPanning && currentMode === 'view') {
-                isPanning = false;
-                canvas.style.cursor = 'grab';
-            }
-
-            isDragging = false;
-            dragType = null;
-            dragIndex = -1;
-        });
-
-        // 右键删除节点
-        canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-
-            if (currentMode === 'edit' && selectedAreaIndex >= 0) {
-                const pos = screenToImage(e.clientX, e.clientY);
-                const vertexIndex = findVertexAt(pos.x, pos.y, selectedAreaIndex);
-
-                if (vertexIndex >= 0) {
-                    const area = areas[selectedAreaIndex];
-
-                    // 至少保留3个节点（三角形）
-                    if (area.polygon.length <= 4) { // 4个点 = 3个顶点 + 1个闭合点
-                        showToast('⚠️ 至少需要保留3個節點', 'warn');
-                        return;
-                    }
-
-                    // 删除节点
-                    area.polygon.splice(vertexIndex, 1);
-
-                    // 更新闭合点
-                    if (area.polygon.length > 0 && area.polygon[0] !== area.polygon[area.polygon.length - 1]) {
-                        area.polygon[area.polygon.length - 1] = { ...area.polygon[0] };
-                    }
-
-                    recalculateCenter(selectedAreaIndex);
-                    draw();
-                    showToast('✅ 已刪除節點');
-                }
-            }
-        });
-
-        canvas.addEventListener('dblclick', (e) => {
-            if (currentMode === 'add' && currentPolygon.length > 2) {
-                const pos = screenToImage(e.clientX, e.clientY);
-                currentPolygon.push({ x: pos.x, y: pos.y });
-
-                const center = getPolygonCenter(currentPolygon);
-                areas.push({
-                    id: currentId,
-                    center: center,
-                    polygon: [...currentPolygon]
-                });
-                currentId++;
-                currentPolygon = [];
-
-                updateStats();
-                draw();
-            }
-        });
-
-        // 滚轮缩放
-        canvas.addEventListener('wheel', (e) => {
-            e.preventDefault();
-
-            const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            const newZoom = Math.max(0.1, Math.min(3, zoom * delta));
-
-            // 以鼠标位置为中心缩放
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            panX = mouseX - (mouseX - panX) * (newZoom / zoom);
-            panY = mouseY - (mouseY - panY) * (newZoom / zoom);
-
-            zoom = newZoom;
-            updateZoomDisplay();
-            draw();
-        });
-
-        // 辅助函数
-        function getPolygonCenter(polygon) {
-            const x = polygon.reduce((sum, p) => sum + p.x, 0) / polygon.length;
-            const y = polygon.reduce((sum, p) => sum + p.y, 0) / polygon.length;
-            return { x, y };
-        }
-
-        function recalculateCenter(index) {
-            const area = areas[index];
-            area.center = getPolygonCenter(area.polygon);
-        }
-
+        // 更新统计
         function updateStats() {
-            document.getElementById('totalAreas').textContent = areas.length;
-            document.getElementById('currentId').textContent = currentId;
-            updateSelectedInfo();
-            updateOutput();
+            document.getElementById('areaCount').textContent = areas.length;
+            document.getElementById('nextId').textContent = currentId;
         }
 
-        function updateSelectedInfo() {
-            const editInput = document.getElementById('editAreaId');
-
-            if (selectedAreaIndex >= 0 && currentMode === 'edit') {
-                const area = areas[selectedAreaIndex];
-                editInput.value = area.id;
-                document.getElementById('selectedArea').textContent = area.id;
-            } else {
-                editInput.value = '';
-                document.getElementById('selectedArea').textContent = '無';
-            }
-        }
-
-        function updateOutput() {
-            const output = {
-                totalAreas: areas.length,
-                areas: areas.map(a => ({
-                    id: a.id,
-                    center: [a.center.y, a.center.x],
-                    polygon: a.polygon.map(p => [p.y, p.x])
-                }))
-            };
-            document.getElementById('output').textContent = JSON.stringify(output, null, 2);
-        }
-
-        function undoLast() {
-            if (currentPolygon.length > 0) {
-                currentPolygon.pop();
-            } else if (areas.length > 0) {
-                areas.pop();
-                currentId--;
-            }
-            selectedAreaIndex = -1;
-            updateStats();
-            draw();
-        }
-
+        // 清除全部
         function clearAll() {
-            if (confirm('確定要清除所有標註嗎？')) {
+            if (confirm('確定要清除全部標註嗎？')) {
                 areas = [];
-                currentPolygon = [];
-                selectedAreaIndex = -1;
-                currentId = parseInt(document.getElementById('startId').value) || 1;
                 updateStats();
                 draw();
             }
         }
 
-        function exportJSON() {
-            const output = {
-                imageSize: [canvas.width, canvas.height],
-                totalAreas: areas.length,
-                areas: areas.map(a => ({
-                    id: a.id,
-                    center: [a.center.y, a.center.x],
-                    polygon: a.polygon.map(p => [p.y, p.x])
-                }))
-            };
-
-            const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${currentMapId}-areas-adjusted.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function copyToClipboard() {
-            const output = {
-                imageSize: [canvas.width, canvas.height],
-                totalAreas: areas.length,
-                areas: areas.map(a => ({
-                    id: a.id,
-                    center: [a.center.y, a.center.x],
-                    polygon: a.polygon.map(p => [p.y, p.x])
-                }))
-            };
-
-            navigator.clipboard.writeText(JSON.stringify(output, null, 2))
-                .then(() => showToast('已複製到剪貼板'))
-                .catch(err => showToast('複製失敗', 'error'));
-        }
-
-        // 保存到本地存储
-        function saveToLocalStorage() {
-            if (!currentMapId) {
-                alert('請先載入地圖');
-                return;
-            }
-
-            const data = {
-                mapId: currentMapId,
-                imageSize: [canvas.width, canvas.height],
-                totalAreas: areas.length,
-                areas: areas.map(a => ({
-                    id: a.id,
-                    center: [a.center.y, a.center.x],
-                    polygon: a.polygon.map(p => [p.y, p.x])
-                })),
-                savedAt: new Date().toISOString()
-            };
-
-            const key = 'area-marker-' + currentMapId;
-            localStorage.setItem(key, JSON.stringify(data));
-            showToast(`✅ 已保存 ${areas.length} 個區域到本地`);
-        }
-
-        // 从本地存储载入
-        function loadFromLocalStorage() {
-            if (!currentMapId) {
-                alert('請先載入地圖');
-                return;
-            }
-
-            const key = 'area-marker-' + currentMapId;
-            const savedData = localStorage.getItem(key);
-
-            if (!savedData) {
-                showToast('沒有找到本地保存的數據', 'warn');
-                return;
-            }
-
-            try {
-                const data = JSON.parse(savedData);
-
-                areas = data.areas.map(area => ({
-                    id: area.id,
-                    center: { x: area.center[1], y: area.center[0] },
-                    polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
-                }));
-
-                currentId = areas.length > 0 ? Math.max(...areas.map(a => a.id)) + 1 : 1;
-                selectedAreaIndex = -1;
-
-                updateStats();
-                draw();
-
-                const savedTime = new Date(data.savedAt).toLocaleString('zh-TW');
-                showToast(`✅ 本地載入 ${areas.length} 個區域（${savedTime}）`);
-            } catch (error) {
-                console.error('載入失敗:', error);
-                showToast('載入失敗：' + error.message, 'error');
-            }
-        }
-
-        // 保存到云端
-        async function saveToCloud() {
-            if (!currentMapId) {
-                alert('請先載入地圖');
-                return;
-            }
-
-            // 检查 Supabase 是否可用
-            if (!supabase) {
-                showToast('⚠️ 雲端功能未啟用（Supabase 未初始化）', 'warn');
-                return;
-            }
-
-            const payload = {
-                imageSize: [canvas.width, canvas.height],
-                totalAreas: areas.length,
-                areas: areas.map(a => ({
-                    id: a.id,
-                    center: [a.center.y, a.center.x],
-                    polygon: a.polygon.map(p => [p.y, p.x])
-                }))
-            };
-
-            try {
-                const { error } = await supabase
-                    .from('area_annotations')
-                    .upsert({
-                        map_id: currentMapId,
-                        data: payload,
-                        updated_at: new Date().toISOString()
-                    }, { onConflict: 'map_id' });
-
-                if (error) throw error;
-
-                showToast(`☁️ 已保存 ${areas.length} 個區域到雲端`);
-            } catch (error) {
-                console.error('雲端保存失敗:', error);
-                showToast('雲端保存失敗：' + error.message, 'error');
-            }
-        }
-
-        // 从云端载入
-        async function loadFromCloud() {
-            if (!currentMapId) {
-                alert('請先載入地圖');
-                return;
-            }
-
-            try {
-                const { data, error } = await supabase
-                    .from('area_annotations')
-                    .select('data, updated_at')
-                    .eq('map_id', currentMapId)
-                    .single();
-
-                if (error || !data) {
-                    showToast('雲端沒有找到此地圖的標注數據', 'warn');
-                    return;
-                }
-
-                const saved = data.data;
-                areas = saved.areas.map(area => ({
-                    id: area.id,
-                    center: { x: area.center[1], y: area.center[0] },
-                    polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
-                }));
-
-                currentId = areas.length > 0 ? Math.max(...areas.map(a => a.id)) + 1 : 1;
-                selectedAreaIndex = -1;
-                updateStats();
-                draw();
-
-                const savedTime = new Date(data.updated_at).toLocaleString('zh-TW');
-                showToast(`☁️ 從雲端載入 ${areas.length} 個區域（${savedTime}）`);
-            } catch (error) {
-                console.error('雲端載入失敗:', error);
-                showToast('雲端載入失敗：' + error.message, 'error');
-            }
-        }
-
-        // 更新区域编号
-        function updateAreaId() {
-            if (selectedAreaIndex < 0) {
-                showToast('請先選擇一個區域', 'warn');
-                return;
-            }
-
-            const newIdStr = document.getElementById('editAreaId').value.trim();
-
-            if (!newIdStr) {
-                showToast('請輸入編號', 'warn');
-                return;
-            }
-
-            // 检查是否重复
-            const duplicate = areas.findIndex((a, idx) => a.id === newIdStr && idx !== selectedAreaIndex);
-
-            if (duplicate >= 0) {
-                // 如果编号已存在，将已存在的编号改为 `${existingId}-2`
-                const oldId = areas[duplicate].id;
-                const newIdForDuplicate = oldId + '-2';
-
-                // 检查 -2 是否也已存在
-                const duplicate2 = areas.findIndex((a, idx) => a.id === newIdForDuplicate);
-                if (duplicate2 >= 0) {
-                    showToast(`編號 ${newIdStr} 和 ${newIdForDuplicate} 都已存在，請手動修改`, 'warn');
-                    return;
-                }
-
-                areas[duplicate].id = newIdForDuplicate;
-                areas[selectedAreaIndex].id = newIdStr;
-
-                updateStats();
-                draw();
-                showToast(`✅ 編號已更新：原 ${oldId} → ${newIdForDuplicate}，當前 → ${newIdStr}`);
-            } else {
-                areas[selectedAreaIndex].id = newIdStr;
-                updateStats();
-                draw();
-                showToast(`✅ 編號已更新為 ${newIdStr}`);
-            }
-
-            // 更新下一个 ID（尝试解析数字）
-            const numericIds = areas.map(a => parseInt(a.id)).filter(id => !isNaN(id));
-            currentId = numericIds.length > 0 ? Math.max(...numericIds) + 1 : 1;
-            document.getElementById('currentId').textContent = currentId;
-        }
-
-        // 初始化
-        setMode('view');
+        console.log('✅ 頁面已載入');
     </script>
 </body>
 </html>
