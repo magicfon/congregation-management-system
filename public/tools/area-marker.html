@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>區域標註工具 - 專業版</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onload="document.dispatchEvent(new Event('supabase-ready'))"></script>
     <style>
         * {
             margin: 0;
@@ -442,7 +442,17 @@
         // Supabase setup
         const SUPABASE_URL = 'https://gkclvxkuvyoenpvzubxm.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2x2eGt1dnlvZW5wdnp1YnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MzI4NTMsImV4cCI6MjA4OTEwODg1M30.GnXkq0Sl47enU8Tk3Rh8vLZ3dpcU_Av-7v7qGOz5mL8';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let supabase;
+
+        // 等待 Supabase 載入
+        function initSupabase() {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase initialized');
+            } else {
+                console.warn('Supabase not loaded yet, will retry');
+            }
+        }
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -592,9 +602,9 @@
 
             let mapFile;
             switch(mapId) {
-                case 'nanzih': mapFile = '/maps/nanzih-1-89.png'; break;
-                case 'chiaotou': mapFile = '/maps/chiaotou-90-148.png'; break;
-                case 'tzuguan': mapFile = '/maps/tzuguan-149-213.png'; break;
+                case 'nanzih': mapFile = '/maps/nanzih-1-89.jpg'; break;
+                case 'chiaotou': mapFile = '/maps/chiaotou-90-148.jpg'; break;
+                case 'tzuguan': mapFile = '/maps/tzuguan-149-213.jpg'; break;
             }
 
             const img = new Image();
@@ -1420,7 +1430,10 @@
         }
 
         // 初始化
-        setMode('view');
+        document.addEventListener('DOMContentLoaded', () => {
+            initSupabase();
+            setMode('view');
+        });
     </script>
 </body>
 </html>
