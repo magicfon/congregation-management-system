@@ -4,12 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>區域標註工具 - 專業版</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
+            onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
         // Supabase setup - 使用異步初始化避免載入時序問題
         const SUPABASE_URL = 'https://gkclvxkuvyoenpvzubxm.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2x2eGt1dnlvZW5wdnp1YnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MzI4NTMsImV4cCI6MjA4OTEwODg1M30.GnXkq0Sl47enU8Tk3Rh8vLZ3dpcU_Av-7v7qGOz5mL8';
-        let supabase;
+        let supabaseClient;
+        let supabaseInitError = null;
+
+        // 檢查 Supabase 是否已初始化
+        function ensureSupabase() {
+            if (window.supabaseLoadFailed) {
+                showToast('❌ Supabase CDN 載入失敗，請檢查網路連線後重新整理頁面', 'error');
+                return false;
+            }
+            if (supabaseInitError) {
+                showToast('❌ Supabase 初始化失敗：' + supabaseInitError, 'error');
+                return false;
+            }
+            if (!supabaseClient) {
+                showToast('❌ Supabase 尚未初始化，請稍候再試或重新整理頁面', 'error');
+                return false;
+            }
+            return true;
+        }
 
         // 延遲初始化 Supabase
         function initSupabase() {
@@ -17,10 +36,12 @@
                 if (window.supabase && window.supabase.createClient) {
                     clearInterval(checkAndInit);
                     try {
-                        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                         console.log('✅ Supabase initialized');
+                        supabaseInitError = null;
                     } catch (e) {
                         console.error('❌ Supabase init failed:', e);
+                        supabaseInitError = e.message;
                     }
                 }
             }, 100);
@@ -28,20 +49,14 @@
             // 超時後停止嘗試
             setTimeout(() => {
                 clearInterval(checkAndInit);
-                if (!supabase) {
+                if (!supabaseClient) {
+                    supabaseInitError = '初始化超時（5秒）';
                     console.warn('⚠️ Supabase not available after 5s, cloud features disabled');
                 }
             }, 5000);
         }
     </script>
     <style>
-                if (!supabase) {
-                    console.warn('⚠️ Supabase not available after 5s, cloud features disabled');
-                }
-            }, 5000);
-        }
-
-        const canvas = document.getElementById('mapCanvas');
         * {
             margin: 0;
             padding: 0;
@@ -655,8 +670,10 @@
 
         // 载入地图后自动从云端载入
         async function autoLoadFromCloud() {
+            if (!ensureSupabase()) return;
+
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('area_annotations')
                     .select('data, updated_at')
                     .eq('map_id', currentMapId)
@@ -1338,6 +1355,8 @@
 
         // 保存到云端
         async function saveToCloud() {
+            if (!ensureSupabase()) return;
+
             if (!currentMapId) {
                 alert('請先載入地圖');
                 return;
@@ -1354,7 +1373,7 @@
             };
 
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('area_annotations')
                     .upsert({
                         map_id: currentMapId,
@@ -1373,13 +1392,15 @@
 
         // 从云端载入
         async function loadFromCloud() {
+            if (!ensureSupabase()) return;
+
             if (!currentMapId) {
                 alert('請先載入地圖');
                 return;
             }
 
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('area_annotations')
                     .select('data, updated_at')
                     .eq('map_id', currentMapId)
