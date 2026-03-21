@@ -383,10 +383,22 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        // Supabase setup
-        const SUPABASE_URL = 'https://gkclvxkuvyoenpvzubxm.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2x2eGt1dnlvZW5wdnp1YnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MzI4NTMsImV4cCI6MjA4OTEwODg1M30.GnXkq0Sl47enU8Tk3Rh8vLZ3dpcU_Av-7v7qGOz5mL8';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Supabase setup（带错误处理）
+        let supabase = null;
+        try {
+            const SUPABASE_URL = 'https://gkclvxkuvyoenpvzubxm.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2x2eGt1dnlvZW5wdnp1YnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MzI4NTMsImV4cCI6MjA4OTEwODg1M30.GnXkq0Sl47enU8Tk3Rh8vLZ3dpcU_Av-7v7qGOz5mL8';
+
+            if (typeof window.supabase !== 'undefined') {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase 初始化成功');
+            } else {
+                console.warn('⚠️ Supabase CDN 未載入，雲端功能將被禁用');
+            }
+        } catch (error) {
+            console.error('❌ Supabase 初始化失敗:', error);
+            console.warn('⚠️ 雲端功能將被禁用');
+        }
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -554,6 +566,12 @@
 
         // 载入地图后自动从云端载入
         async function autoLoadFromCloud() {
+            // 检查 Supabase 是否可用
+            if (!supabase) {
+                console.log('ℹ️ Supabase 未啟用，跳過雲端載入');
+                return;
+            }
+
             try {
                 const { data, error } = await supabase
                     .from('area_annotations')
@@ -1257,6 +1275,12 @@
         async function saveToCloud() {
             if (!currentMapId) {
                 alert('請先載入地圖');
+                return;
+            }
+
+            // 检查 Supabase 是否可用
+            if (!supabase) {
+                showToast('⚠️ 雲端功能未啟用（Supabase 未初始化）', 'warn');
                 return;
             }
 
