@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import { Filter, ArrowUpDown, AlertCircle } from 'lucide-react'
+import { Filter, ArrowUpDown, AlertCircle, Layers } from 'lucide-react'
 import { Map as MapIcon } from 'lucide-react'
 
 // Dynamically import Leaflet components (no SSR)
@@ -36,6 +36,17 @@ interface IdleStat {
   lastActivityAt: string | null
 }
 
+interface AreaData {
+  id: number
+  center: [number, number]
+  polygon: [number, number][]
+}
+
+interface BoundaryJson {
+  totalAreas?: number
+  areas: AreaData[]
+}
+
 interface MapConfig {
   id: string
   name: string
@@ -45,68 +56,37 @@ interface MapConfig {
   areaPolygons: Record<string, [number, number][]>
 }
 
-// Map configurations with polygon coordinates for each area
-const MAP_CONFIGS: MapConfig[] = [
+// Boundary source options
+const BOUNDARY_SOURCES = [
+  { value: 'cv2', label: 'OpenCV 偵測', description: '較精確', suffix: '-areas-cv2.json' },
+  { value: 'detected', label: '自動偵測', description: '較多點', suffix: '-areas-detected.json' },
+  { value: 'grid', label: '網格分配', description: '簡單均分', suffix: '-areas.json' }
+]
+
+// Map configurations
+const MAP_CONFIGS_BASE = [
   {
     id: 'nanzih',
     name: '楠梓區',
     range: '1-89',
     image: '/maps/nanzih-1-89.png',
-    bounds: [[0, 0], [5512, 7884]], // 实际尺寸
-    areaPolygons: {} // 将从 JSON 加载
+    bounds: [[0, 0], [5512, 7884]] as [[number, number], [number, number]]
   },
   {
     id: 'chiaotou',
     name: '橋頭',
     range: '90-148',
     image: '/maps/chiaotou-90-148.png',
-    bounds: [[0, 0], [4534, 4827]], // 实际尺寸
-    areaPolygons: {} // 将从 JSON 加载
+    bounds: [[0, 0], [4534, 4827]] as [[number, number], [number, number]]
   },
   {
     id: 'tzuguan',
     name: '梓官',
     range: '149-213',
     image: '/maps/tzuguan-149-213.png',
-    bounds: [[0, 0], [4038, 4828]], // 实际尺寸
-    areaPolygons: {} // 将从 JSON 加载
+    bounds: [[0, 0], [4038, 4828]] as [[number, number], [number, number]]
   }
 ]
-
-// Generate grid-based polygons for areas
-function generateGridPolygons(
-  startId: number,
-  endId: number,
-  cols: number,
-  rows: number,
-  imageWidth: number,
-  imageHeight: number
-): Record<string, [number, number][]> {
-  const polygons: Record<string, [number, number][]> = {}
-  const cellWidth = imageWidth / cols
-  const cellHeight = imageHeight / rows
-  const padding = 20
-
-  let currentId = startId
-  for (let row = 0; row < rows && currentId <= endId; row++) {
-    for (let col = 0; col < cols && currentId <= endId; col++) {
-      const x1 = col * cellWidth + padding
-      const y1 = row * cellHeight + padding
-      const x2 = (col + 1) * cellWidth - padding
-      const y2 = (row + 1) * cellHeight - padding
-
-      polygons[currentId.toString()] = [
-        [y1, x1],
-        [y1, x2],
-        [y2, x2],
-        [y2, x1]
-      ]
-      currentId++
-    }
-  }
-
-  return polygons
-}
 
 // Status color configuration
 const statusColors = {
@@ -132,19 +112,28 @@ const SORT_OPTIONS = [
   { value: 'name', label: '區域名稱' }
 ]
 
+// Convert polygon from [x, y] to [y, x] (Leaflet format)
+function convertPolygon(polygon: [number, number][]): [number, number][] {
+  return polygon.map(([x, y]) => [y, x])
+}
+
 // Client-only Leaflet map component
 function LeafletMapContent({
   mapConfig,
   areaStats,
   filterStatus,
   sortBy,
-  onAreaClick
+  onAreaClick,
+  boundaryLoading,
+  boundaryError
 }: {
   mapConfig: MapConfig
   areaStats: Map<string, IdleStat>
   filterStatus: string
   sortBy: string
   onAreaClick: (stat: IdleStat) => void
+  boundaryLoading: boolean
+  boundaryError: string | null
 }) {
   const [L, setL] = useState<typeof import('leaflet') | null>(null)
 
@@ -188,6 +177,30 @@ function LeafletMapContent({
     return (
       <div className="h-[600px] flex items-center justify-center bg-mc-card border border-white/5 rounded-xl">
         <div className="text-mc-text/50">載入地圖中...</div>
+      </div>
+    )
+  }
+
+  if (boundaryLoading) {
+    return (
+      <div className="h-[600px] flex items-center justify-center bg-mc-card border border-white/5 rounded-xl">
+        <div className="text-mc-text/50">載入邊界資料中...</div>
+      </div>
+    )
+  }
+
+  if (boundaryError) {
+    return (
+      <div className="h-[600px] flex items-center justify-center bg-mc-card border border-white/5 rounded-xl">
+        <div className="text-red-400 text-sm">{boundaryError}</div>
+      </div>
+    )
+  }
+
+  if (Object.keys(mapConfig.areaPolygons).length === 0) {
+    return (
+      <div className="h-[600px] flex items-center justify-center bg-mc-card border border-white/5 rounded-xl">
+        <div className="text-mc-text/50">無邊界資料</div>
       </div>
     )
   }
@@ -363,6 +376,10 @@ export default function MapHeatmap() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedMap, setSelectedMap] = useState(0)
+  const [selectedBoundarySource, setSelectedBoundarySource] = useState('cv2')
+  const [boundaryData, setBoundaryData] = useState<Record<string, [number, number][]>>({})
+  const [boundaryLoading, setBoundaryLoading] = useState(false)
+  const [boundaryError, setBoundaryError] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState('all')
   const [sortBy, setSortBy] = useState('id')
   const [selectedArea, setSelectedArea] = useState<IdleStat | null>(null)
@@ -387,6 +404,56 @@ export default function MapHeatmap() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  // Load boundary data when map or source changes
+  useEffect(() => {
+    if (!isClient) return
+    
+    const mapId = MAP_CONFIGS_BASE[selectedMap].id
+    const source = BOUNDARY_SOURCES.find(s => s.value === selectedBoundarySource)
+    if (!source) return
+
+    const jsonPath = `/maps/${mapId}${source.suffix}`
+    
+    setBoundaryLoading(true)
+    setBoundaryError(null)
+    
+    fetch(jsonPath)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then((data: BoundaryJson) => {
+        const polygons: Record<string, [number, number][]> = {}
+        
+        if (data.areas && Array.isArray(data.areas)) {
+          data.areas.forEach(area => {
+            if (area.polygon && Array.isArray(area.polygon)) {
+              // Convert [x, y] to [y, x] for Leaflet
+              polygons[area.id.toString()] = convertPolygon(area.polygon)
+            }
+          })
+        }
+        
+        setBoundaryData(polygons)
+        setBoundaryError(null)
+      })
+      .catch(err => {
+        console.error('Failed to load boundary data:', err)
+        setBoundaryError(`載入邊界資料失敗: ${err.message}`)
+        setBoundaryData({})
+      })
+      .finally(() => setBoundaryLoading(false))
+  }, [selectedMap, selectedBoundarySource, isClient])
+
+  // Create current map config with loaded boundary data
+  const currentMapConfig: MapConfig = useMemo(() => {
+    const base = MAP_CONFIGS_BASE[selectedMap]
+    return {
+      ...base,
+      areaPolygons: boundaryData
+    }
+  }, [selectedMap, boundaryData])
 
   // Create a map for quick lookup
   const areaStatsMap = useMemo(() => {
@@ -428,8 +495,6 @@ export default function MapHeatmap() {
       }
     }).slice(0, 20)
   }, [stats, filterStatus, sortBy])
-
-  const currentMapConfig = MAP_CONFIGS[selectedMap]
 
   if (!isClient) {
     return (
@@ -508,20 +573,51 @@ export default function MapHeatmap() {
 
       {/* Map Selector */}
       <div className="bg-mc-card border border-white/5 rounded-xl p-4">
-        <div className="flex flex-wrap gap-2">
-          {MAP_CONFIGS.map((config, index) => (
-            <button
-              key={config.id}
-              onClick={() => setSelectedMap(index)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                selectedMap === index
-                  ? 'bg-mc-highlight text-white border border-blue-500/30'
-                  : 'bg-mc-accent text-mc-text/60 hover:text-mc-text border border-white/5 hover:border-white/10'
-              }`}
-            >
-              {config.name} ({config.range})
-            </button>
-          ))}
+        <div className="flex flex-col gap-3">
+          {/* Map Selection */}
+          <div className="flex flex-wrap gap-2">
+            {MAP_CONFIGS_BASE.map((config, index) => (
+              <button
+                key={config.id}
+                onClick={() => setSelectedMap(index)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedMap === index
+                    ? 'bg-mc-highlight text-white border border-blue-500/30'
+                    : 'bg-mc-accent text-mc-text/60 hover:text-mc-text border border-white/5 hover:border-white/10'
+                }`}
+              >
+                {config.name} ({config.range})
+              </button>
+            ))}
+          </div>
+
+          {/* Boundary Source Selection */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5">
+            <Layers className="w-4 h-4 text-mc-text/40" />
+            <span className="text-xs text-mc-text/50">邊界來源：</span>
+            {BOUNDARY_SOURCES.map(source => (
+              <button
+                key={source.value}
+                onClick={() => setSelectedBoundarySource(source.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  selectedBoundarySource === source.value
+                    ? 'bg-mc-highlight text-white border border-blue-500/30'
+                    : 'bg-mc-accent text-mc-text/60 hover:text-mc-text border border-white/5 hover:border-white/10'
+                }`}
+                title={source.description}
+              >
+                {source.label}
+              </button>
+            ))}
+            {boundaryLoading && (
+              <span className="text-xs text-mc-text/40 ml-2">載入中...</span>
+            )}
+            {!boundaryLoading && Object.keys(boundaryData).length > 0 && (
+              <span className="text-xs text-mc-text/40 ml-2">
+                {Object.keys(boundaryData).length} 個區域
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -614,6 +710,8 @@ export default function MapHeatmap() {
             filterStatus={filterStatus}
             sortBy={sortBy}
             onAreaClick={setSelectedArea}
+            boundaryLoading={boundaryLoading}
+            boundaryError={boundaryError}
           />
         )}
       </div>
