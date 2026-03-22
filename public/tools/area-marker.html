@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.1 - 專業版（智慧套索 HSV + 形態學）</title>
+    <title>區域標註工具 v2.1.1 - 專業版（智慧套索 HSV + 形態學）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -447,7 +447,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.1</span> <small style="color: #94a3b8; font-size: 14px;">HSV + 形態學 + 多輪廓</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.1.1</span> <small style="color: #94a3b8; font-size: 14px;">HSV + 形態學 + 多輪廓</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -554,7 +554,13 @@
                 
                 <!-- 版本更新資訊 -->
                 <div style="background: rgba(124, 58, 237, 0.15); padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #7c3aed;">
-                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.1 更新（2026-03-22）</h4>
+                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.1.1 更新（2026-03-22）</h4>
+                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
+                        <li>🐛 <strong>修復 HSV 參數</strong>：參考 CV2 Python 代碼調整容差</li>
+                        <li>✨ H 容差 × 4，S/V 最小值 30（避免灰階）</li>
+                        <li>📊 添加 console.log 調試信息（按 F12 查看）</li>
+                    </ul>
+                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.1 更新（2026-03-22）</h4>
                     <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
                         <li>✨ <strong>智慧套索重大改進</strong>：HSV 色彩空間 + 形態學處理</li>
                         <li>🔧 膨脹+侵蝕算法連接斷線（模擬 OpenCV）</li>
