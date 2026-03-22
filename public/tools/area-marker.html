@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.4 - 專業版（虛擬邊界）</title>
+    <title>區域標註工具 v2.4.1 - 專業版（虛擬邊界）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -639,7 +639,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.4</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.4.1</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -724,15 +724,8 @@
             <button onclick="startDrawingBoundary()">✏️ 開始繪製</button>
             <button onclick="finishDrawingBoundary()">✅ 完成繪製</button>
             <button onclick="cancelDrawingBoundary()">❌ 取消</button>
-            <button onclick="saveVirtualBoundary()">💾 保存虛擬邊界</button>
-            <button onclick="loadVirtualBoundaries()">📂 載入虛擬邊界</button>
-            <button onclick="deleteVirtualBoundary()">🗑️ 刪除選中邊界</button>
-        </div>
-
-        <!-- 虛擬邊界列表 -->
-        <div id="virtualBoundaryList" class="boundary-list" style="display: none;">
-            <h4>已保存的虛擬邊界</h4>
-            <ul id="boundaryList"></ul>
+            <button onclick="saveVirtualBoundary()">💾 保存</button>
+            <button onclick="deleteVirtualBoundary()">🗑️ 刪除邊界</button>
         </div>
 
         <div class="map-container" id="mapContainer">
@@ -776,13 +769,18 @@
                 
                 <!-- 版本更新資訊 -->
                 <div style="background: rgba(124, 58, 237, 0.15); padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #7c3aed;">
-                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.4 更新（2026-03-22）</h4>
+                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.4.1 更新（2026-03-22）</h4>
+                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
+                        <li>✨ <strong>簡化虛擬邊界</strong>：每張地圖只會有一組虛擬邊界</li>
+                        <li>🎯 <strong>自動 upsert</strong>：保存時自動更新或新增</li>
+                        <li>🗑️ <strong>一鍵刪除</strong>：移除列表，直接刪除邊界</li>
+                    </ul>
+                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.4 更新（2026-03-22）</h4>
                     <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
                         <li>✨ <strong>新增「虛擬邊界」功能</strong>：手動繪製自定義邊界線並儲存到雲端</li>
                         <li>🎯 <strong>改進自動貼齊</strong>：從貼齊紫色像素改為貼齊虛擬邊界</li>
                         <li>☁️ <strong>雲端儲存</strong>：虛擬邊界自動儲存到 Supabase</li>
                         <li>📂 <strong>自動載入</strong>：載入地圖時自動載入虛擬邊界</li>
-                        <li>📋 <strong>邊界管理</strong>：可查看、選擇、刪除已保存的虛擬邊界</li>
                     </ul>
                     <h4 style="color: #a78bfa; margin: 8px 0;">v2.3.2 更新（2026-03-22）</h4>
                     <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
@@ -924,11 +922,10 @@
         let VERTEX_RADIUS = 8;
         let TOUCH_THRESHOLD = 10;
 
-        // 虛擬邊界相關
-        let virtualBoundaries = [];
+        // 虛擬邊界相關（v2.4.1 - 單一邊界模式）
+        let virtualBoundary = null; // 單一邊界物件
         let currentBoundaryPoints = [];
         let isDrawingBoundary = false;
-        let selectedBoundaryIndex = -1;
 
         // 檢測是否為手機
         function isMobile() {
@@ -1058,13 +1055,10 @@
 
             // 虛擬邊界模式
             const virtualToolbar = document.getElementById('virtualBoundaryToolbar');
-            const virtualList = document.getElementById('virtualBoundaryList');
             if (mode === 'virtual') {
                 virtualToolbar.style.display = 'flex';
-                virtualList.style.display = 'block';
             } else {
                 virtualToolbar.style.display = 'none';
-                virtualList.style.display = 'none';
                 isDrawingBoundary = false;
                 currentBoundaryPoints = [];
             }
@@ -1140,7 +1134,7 @@
                 await autoLoadFromCloud();
 
                 // 自動載入虛擬邊界
-                await loadVirtualBoundaries();
+                await loadVirtualBoundary();
             };
 
             img.src = mapFile;
@@ -1321,28 +1315,27 @@
                 });
             }
 
-            // 繪製已保存的虛擬邊界
-            virtualBoundaries.forEach((boundary, index) => {
-                if (boundary.map_id !== currentMapId) return;
-
+            // 繪製已保存的虛擬邊界（單一）
+            if (virtualBoundary && virtualBoundary.map_id === currentMapId) {
                 ctx.beginPath();
-                ctx.strokeStyle = index === selectedBoundaryIndex ? '#c084fc' : boundary.color;
-                ctx.lineWidth = (index === selectedBoundaryIndex ? 4 : 3) / zoom;
+                ctx.strokeStyle = virtualBoundary.color;
+                ctx.lineWidth = 3 / zoom;
                 ctx.setLineDash([5, 5]); // 虛線
 
-                ctx.moveTo(boundary.points[0].x, boundary.points[0].y);
-                boundary.points.forEach(p => ctx.lineTo(p.x, p.y));
+                const points = virtualBoundary.points;
+                ctx.moveTo(points[0].x, points[0].y);
+                points.forEach(p => ctx.lineTo(p.x, p.y));
                 ctx.stroke();
                 ctx.setLineDash([]); // 恢復實線
 
                 // 繪製節點
-                boundary.points.forEach(p => {
+                points.forEach(p => {
                     ctx.beginPath();
-                    ctx.fillStyle = index === selectedBoundaryIndex ? '#c084fc' : boundary.color;
+                    ctx.fillStyle = virtualBoundary.color;
                     ctx.arc(p.x, p.y, 5 / zoom, 0, Math.PI * 2);
                     ctx.fill();
                 });
-            });
+            }
 
             // 繪製正在繪製的虛擬邊界
             if (isDrawingBoundary && currentBoundaryPoints.length > 0) {
@@ -3040,7 +3033,6 @@
         function startDrawingBoundary() {
             isDrawingBoundary = true;
             currentBoundaryPoints = [];
-            selectedBoundaryIndex = -1;
             showToast('✏️ 點擊地圖繪製邊界點，雙擊完成');
             draw();
         }
@@ -3065,66 +3057,59 @@
             draw();
         }
 
-        // 保存虛擬邊界到 Supabase
+        // 保存虛擬邊界到 Supabase（v2.4.1 - upsert 娡式）
         async function saveVirtualBoundary() {
             if (!ensureSupabase()) return;
             if (currentBoundaryPoints.length < 2) {
-                showToast('⚠️ 請先繪製邊界', 'warn');
+                showToast('⚠️ 請先繪製邊界（至少需要 2 個點）', 'warn');
                 return;
             }
 
-            const name = prompt('請輸入邊界名稱：', `虛擬邊界 ${virtualBoundaries.length + 1}`);
-            if (!name) return;
-
             const boundary = {
-                id: `vb_${Date.now()}`,
                 map_id: currentMapId,
-                name: name,
                 points: currentBoundaryPoints,
-                color: '#9333ea'
+                color: '#9333ea',
+                updated_at: new Date().toISOString()
             };
 
             try {
                 const { error } = await supabaseClient
                     .from('virtual_boundaries')
-                    .insert(boundary);
+                    .upsert(boundary, { onConflict: 'map_id' });
 
                 if (error) throw error;
 
-                virtualBoundaries.push(boundary);
+                virtualBoundary = boundary;
                 currentBoundaryPoints = [];
                 isDrawingBoundary = false;
-                updateBoundaryList();
                 draw();
 
-                showToast(`✅ 已保存虛擬邊界：${name}`);
+                showToast(`✅ 已保存虛擬邊界`);
             } catch (error) {
                 console.error('保存失敗:', error);
                 showToast('❌ 保存失敗：' + error.message, 'error');
             }
         }
 
-        // 從 Supabase 載入虛擬邊界
-        async function loadVirtualBoundaries() {
+        // 從 Supabase 載入虛擬邊界（v2.4.1 - 單一邊界）
+        async function loadVirtualBoundary() {
             if (!ensureSupabase()) return;
-            if (!currentMapId) {
-                return; // 靜默失敗，因為可能是初始化時調用
-            }
+            if (!currentMapId) return;
 
             try {
                 const { data, error } = await supabaseClient
                     .from('virtual_boundaries')
                     .select('*')
-                    .eq('map_id', currentMapId);
+                    .eq('map_id', currentMapId)
+                    .single();
 
-                if (error) throw error;
+                if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
 
-                virtualBoundaries = data || [];
-                updateBoundaryList();
+                virtualBoundary = data || null;
                 draw();
 
-                if (virtualBoundaries.length > 0) {
-                    showToast(`✅ 已載入 ${virtualBoundaries.length} 個虛擬邊界`);
+                if (virtualBoundary) {
+                    showToast(`✅ 已載入虛擬邊界`);
                 }
             } catch (error) {
                 console.error('載入失敗:', error);
@@ -3132,106 +3117,77 @@
             }
         }
 
-        // 更新邊界列表
-        function updateBoundaryList() {
-            const list = document.getElementById('boundaryList');
-            list.innerHTML = '';
-
-            virtualBoundaries.forEach((boundary, index) => {
-                const li = document.createElement('li');
-                li.className = index === selectedBoundaryIndex ? 'selected' : '';
-                li.innerHTML = `
-                    <span onclick="selectBoundary(${index})">${boundary.name}</span>
-                    <button onclick="deleteVirtualBoundary(${index})">🗑️</button>
-                `;
-                list.appendChild(li);
-            });
-        }
-
-        // 選擇邊界
-        function selectBoundary(index) {
-            selectedBoundaryIndex = index;
-            updateBoundaryList();
-            draw();
-            showToast(`已選擇：${virtualBoundaries[index].name}`);
-        }
-
-        // 刪除虛擬邊界
-        async function deleteVirtualBoundary(index) {
+        // 刪除虛擬邊界（v2.4.1）
+        async function deleteVirtualBoundary() {
             if (!ensureSupabase()) return;
-            if (index < 0 || index >= virtualBoundaries.length) return;
+            if (!virtualBoundary) {
+                showToast('⚠️ 沒有虛擬邊界可刪除', 'warn');
+                return;
+            }
 
-            const boundary = virtualBoundaries[index];
-
-            if (!confirm(`確定要刪除「${boundary.name}」嗎？`)) return;
+            if (!confirm('確定要刪除虛擬邊界嗎？')) return;
 
             try {
                 const { error } = await supabaseClient
                     .from('virtual_boundaries')
                     .delete()
-                    .eq('id', boundary.id);
+                    .eq('map_id', currentMapId);
 
                 if (error) throw error;
 
-                virtualBoundaries.splice(index, 1);
-                if (selectedBoundaryIndex === index) {
-                    selectedBoundaryIndex = -1;
-                } else if (selectedBoundaryIndex > index) {
-                    selectedBoundaryIndex--;
-                }
-                updateBoundaryList();
+                virtualBoundary = null;
                 draw();
 
-                showToast(`✅ 已刪除虛擬邊界：${boundary.name}`);
+                showToast(`✅ 已刪除虛擬邊界`);
             } catch (error) {
                 console.error('刪除失敗:', error);
                 showToast('❌ 刪除失敗：' + error.message, 'error');
             }
         }
 
-        // 尋找虛擬邊界像素（替代 findPurplePixelsNear）
+        // 尋找虛擬邊界像素（v2.4.1 - 單一邊界）
         function findVirtualBoundaryPixelsNear(centerX, centerY, radius) {
+            if (!virtualBoundary || virtualBoundary.map_id !== currentMapId) {
+                return [];
+            }
+
             const pixels = [];
+            const points = virtualBoundary.points;
 
-            // 遍歷所有虛擬邊界
-            virtualBoundaries.forEach(boundary => {
-                if (boundary.map_id !== currentMapId) return;
+            // 對每條線段，找距離中心點半徑內的點
+            for (let i = 0; i < points.length - 1; i++) {
+                const p1 = points[i];
+                const p2 = points[i + 1];
 
-                // 對每條線段，找距離中心點半徑內的點
-                for (let i = 0; i < boundary.points.length - 1; i++) {
-                    const p1 = boundary.points[i];
-                    const p2 = boundary.points[i + 1];
+                // 插值線段上的點
+                const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                const steps = Math.ceil(dist / 5); // 每 5px 一個點
 
-                    // 插值線段上的點
-                    const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-                    const steps = Math.ceil(dist / 5); // 每 5px 一個點
+                for (let step = 0; step <= steps; step++) {
+                    const t = step / steps;
+                    const x = p1.x + (p2.x - p1.x) * t;
+                    const y = p1.y + (p2.y - p1.y) * t;
 
-                    for (let step = 0; step <= steps; step++) {
-                        const t = step / steps;
-                        const x = p1.x + (p2.x - p1.x) * t;
-                        const y = p1.y + (p2.y - p1.y) * t;
-
-                        // 檢查是否在半徑內
-                        const distToCenter = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
-                        if (distToCenter <= radius) {
-                            pixels.push({ x, y });
-                        }
+                    // 檢查是否在半徑內
+                    const distToCenter = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                    if (distToCenter <= radius) {
+                        pixels.push({ x, y });
                     }
                 }
-            });
+            }
 
             console.log(`虛擬邊界像素搜尋: 中心(${centerX.toFixed(0)}, ${centerY.toFixed(0)}), 半徑 ${radius}, 找到 ${pixels.length} 個點`);
             return pixels;
         }
 
-        // 將選中的多邊形貼齊到虛擬邊界
+        // 將選中的多邊形貼齊到虛擬邊界（v2.4.1）
         async function snapSelectedToVirtualBoundary() {
             if (selectedAreaIndex < 0) {
                 showToast('❌ 請先選擇一個區域', 'error');
                 return;
             }
 
-            if (virtualBoundaries.length === 0) {
+            if (!virtualBoundary) {
                 showToast('⚠️ 沒有虛擬邊界，請先繪製', 'warn');
                 return;
             }
