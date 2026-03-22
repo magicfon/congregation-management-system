@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.3.2 - 專業版（手機觸控優化）</title>
+    <title>區域標註工具 v2.4 - 專業版（虛擬邊界）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -468,6 +468,97 @@
             box-shadow: none;
         }
 
+        /* 虛擬邊界樣式 */
+        .virtual-boundary-toolbar {
+            display: flex;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(147, 51, 234, 0.1);
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .virtual-boundary-toolbar button {
+            background: #9333ea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .virtual-boundary-toolbar button:hover {
+            background: #7c3aed;
+        }
+
+        .virtual-boundary-toolbar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .boundary-list {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .boundary-list h4 {
+            color: #a78bfa;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .boundary-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .boundary-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #1e293b;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .boundary-list li:hover {
+            background: #2d3a4f;
+        }
+
+        .boundary-list li span {
+            cursor: pointer;
+            color: #c4b5fd;
+            font-size: 13px;
+        }
+
+        .boundary-list li span:hover {
+            color: #9333ea;
+        }
+
+        .boundary-list li.selected {
+            border-left: 3px solid #9333ea;
+            background: rgba(147, 51, 234, 0.2);
+        }
+
+        .boundary-list li button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 16px;
+        }
+
+        .mode-virtual {
+            background: #9333ea;
+        }
+
         /* 手機專用工具列 */
         .mobile-toolbar {
             position: fixed;
@@ -548,7 +639,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.3.2</span> <small style="color: #94a3b8; font-size: 14px;">手機觸控優化</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.4</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -581,6 +672,7 @@
             <button id="btnView" class="active" onclick="setMode('view')">👁️ 瀏覽</button>
             <button id="btnAdd" onclick="setMode('add')">➕ 新增</button>
             <button id="btnSmartLasso" class="smart-lasso" onclick="toggleSmartLasso()">🎯 智慧套索</button>
+            <button id="btnVirtualBoundary" onclick="setMode('virtual')">✏️ 虛擬邊界</button>
             <button id="btnEdit" onclick="setMode('edit')">✏️ 編輯</button>
             <button id="btnDelete" onclick="setMode('delete')">🗑️ 刪除</button>
 
@@ -603,7 +695,7 @@
                 <div class="controls-divider"></div>
                 <input type="text" id="editAreaId" placeholder="選中編號" style="width: 90px;">
                 <button onclick="updateAreaId()">更新編號</button>
-                <button id="btnSnapToPurple" onclick="snapSelectedToPurple()">🎯 自動貼齊紫色邊界</button>
+                <button id="btnSnapToPurple" onclick="snapSelectedToVirtualBoundary()">🎯 自動貼齊虛擬邊界</button>
             </div>
 
             <div class="controls-divider"></div>
@@ -625,6 +717,22 @@
 
             <button onclick="exportJSON()">📤 導出 JSON</button>
             <button onclick="copyToClipboard()">📋 複製</button>
+        </div>
+
+        <!-- 虛擬邊界工具列 -->
+        <div id="virtualBoundaryToolbar" class="virtual-boundary-toolbar" style="display: none;">
+            <button onclick="startDrawingBoundary()">✏️ 開始繪製</button>
+            <button onclick="finishDrawingBoundary()">✅ 完成繪製</button>
+            <button onclick="cancelDrawingBoundary()">❌ 取消</button>
+            <button onclick="saveVirtualBoundary()">💾 保存虛擬邊界</button>
+            <button onclick="loadVirtualBoundaries()">📂 載入虛擬邊界</button>
+            <button onclick="deleteVirtualBoundary()">🗑️ 刪除選中邊界</button>
+        </div>
+
+        <!-- 虛擬邊界列表 -->
+        <div id="virtualBoundaryList" class="boundary-list" style="display: none;">
+            <h4>已保存的虛擬邊界</h4>
+            <ul id="boundaryList"></ul>
         </div>
 
         <div class="map-container" id="mapContainer">
@@ -668,7 +776,15 @@
                 
                 <!-- 版本更新資訊 -->
                 <div style="background: rgba(124, 58, 237, 0.15); padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #7c3aed;">
-                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.3.2 更新（2026-03-22）</h4>
+                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.4 更新（2026-03-22）</h4>
+                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
+                        <li>✨ <strong>新增「虛擬邊界」功能</strong>：手動繪製自定義邊界線並儲存到雲端</li>
+                        <li>🎯 <strong>改進自動貼齊</strong>：從貼齊紫色像素改為貼齊虛擬邊界</li>
+                        <li>☁️ <strong>雲端儲存</strong>：虛擬邊界自動儲存到 Supabase</li>
+                        <li>📂 <strong>自動載入</strong>：載入地圖時自動載入虛擬邊界</li>
+                        <li>📋 <strong>邊界管理</strong>：可查看、選擇、刪除已保存的虛擬邊界</li>
+                    </ul>
+                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.3.2 更新（2026-03-22）</h4>
                     <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
                         <li>✨ <strong>新增「添加節點」模式</strong>：點擊「➕ 添加」按鈕後，再點擊邊線即可添加節點</li>
                         <li>🗑️ <strong>新增「刪除節點」模式</strong>：點擊「🗑️ 刪除」按鈕後，再點擊頂點即可刪除</li>
@@ -730,6 +846,16 @@
                             <li>點擊「🔄 重置」可重新抽取顏色</li>
                         </ul>
                     </li>
+                    <li><strong>✏️ 虛擬邊界模式</strong>（v2.4 新增）：
+                        <ul>
+                            <li>點擊「✏️ 開始繪製」進入繪製模式</li>
+                            <li>在地圖上點擊添加邊界點，雙擊完成繪製</li>
+                            <li>點擊「💾 保存虛擬邊界」儲存到雲端</li>
+                            <li>載入地圖時自動載入已保存的虛擬邊界</li>
+                            <li>可在列表中選擇或刪除虛擬邊界</li>
+                            <li><strong>用途</strong>：定義自訂邊界線，用於自動貼齊功能</li>
+                        </ul>
+                    </li>
                     <li><strong>✏️ 編輯模式</strong>：
                         <ul>
                             <li>點擊區域選中後可修改編號</li>
@@ -737,7 +863,7 @@
                             <li>拖拽中心 = 移動區域</li>
                             <li><strong>點擊邊線 = 添加新節點</strong></li>
                             <li><strong>右鍵點擊節點 = 刪除節點</strong>（最少保留3個）</li>
-                            <li><strong>🎯 自動貼齊紫色邊界</strong>：選中區域後，點擊按鈕自動將頂點貼齊最近的紫色線（距離 < 100px）</li>
+                            <li><strong>🎯 自動貼齊虛擬邊界</strong>：選中區域後，點擊按鈕自動將頂點貼齊最近的虛擬邊界（距離 < 100px）</li>
                         </ul>
                     </li>
                     <li><strong>🗑️ 刪除模式</strong>：點擊區域刪除</li>
@@ -797,6 +923,12 @@
         // 顶点半径
         let VERTEX_RADIUS = 8;
         let TOUCH_THRESHOLD = 10;
+
+        // 虛擬邊界相關
+        let virtualBoundaries = [];
+        let currentBoundaryPoints = [];
+        let isDrawingBoundary = false;
+        let selectedBoundaryIndex = -1;
 
         // 檢測是否為手機
         function isMobile() {
@@ -883,15 +1015,16 @@
             }
 
             // 更新按钮样式
-            ['btnView', 'btnAdd', 'btnSmartLasso', 'btnEdit', 'btnDelete'].forEach(id => {
+            ['btnView', 'btnAdd', 'btnSmartLasso', 'btnVirtualBoundary', 'btnEdit', 'btnDelete'].forEach(id => {
                 const btn = document.getElementById(id);
                 if (btn) btn.classList.remove('active');
             });
-            
+
             if (mode !== 'add' || !smartLassoMode) {
-                document.getElementById('btn' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+                const btnId = mode === 'virtual' ? 'btnVirtualBoundary' : 'btn' + mode.charAt(0).toUpperCase() + mode.slice(1);
+                document.getElementById(btnId).classList.add('active');
             }
-            
+
             // 如果是新增模式且智慧套索開啟，高亮智慧套索按鈕
             if (mode === 'add' && smartLassoMode) {
                 document.getElementById('btnSmartLasso').classList.add('active');
@@ -901,6 +1034,7 @@
             const modeNames = {
                 view: '瀏覽',
                 add: smartLassoMode ? (lassoPhase === 'select-color' ? '抽色' : '追蹤') : '新增',
+                virtual: '虛擬邊界',
                 edit: '編輯',
                 delete: '刪除'
             };
@@ -920,6 +1054,19 @@
             } else {
                 editIdControls.classList.remove('visible');
                 if (snapBtn) snapBtn.style.display = 'none';
+            }
+
+            // 虛擬邊界模式
+            const virtualToolbar = document.getElementById('virtualBoundaryToolbar');
+            const virtualList = document.getElementById('virtualBoundaryList');
+            if (mode === 'virtual') {
+                virtualToolbar.style.display = 'flex';
+                virtualList.style.display = 'block';
+            } else {
+                virtualToolbar.style.display = 'none';
+                virtualList.style.display = 'none';
+                isDrawingBoundary = false;
+                currentBoundaryPoints = [];
             }
 
             updateSelectedInfo();
@@ -991,6 +1138,9 @@
 
                 // 自动从云端载入已保存标注
                 await autoLoadFromCloud();
+
+                // 自動載入虛擬邊界
+                await loadVirtualBoundaries();
             };
 
             img.src = mapFile;
@@ -1167,6 +1317,50 @@
                     ctx.beginPath();
                     ctx.fillStyle = '#f59e0b';
                     ctx.arc(p.x, p.y, VERTEX_RADIUS / zoom, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            // 繪製已保存的虛擬邊界
+            virtualBoundaries.forEach((boundary, index) => {
+                if (boundary.map_id !== currentMapId) return;
+
+                ctx.beginPath();
+                ctx.strokeStyle = index === selectedBoundaryIndex ? '#c084fc' : boundary.color;
+                ctx.lineWidth = (index === selectedBoundaryIndex ? 4 : 3) / zoom;
+                ctx.setLineDash([5, 5]); // 虛線
+
+                ctx.moveTo(boundary.points[0].x, boundary.points[0].y);
+                boundary.points.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+                ctx.setLineDash([]); // 恢復實線
+
+                // 繪製節點
+                boundary.points.forEach(p => {
+                    ctx.beginPath();
+                    ctx.fillStyle = index === selectedBoundaryIndex ? '#c084fc' : boundary.color;
+                    ctx.arc(p.x, p.y, 5 / zoom, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+
+            // 繪製正在繪製的虛擬邊界
+            if (isDrawingBoundary && currentBoundaryPoints.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#9333ea';
+                ctx.lineWidth = 3 / zoom;
+                ctx.setLineDash([5, 5]);
+
+                ctx.moveTo(currentBoundaryPoints[0].x, currentBoundaryPoints[0].y);
+                currentBoundaryPoints.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 繪製節點
+                currentBoundaryPoints.forEach(p => {
+                    ctx.beginPath();
+                    ctx.fillStyle = '#9333ea';
+                    ctx.arc(p.x, p.y, 5 / zoom, 0, Math.PI * 2);
                     ctx.fill();
                 });
             }
@@ -1363,6 +1557,14 @@
                 panStart = { x: e.clientX - panX, y: e.clientY - panY };
                 canvas.style.cursor = 'grabbing';
             }
+            else if (currentMode === 'virtual') {
+                // 虛擬邊界模式：點擊添加邊界點
+                if (isDrawingBoundary) {
+                    currentBoundaryPoints.push({ x: pos.x, y: pos.y });
+                    draw();
+                    showToast(`已添加第 ${currentBoundaryPoints.length} 個點`);
+                }
+            }
             else if (currentMode === 'add') {
                 if (smartLassoMode) {
                     // 智慧套索模式
@@ -1506,6 +1708,13 @@
         });
 
         canvas.addEventListener('dblclick', (e) => {
+            // 虛擬邊界模式：雙擊完成繪製
+            if (currentMode === 'virtual' && isDrawingBoundary && currentBoundaryPoints.length >= 2) {
+                finishDrawingBoundary();
+                return;
+            }
+
+            // 新增模式：雙擊完成多邊形
             if (currentMode === 'add' && currentPolygon.length > 2) {
                 const pos = screenToImage(e.clientX, e.clientY);
                 currentPolygon.push({ x: pos.x, y: pos.y });
@@ -2144,13 +2353,13 @@
             }
         }
 
-        // 手機貼齊紫色
+        // 手機貼齊虛擬邊界
         function snapToPurpleMobile() {
             if (selectedAreaIndex < 0) {
                 showToast('⚠️ 請先選擇一個區域', 'warn');
                 return;
             }
-            snapSelectedToPurple();
+            snapSelectedToVirtualBoundary();
         }
 
         // 初始化
@@ -2822,6 +3031,267 @@
                 showToast('❌ 偵測失敗：' + error.message, 'error');
             } finally {
                 isDetectingBoundary = false;
+            }
+        }
+
+        // ==================== 虛擬邊界功能 ====================
+
+        // 開始繪製邊界
+        function startDrawingBoundary() {
+            isDrawingBoundary = true;
+            currentBoundaryPoints = [];
+            selectedBoundaryIndex = -1;
+            showToast('✏️ 點擊地圖繪製邊界點，雙擊完成');
+            draw();
+        }
+
+        // 完成繪製
+        function finishDrawingBoundary() {
+            if (currentBoundaryPoints.length < 2) {
+                showToast('⚠️ 至少需要 2 個點', 'warn');
+                return;
+            }
+
+            isDrawingBoundary = false;
+            showToast('✅ 邊界繪製完成，請點擊「保存」按鈕');
+            draw();
+        }
+
+        // 取消繪製
+        function cancelDrawingBoundary() {
+            isDrawingBoundary = false;
+            currentBoundaryPoints = [];
+            showToast('❌ 已取消繪製');
+            draw();
+        }
+
+        // 保存虛擬邊界到 Supabase
+        async function saveVirtualBoundary() {
+            if (!ensureSupabase()) return;
+            if (currentBoundaryPoints.length < 2) {
+                showToast('⚠️ 請先繪製邊界', 'warn');
+                return;
+            }
+
+            const name = prompt('請輸入邊界名稱：', `虛擬邊界 ${virtualBoundaries.length + 1}`);
+            if (!name) return;
+
+            const boundary = {
+                id: `vb_${Date.now()}`,
+                map_id: currentMapId,
+                name: name,
+                points: currentBoundaryPoints,
+                color: '#9333ea'
+            };
+
+            try {
+                const { error } = await supabaseClient
+                    .from('virtual_boundaries')
+                    .insert(boundary);
+
+                if (error) throw error;
+
+                virtualBoundaries.push(boundary);
+                currentBoundaryPoints = [];
+                isDrawingBoundary = false;
+                updateBoundaryList();
+                draw();
+
+                showToast(`✅ 已保存虛擬邊界：${name}`);
+            } catch (error) {
+                console.error('保存失敗:', error);
+                showToast('❌ 保存失敗：' + error.message, 'error');
+            }
+        }
+
+        // 從 Supabase 載入虛擬邊界
+        async function loadVirtualBoundaries() {
+            if (!ensureSupabase()) return;
+            if (!currentMapId) {
+                return; // 靜默失敗，因為可能是初始化時調用
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('virtual_boundaries')
+                    .select('*')
+                    .eq('map_id', currentMapId);
+
+                if (error) throw error;
+
+                virtualBoundaries = data || [];
+                updateBoundaryList();
+                draw();
+
+                if (virtualBoundaries.length > 0) {
+                    showToast(`✅ 已載入 ${virtualBoundaries.length} 個虛擬邊界`);
+                }
+            } catch (error) {
+                console.error('載入失敗:', error);
+                // 靜默失敗，不影響主要功能
+            }
+        }
+
+        // 更新邊界列表
+        function updateBoundaryList() {
+            const list = document.getElementById('boundaryList');
+            list.innerHTML = '';
+
+            virtualBoundaries.forEach((boundary, index) => {
+                const li = document.createElement('li');
+                li.className = index === selectedBoundaryIndex ? 'selected' : '';
+                li.innerHTML = `
+                    <span onclick="selectBoundary(${index})">${boundary.name}</span>
+                    <button onclick="deleteVirtualBoundary(${index})">🗑️</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // 選擇邊界
+        function selectBoundary(index) {
+            selectedBoundaryIndex = index;
+            updateBoundaryList();
+            draw();
+            showToast(`已選擇：${virtualBoundaries[index].name}`);
+        }
+
+        // 刪除虛擬邊界
+        async function deleteVirtualBoundary(index) {
+            if (!ensureSupabase()) return;
+            if (index < 0 || index >= virtualBoundaries.length) return;
+
+            const boundary = virtualBoundaries[index];
+
+            if (!confirm(`確定要刪除「${boundary.name}」嗎？`)) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('virtual_boundaries')
+                    .delete()
+                    .eq('id', boundary.id);
+
+                if (error) throw error;
+
+                virtualBoundaries.splice(index, 1);
+                if (selectedBoundaryIndex === index) {
+                    selectedBoundaryIndex = -1;
+                } else if (selectedBoundaryIndex > index) {
+                    selectedBoundaryIndex--;
+                }
+                updateBoundaryList();
+                draw();
+
+                showToast(`✅ 已刪除虛擬邊界：${boundary.name}`);
+            } catch (error) {
+                console.error('刪除失敗:', error);
+                showToast('❌ 刪除失敗：' + error.message, 'error');
+            }
+        }
+
+        // 尋找虛擬邊界像素（替代 findPurplePixelsNear）
+        function findVirtualBoundaryPixelsNear(centerX, centerY, radius) {
+            const pixels = [];
+
+            // 遍歷所有虛擬邊界
+            virtualBoundaries.forEach(boundary => {
+                if (boundary.map_id !== currentMapId) return;
+
+                // 對每條線段，找距離中心點半徑內的點
+                for (let i = 0; i < boundary.points.length - 1; i++) {
+                    const p1 = boundary.points[i];
+                    const p2 = boundary.points[i + 1];
+
+                    // 插值線段上的點
+                    const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                    const steps = Math.ceil(dist / 5); // 每 5px 一個點
+
+                    for (let step = 0; step <= steps; step++) {
+                        const t = step / steps;
+                        const x = p1.x + (p2.x - p1.x) * t;
+                        const y = p1.y + (p2.y - p1.y) * t;
+
+                        // 檢查是否在半徑內
+                        const distToCenter = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                        if (distToCenter <= radius) {
+                            pixels.push({ x, y });
+                        }
+                    }
+                }
+            });
+
+            console.log(`虛擬邊界像素搜尋: 中心(${centerX.toFixed(0)}, ${centerY.toFixed(0)}), 半徑 ${radius}, 找到 ${pixels.length} 個點`);
+            return pixels;
+        }
+
+        // 將選中的多邊形貼齊到虛擬邊界
+        async function snapSelectedToVirtualBoundary() {
+            if (selectedAreaIndex < 0) {
+                showToast('❌ 請先選擇一個區域', 'error');
+                return;
+            }
+
+            if (virtualBoundaries.length === 0) {
+                showToast('⚠️ 沒有虛擬邊界，請先繪製', 'warn');
+                return;
+            }
+
+            const area = areas[selectedAreaIndex];
+            showToast('🔍 正在搜尋最近的虛擬邊界...');
+
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            try {
+                const center = area.center;
+                const boundaryPixels = findVirtualBoundaryPixelsNear(center.x, center.y, 200);
+
+                if (boundaryPixels.length === 0) {
+                    const expandedPixels = findVirtualBoundaryPixelsNear(center.x, center.y, 400);
+                    if (expandedPixels.length === 0) {
+                        showToast('❌ 附近未找到虛擬邊界（搜尋半徑 400px）', 'error');
+                        return;
+                    }
+                    boundaryPixels.push(...expandedPixels);
+                }
+
+                const maxSnapDistance = 100;
+                let snappedCount = 0;
+
+                const snappedPolygon = area.polygon.map((point, index) => {
+                    let nearest = null;
+                    let minDist = Infinity;
+
+                    for (const pixel of boundaryPixels) {
+                        const dist = Math.sqrt(
+                            Math.pow(point.x - pixel.x, 2) +
+                            Math.pow(point.y - pixel.y, 2)
+                        );
+                        if (dist < minDist && dist < maxSnapDistance) {
+                            minDist = dist;
+                            nearest = pixel;
+                        }
+                    }
+
+                    if (nearest) {
+                        snappedCount++;
+                        return { x: nearest.x, y: nearest.y };
+                    }
+                    return point;
+                });
+
+                areas[selectedAreaIndex].polygon = snappedPolygon;
+                recalculateCenter(selectedAreaIndex);
+                draw();
+
+                if (snappedCount === 0) {
+                    showToast('⚠️ 未找到可貼齊的虛擬邊界（所有頂點距離 > 100px）', 'warn');
+                } else {
+                    showToast(`✅ 已貼齊虛擬邊界（移動 ${snappedCount}/${area.polygon.length} 個頂點）`);
+                }
+
+            } catch (error) {
+                console.error('貼齊錯誤:', error);
+                showToast('❌ 貼齊失敗：' + error.message, 'error');
             }
         }
 
