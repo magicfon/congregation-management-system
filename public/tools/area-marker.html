@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.4.1 - 專業版（虛擬邊界）</title>
+    <title>區域標註工具 v2.5 - 專業版（虛擬邊界 + 自動抓取）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -724,6 +724,7 @@
             <button onclick="startDrawingBoundary()">✏️ 開始繪製</button>
             <button onclick="finishDrawingBoundary()">✅ 完成繪製</button>
             <button onclick="cancelDrawingBoundary()">❌ 取消</button>
+            <button onclick="extractPurpleLinesToVirtualBoundary()">🤖 自動抓取紫色邊界</button>
             <button onclick="saveVirtualBoundary()">💾 保存</button>
             <button onclick="deleteVirtualBoundary()">🗑️ 刪除邊界</button>
         </div>
@@ -844,14 +845,11 @@
                             <li>點擊「🔄 重置」可重新抽取顏色</li>
                         </ul>
                     </li>
-                    <li><strong>✏️ 虛擬邊界模式</strong>（v2.4 新增）：
+                    <li><strong>✏️ 虛擬邊界模式</strong>：
                         <ul>
-                            <li>點擊「✏️ 開始繪製」進入繪製模式</li>
-                            <li>在地圖上點擊添加邊界點，雙擊完成繪製</li>
-                            <li>點擊「💾 保存虛擬邊界」儲存到雲端</li>
-                            <li>載入地圖時自動載入已保存的虛擬邊界</li>
-                            <li>可在列表中選擇或刪除虛擬邊界</li>
-                            <li><strong>用途</strong>：定義自訂邊界線，用於自動貼齊功能</li>
+                            <li><strong>手動繪製</strong>：點擊地圖繪製邊界點</li>
+                            <li><strong>🤖 自動抓取</strong>：自動偵測紫色邊界線並轉換</li>
+                            <li>虛擬邊界用於智慧套索和自動貼齊功能</li>
                         </ul>
                     </li>
                     <li><strong>✏️ 編輯模式</strong>：
@@ -3251,6 +3249,289 @@
             }
         }
 
+        // ==================== 自動抓取紫色邊界線功能（v2.5） ====================
+
+        // 自動抓取紫色邊界線並轉換為虛擬邊界
+        async function extractPurpleLinesToVirtualBoundary() {
+            if (!currentImage) {
+                showToast('❌ 請先載入地圖', 'error');
+                return;
+            }
+
+            showToast('🔍 正在抓取紫色邊界線...');
+
+            try {
+                // 步驟 1: 獲取圖片數據
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                // 步驟 2: 創建紫色遮罩
+                const mask = new Uint8Array(canvas.width * canvas.height);
+
+                // CV2 紫色範圍 (OpenCV H: 120-160, S: 40-255, V: 40-255)
+                // 轉換為標準 HSV (0-255)
+                const hMin = 170, hMax = 226; // 120-160 * 255/179
+                const sMin = 40, vMin = 40;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    const hsv = rgbToHsv(r, g, b);
+
+                    if (hsv.h >= hMin && hsv.h <= hMax &&
+                        hsv.s >= sMin && hsv.v >= vMin) {
+                        mask[i / 4] = 255;
+                    } else {
+                        mask[i / 4] = 0;
+                    }
+                }
+
+                console.log('紫色像素數量:', mask.filter(v => v === 255).length);
+
+                // 步驟 3: 形態學處理（膨脹 2x2 kernel）
+                const dilatedMask = dilateMask(mask, canvas.width, canvas.height, 2, 1);
+
+                // 步驟 4: 尋找輪廓
+                const contours = findContoursInMask(dilatedMask, canvas.width, canvas.height);
+
+                console.log(`找到 ${contours.length} 個輪廓`);
+
+                // 步驟 5: 簡化並合併所有線段
+                const allPoints = [];
+
+                contours.forEach((contour, index) => {
+                    if (contour.length > 10) { // 過濾太短的雜訊
+                        // 簡化線條（Douglas-Peucker）
+                        const simplified = simplifyContour(contour, 0.005);
+
+                        // 添加到總點集合
+                        allPoints.push(...simplified);
+                    }
+                });
+
+                if (allPoints.length < 2) {
+                    showToast('❌ 未找到足夠的紫色邊界線', 'error');
+                    return;
+                }
+
+                // 步驟 6: 保存為虛擬邊界
+                currentBoundaryPoints = allPoints;
+                virtualBoundary = {
+                    map_id: currentMapId,
+                    points: allPoints,
+                    color: '#9333ea',
+                    updated_at: new Date().toISOString()
+                };
+
+                // 自動保存到 Supabase
+                if (ensureSupabase()) {
+                    const { error } = await supabaseClient
+                        .from('virtual_boundaries')
+                        .upsert(virtualBoundary, { onConflict: 'map_id' });
+
+                    if (error) {
+                        console.error('保存到雲端失敗:', error);
+                        showToast(`⚠️ 已抓取 ${allPoints.length} 個邊界點（但雲端保存失敗）`, 'warn');
+                    } else {
+                        showToast(`✅ 已抓取並保存 ${allPoints.length} 個邊界點到雲端`);
+                    }
+                } else {
+                    showToast(`✅ 已抓取 ${allPoints.length} 個邊界點（僅本地）`);
+                }
+
+                isDrawingBoundary = false;
+                draw();
+
+            } catch (error) {
+                console.error('抓取失敗:', error);
+                showToast('❌ 抓取失敗：' + error.message, 'error');
+            }
+        }
+
+        // 膨脹遮罩
+        function dilateMask(mask, width, height, kernelSize, iterations) {
+            const result = new Uint8Array(mask.length);
+
+            for (let iter = 0; iter < iterations; iter++) {
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const idx = y * width + x;
+                        let maxVal = 0;
+
+                        // 2x2 kernel
+                        for (let ky = 0; ky < kernelSize; ky++) {
+                            for (let kx = 0; kx < kernelSize; kx++) {
+                                const ny = Math.min(height - 1, y + ky);
+                                const nx = Math.min(width - 1, x + kx);
+                                const nIdx = ny * width + nx;
+
+                                if (mask[nIdx] > maxVal) {
+                                    maxVal = mask[nIdx];
+                                }
+                            }
+                        }
+
+                        result[idx] = maxVal;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // 尋找輪廓（Flood Fill）
+        function findContoursInMask(mask, width, height) {
+            const contours = [];
+            const visited = new Uint8Array(width * height);
+
+            // 掃描整個遮罩
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+
+                    // 找到未訪問的白色像素
+                    if (mask[idx] === 255 && !visited[idx]) {
+                        // 使用 Flood Fill 找連通區域
+                        const contour = floodFillContourInMask(mask, width, height, x, y, visited);
+
+                        if (contour.length > 0) {
+                            contours.push(contour);
+                        }
+                    }
+                }
+            }
+
+            return contours;
+        }
+
+        // Flood Fill 找輪廓
+        function floodFillContourInMask(mask, width, height, startX, startY, visited) {
+            const contour = [];
+            const stack = [{ x: startX, y: startY }];
+
+            while (stack.length > 0) {
+                const { x, y } = stack.pop();
+                const idx = y * width + x;
+
+                if (visited[idx]) continue;
+                visited[idx] = 1;
+
+                // 只添加邊界點（鄰近黑色）
+                let isBoundary = false;
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            const nIdx = ny * width + nx;
+                            if (mask[nIdx] === 0) {
+                                isBoundary = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (isBoundary) break;
+                }
+
+                if (isBoundary) {
+                    contour.push({ x, y });
+                }
+
+                // 8-連通擴展
+                const neighbors = [
+                    { x: x + 1, y },
+                    { x: x - 1, y },
+                    { x, y: y + 1 },
+                    { x, y: y - 1 },
+                    { x: x + 1, y: y + 1 },
+                    { x: x - 1, y: y - 1 },
+                    { x: x + 1, y: y - 1 },
+                    { x: x - 1, y: y + 1 }
+                ];
+
+                for (const n of neighbors) {
+                    if (n.x >= 0 && n.x < width && n.y >= 0 && n.y < height) {
+                        const nIdx = n.y * width + n.x;
+                        if (mask[nIdx] === 255 && !visited[nIdx]) {
+                            stack.push(n);
+                        }
+                    }
+                }
+            }
+
+            return contour;
+        }
+
+        // 簡化輪廓（Douglas-Peucker）
+        function simplifyContour(contour, epsilon) {
+            if (contour.length <= 2) return contour;
+
+            // 計算輪廓周長
+            let perimeter = 0;
+            for (let i = 0; i < contour.length - 1; i++) {
+                const dx = contour[i + 1].x - contour[i].x;
+                const dy = contour[i + 1].y - contour[i].y;
+                perimeter += Math.sqrt(dx * dx + dy * dy);
+            }
+
+            const tolerance = epsilon * perimeter;
+
+            return douglasPeuckerSimplify(contour, tolerance);
+        }
+
+        // Douglas-Peucker 算法
+        function douglasPeuckerSimplify(points, tolerance) {
+            if (points.length <= 2) return points;
+
+            let maxDist = 0;
+            let maxIdx = 0;
+
+            const start = points[0];
+            const end = points[points.length - 1];
+
+            for (let i = 1; i < points.length - 1; i++) {
+                const dist = perpendicularDist(points[i], start, end);
+                if (dist > maxDist) {
+                    maxDist = dist;
+                    maxIdx = i;
+                }
+            }
+
+            if (maxDist > tolerance) {
+                const left = douglasPeuckerSimplify(points.slice(0, maxIdx + 1), tolerance);
+                const right = douglasPeuckerSimplify(points.slice(maxIdx), tolerance);
+                return left.slice(0, -1).concat(right);
+            }
+
+            return [start, end];
+        }
+
+        // 計算點到線段的垂直距離
+        function perpendicularDist(point, lineStart, lineEnd) {
+            const dx = lineEnd.x - lineStart.x;
+            const dy = lineEnd.y - lineStart.y;
+
+            if (dx === 0 && dy === 0) {
+                return Math.sqrt(
+                    Math.pow(point.x - lineStart.x, 2) +
+                    Math.pow(point.y - lineStart.y, 2)
+                );
+            }
+
+            const t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) /
+                      (dx * dx + dy * dy);
+
+            const nearestX = lineStart.x + t * dx;
+            const nearestY = lineStart.y + t * dy;
+
+            return Math.sqrt(
+                Math.pow(point.x - nearestX, 2) +
+                Math.pow(point.y - nearestY, 2)
+            );
+        }
+
         // ==================== 自動貼齊紫色邊界功能 ====================
 
         // 檢查是否為紫色像素（HSV）- 使用 CV2 參數
@@ -3347,6 +3628,31 @@
                         snappedCount++;
                         console.log(`頂點 ${index}: 原座標 (${point.x.toFixed(0)}, ${point.y.toFixed(0)}) -> 貼齊 (${nearestPurple.x}, ${nearestPurple.y}), 距離 ${minDist.toFixed(1)}px`);
                         return { x: nearestPurple.x, y: nearestPurple.y };
+                    }
+                    return point; // 如果找不到，保持原位
+                });
+
+                // 步驟 3: 更新多邊形
+                areas[selectedAreaIndex].polygon = snappedPolygon;
+                recalculateCenter(selectedAreaIndex);
+
+                draw();
+
+                if (snappedCount === 0) {
+                    showToast('⚠️ 未找到可貼齊的紫色邊界（所有頂點距離 > 100px）', 'warn');
+                } else {
+                    showToast(`✅ 已貼齊紫色邊界（移動 ${snappedCount}/${area.polygon.length} 個頂點）`);
+                }
+
+            } catch (error) {
+                console.error('貼齊錯誤:', error);
+                showToast('❌ 貼齊失敗：' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
+rn { x: nearestPurple.x, y: nearestPurple.y };
                     }
                     return point; // 如果找不到，保持原位
                 });
