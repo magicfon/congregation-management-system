@@ -1830,7 +1830,7 @@
             return imageData;
         }
 
-        // 創建顏色遮罩（改進版 - 使用 HSV）
+        // 創建顏色遮罩（改進版 - 使用 HSV，參考 CV2 參數）
         function createColorMask(imageData, targetColor, tolerance = 20) {
             const data = imageData.data;
             const width = imageData.width;
@@ -1838,6 +1838,8 @@
             const mask = new Uint8Array(width * height);
 
             const targetHsv = rgbToHsv(targetColor.r, targetColor.g, targetColor.b);
+
+            console.log('目標顏色 HSV:', targetHsv);
 
             for (let i = 0; i < data.length; i += 4) {
                 const r = data[i];
@@ -1847,19 +1849,30 @@
                 // 使用 HSV 提高準確度
                 const hsv = rgbToHsv(r, g, b);
 
-                // 色相容差（H）
+                // 色相容差（H）- CV2 風格：H 範圍較寬
                 const hDiff = Math.abs(hsv.h - targetHsv.h);
                 const sDiff = Math.abs(hsv.s - targetHsv.s);
                 const vDiff = Math.abs(hsv.v - targetHsv.v);
 
-                // 寬鬆的匹配條件
-                if (hDiff <= tolerance * 2 && sDiff <= tolerance * 3 && vDiff <= tolerance * 2) {
+                // CV2 參考參數：H 容差較大，S/V 最小閾值 30
+                // 對應 CV2: H(120-150), S(30-255), V(30-255)
+                const hThreshold = tolerance * 4;  // 更寬鬆的 H 容差
+                const sMin = 30;  // 最小飽和度
+                const vMin = 30;  // 最小亮度
+
+                // 匹配條件：接近目標 H，且 S/V 不太低（避免灰階）
+                if (hDiff <= hThreshold && 
+                    hsv.s >= sMin && 
+                    hsv.v >= vMin &&
+                    sDiff <= 255 - sMin && 
+                    vDiff <= 255 - vMin) {
                     mask[i / 4] = 255; // 白色
                 } else {
                     mask[i / 4] = 0;   // 黑色
                 }
             }
 
+            console.log('遮罩創建完成，白色像素:', mask.filter(v => v === 255).length);
             return { mask, width, height };
         }
 
