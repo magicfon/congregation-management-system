@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.3 - 專業版（手機觸控優化）</title>
+    <title>區域標註工具 v2.3.1 - 專業版（手機觸控優化）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -538,7 +538,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.3</span> <small style="color: #94a3b8; font-size: 14px;">手機觸控優化</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.3.1</span> <small style="color: #94a3b8; font-size: 14px;">手機觸控優化</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -646,11 +646,11 @@
                 
                 <!-- 手機版操作指南 -->
                 <div class="mobile-instructions">
-                    <h4>📱 手機操作指南</h4>
+                    <h4>📱 手機操作指南（v2.3.1）</h4>
                     <ul>
                         <li>👆 <strong>單指拖曳</strong>：平移地圖（瀏覽模式）</li>
-                        <li>👌 <strong>雙指縮放</strong>：放大/縮小地圖</li>
-                        <li>✴️ <strong>長按頂點</strong>：選中並拖曳（編輯模式）</li>
+                        <li>➕➖ <strong>縮放按鈕</strong>：放大/縮小地圖</li>
+                        <li>✏️ <strong>編輯模式</strong>：直接點擊頂點拖曳</li>
                         <li>🖱️ <strong>點擊邊線</strong>：添加新節點</li>
                         <li>🗑️ <strong>底部工具列</strong>：快速刪除/添加節點</li>
                     </ul>
@@ -658,7 +658,14 @@
                 
                 <!-- 版本更新資訊 -->
                 <div style="background: rgba(124, 58, 237, 0.15); padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #7c3aed;">
-                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.3 更新（2026-03-22）</h4>
+                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.3.1 更新（2026-03-22）</h4>
+                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
+                        <li>🐛 <strong>修復編輯模式觸控問題</strong>：編輯模式下可正常拖曳頂點</li>
+                        <li>🔧 <strong>移除雙指縮放</strong>：避免縮放中心點跑掉，改用 +/- 按鈕</li>
+                        <li>✨ <strong>移除長按功能</strong>：改為直接點擊頂點即可拖曳</li>
+                        <li>👍 <strong>操作更直觀</strong>：點擊頂點立即進入拖曳模式</li>
+                    </ul>
+                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.3 更新（2026-03-22）</h4>
                     <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
                         <li>📱 <strong>手機觸控優化</strong>：增大觸控目標（20px），更容易點選節點</li>
                         <li>👌 <strong>雙指縮放</strong>：支援 pinch-to-zoom 手勢</li>
@@ -802,9 +809,6 @@
         let colorTolerance = 20;
 
         // 手機觸控相關
-        let longPressTimer = null;
-        let selectedVertexForMobile = null;
-        let initialPinchDistance = null;
         let lastTouchPos = null;
 
         // Toast notification
@@ -1498,96 +1502,103 @@
             // 單指觸控
             if (e.touches.length === 1) {
                 const touch = e.touches[0];
-                lastTouchPos = { x: touch.clientX, y: touch.clientY };
-                const pos = screenToImage(touch.clientX, touch.clientY);
+                
+                // 編輯模式下直接處理，不轉換為滑鼠事件
+                if (currentMode === 'edit') {
+                    handleEditTouchStart(touch);
+                } else {
+                    lastTouchPos = { x: touch.clientX, y: touch.clientY };
+                    const pos = screenToImage(touch.clientX, touch.clientY);
 
-                if (currentMode === 'view') {
-                    isPanning = true;
-                    panStart = { x: touch.clientX - panX, y: touch.clientY - panY };
-                    canvas.style.cursor = 'grabbing';
-                }
-                else if (currentMode === 'edit') {
-                    selectedAreaIndex = findAreaAt(pos.x, pos.y);
-
-                    if (selectedAreaIndex >= 0) {
-                        // 檢查是否點擊到頂點
-                        const vertexIndex = findVertexAt(pos.x, pos.y, selectedAreaIndex);
-
-                        if (vertexIndex >= 0) {
-                            // 長按 500ms 進入拖曳模式
-                            longPressTimer = setTimeout(() => {
-                                selectedVertexForMobile = vertexIndex;
-                                isDragging = true;
-                                dragType = 'vertex';
-                                dragIndex = vertexIndex;
-                                showToast('✅ 已選中頂點，可拖曳調整', 'info');
-                                
-                                // 震動回饋
-                                if (navigator.vibrate) {
-                                    navigator.vibrate(50);
-                                }
-                            }, 500);
+                    if (currentMode === 'view') {
+                        isPanning = true;
+                        panStart = { x: touch.clientX - panX, y: touch.clientY - panY };
+                        canvas.style.cursor = 'grabbing';
+                    }
+                    else if (currentMode === 'add') {
+                        if (smartLassoMode) {
+                            smartLassoDetect(pos.x, pos.y);
                         } else {
-                            // 檢查是否點擊了中心
-                            const area = areas[selectedAreaIndex];
-                            const dx = area.center.x - pos.x;
-                            const dy = area.center.y - pos.y;
-
-                            if (Math.sqrt(dx*dx + dy*dy) < 20 / zoom) {
-                                dragType = 'move';
-                                isDragging = true;
-                            } else {
-                                // 檢查是否點擊了邊線（添加節點）
-                                const edgeIndex = findEdgeAt(pos.x, pos.y, selectedAreaIndex);
-                                if (edgeIndex >= 0) {
-                                    addVertexOnEdge(selectedAreaIndex, edgeIndex, pos.x, pos.y);
-                                }
-                            }
+                            // 添加矩形
+                            const finalId = generateUniqueId(currentId);
+                            areas.push({
+                                id: finalId,
+                                center: { x: pos.x, y: pos.y },
+                                polygon: [
+                                    { x: pos.x - 50, y: pos.y - 50 },
+                                    { x: pos.x + 50, y: pos.y - 50 },
+                                    { x: pos.x + 50, y: pos.y + 50 },
+                                    { x: pos.x - 50, y: pos.y + 50 }
+                                ]
+                            });
+                            currentId++;
+                            updateStats();
+                            draw();
                         }
-
-                        updateSelectedInfo();
                     }
-
-                    draw();
-                }
-                else if (currentMode === 'add') {
-                    if (smartLassoMode) {
-                        smartLassoDetect(pos.x, pos.y);
-                    } else {
-                        // 添加矩形
-                        const finalId = generateUniqueId(currentId);
-                        areas.push({
-                            id: finalId,
-                            center: { x: pos.x, y: pos.y },
-                            polygon: [
-                                { x: pos.x - 50, y: pos.y - 50 },
-                                { x: pos.x + 50, y: pos.y - 50 },
-                                { x: pos.x + 50, y: pos.y + 50 },
-                                { x: pos.x - 50, y: pos.y + 50 }
-                            ]
-                        });
-                        currentId++;
-                        updateStats();
-                        draw();
-                    }
-                }
-                else if (currentMode === 'delete') {
-                    const index = findAreaAt(pos.x, pos.y);
-                    if (index >= 0) {
-                        areas.splice(index, 1);
-                        updateStats();
-                        draw();
+                    else if (currentMode === 'delete') {
+                        const index = findAreaAt(pos.x, pos.y);
+                        if (index >= 0) {
+                            areas.splice(index, 1);
+                            updateStats();
+                            draw();
+                        }
                     }
                 }
             }
-            // 雙指觸控（開始縮放）
-            else if (e.touches.length === 2) {
-                const touch1 = e.touches[0];
-                const touch2 = e.touches[1];
-                initialPinchDistance = Math.sqrt(
-                    Math.pow(touch2.clientX - touch1.clientX, 2) +
-                    Math.pow(touch2.clientY - touch1.clientY, 2)
-                );
+        }
+
+        // 編輯模式觸控開始
+        function handleEditTouchStart(touch) {
+            const pos = screenToImage(touch.clientX, touch.clientY);
+            lastTouchPos = { x: touch.clientX, y: touch.clientY };
+
+            // 如果已有選中的區域，先檢查是否點擊頂點
+            if (selectedAreaIndex >= 0) {
+                const vertexIndex = findVertexAt(pos.x, pos.y, selectedAreaIndex);
+                if (vertexIndex >= 0) {
+                    // 直接選中並進入拖曳模式
+                    isDragging = true;
+                    dragType = 'vertex';
+                    dragIndex = vertexIndex;
+                    showToast('✅ 已選中頂點，可拖曳調整', 'info');
+                    
+                    // 震動回饋
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                    draw();
+                    return;
+                }
+
+                // 檢查是否點擊中心（移動整個區域）
+                const area = areas[selectedAreaIndex];
+                const dx = area.center.x - pos.x;
+                const dy = area.center.y - pos.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 20 / zoom) {
+                    isDragging = true;
+                    dragType = 'move';
+                    showToast('✅ 已選中區域，可拖曳移動', 'info');
+                    draw();
+                    return;
+                }
+            }
+
+            // 檢查是否點擊了邊線（添加節點）
+            if (selectedAreaIndex >= 0) {
+                const edgeIndex = findEdgeAt(pos.x, pos.y, selectedAreaIndex);
+                if (edgeIndex >= 0) {
+                    addVertexOnEdge(selectedAreaIndex, edgeIndex, pos.x, pos.y);
+                    return;
+                }
+            }
+
+            // 選中區域
+            const areaIndex = findAreaAt(pos.x, pos.y);
+            if (areaIndex >= 0) {
+                selectedAreaIndex = areaIndex;
+                updateSelectedInfo();
+                draw();
             }
         }
 
@@ -1602,65 +1613,49 @@
             // 單指移動
             if (e.touches.length === 1) {
                 const touch = e.touches[0];
-                const pos = screenToImage(touch.clientX, touch.clientY);
-
-                // 清除長按計時器（如果有移動）
-                if (longPressTimer && !isDragging) {
-                    const dx = touch.clientX - lastTouchPos.x;
-                    const dy = touch.clientY - lastTouchPos.y;
-                    if (Math.sqrt(dx*dx + dy*dy) > 10) {
-                        clearTimeout(longPressTimer);
-                        longPressTimer = null;
+                
+                if (currentMode === 'edit' && isDragging) {
+                    // 編輯模式拖曳
+                    handleEditTouchMove(touch);
+                } else if (currentMode === 'view') {
+                    // 瀏覽模式平移
+                    if (lastTouchPos) {
+                        panX += touch.clientX - lastTouchPos.x;
+                        panY += touch.clientY - lastTouchPos.y;
+                        draw();
                     }
-                }
-
-                if (isPanning && currentMode === 'view') {
-                    panX = touch.clientX - panStart.x;
-                    panY = touch.clientY - panStart.y;
-                    draw();
-                }
-                else if (isDragging && currentMode === 'edit' && selectedAreaIndex >= 0) {
-                    const lastPos = screenToImage(lastTouchPos.x, lastTouchPos.y);
-
-                    if (dragType === 'vertex') {
-                        // 移動頂點
-                        areas[selectedAreaIndex].polygon[dragIndex].x = pos.x;
-                        areas[selectedAreaIndex].polygon[dragIndex].y = pos.y;
-                        recalculateCenter(selectedAreaIndex);
-                    }
-                    else if (dragType === 'move') {
-                        // 移動整個區域
-                        const dx = pos.x - lastPos.x;
-                        const dy = pos.y - lastPos.y;
-                        areas[selectedAreaIndex].polygon.forEach(p => {
-                            p.x += dx;
-                            p.y += dy;
-                        });
-                        areas[selectedAreaIndex].center.x += dx;
-                        areas[selectedAreaIndex].center.y += dy;
-                    }
-
                     lastTouchPos = { x: touch.clientX, y: touch.clientY };
-                    draw();
                 }
             }
-            // 雙指縮放
-            else if (e.touches.length === 2) {
-                const touch1 = e.touches[0];
-                const touch2 = e.touches[1];
-                const distance = Math.sqrt(
-                    Math.pow(touch2.clientX - touch1.clientX, 2) +
-                    Math.pow(touch2.clientY - touch1.clientY, 2)
-                );
+        }
 
-                if (initialPinchDistance !== null) {
-                    const scale = distance / initialPinchDistance;
-                    zoom = Math.max(0.1, Math.min(3, zoom * scale));
-                    updateZoomDisplay();
-                    draw();
-                    initialPinchDistance = distance;
-                }
+        // 編輯模式觸控移動
+        function handleEditTouchMove(touch) {
+            if (!isDragging || selectedAreaIndex < 0) return;
+            
+            const pos = screenToImage(touch.clientX, touch.clientY);
+            
+            if (dragType === 'vertex') {
+                // 移動頂點
+                areas[selectedAreaIndex].polygon[dragIndex].x = pos.x;
+                areas[selectedAreaIndex].polygon[dragIndex].y = pos.y;
+                recalculateCenter(selectedAreaIndex);
+            } else if (dragType === 'move') {
+                // 移動整個區域
+                const lastPos = screenToImage(lastTouchPos.x, lastTouchPos.y);
+                const dx = pos.x - lastPos.x;
+                const dy = pos.y - lastPos.y;
+                
+                areas[selectedAreaIndex].polygon.forEach(p => {
+                    p.x += dx;
+                    p.y += dy;
+                });
+                areas[selectedAreaIndex].center.x += dx;
+                areas[selectedAreaIndex].center.y += dy;
             }
+            
+            lastTouchPos = { x: touch.clientX, y: touch.clientY };
+            draw();
         }
 
         // 觸控結束
@@ -1669,25 +1664,15 @@
         function handleTouchEnd(e) {
             e.preventDefault();
 
-            // 清除長按計時器
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
+            if (currentMode === 'edit') {
+                isDragging = false;
+                dragType = null;
+                dragIndex = -1;
             }
 
             if (isPanning && currentMode === 'view') {
                 isPanning = false;
                 canvas.style.cursor = 'grab';
-            }
-
-            isDragging = false;
-            dragType = null;
-            dragIndex = -1;
-            selectedVertexForMobile = null;
-
-            // 重置雙指縮放
-            if (e.touches.length < 2) {
-                initialPinchDistance = null;
             }
 
             lastTouchPos = null;
