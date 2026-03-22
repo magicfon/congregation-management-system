@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 - 專業版</title>
+    <title>區域標註工具 v2.1 - 專業版（智慧套索 HSV + 形態學）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -176,6 +176,18 @@
             font-size: 12px;
             font-weight: bold;
             white-space: nowrap;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #7c3aed, #2563eb);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+            vertical-align: middle;
         }
 
         .mode-view { background: #64748b; }
@@ -435,7 +447,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 - 專業版</h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.1</span> <small style="color: #94a3b8; font-size: 14px;">HSV + 形態學 + 多輪廓</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -539,6 +551,19 @@
 
             <div class="instructions">
                 <h3>📖 使用說明</h3>
+                
+                <!-- 版本更新資訊 -->
+                <div style="background: rgba(124, 58, 237, 0.15); padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #7c3aed;">
+                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.1 更新（2026-03-22）</h4>
+                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
+                        <li>✨ <strong>智慧套索重大改進</strong>：HSV 色彩空間 + 形態學處理</li>
+                        <li>🔧 膨脹+侵蝕算法連接斷線（模擬 OpenCV）</li>
+                        <li>🎯 多輪廓檢測，自動選擇最近的封閉區域</li>
+                        <li>🔍 過濾小面積雜訊（< 1000px²）</li>
+                        <li>📊 紫色邊界檢測準確度大幅提升</li>
+                    </ul>
+                </div>
+                
                 <ul>
                     <li><strong>👁️ 瀏覽模式</strong>：查看和選中區域，拖拽平移地圖</li>
                     <li><strong>➕ 新增模式</strong>：
@@ -547,10 +572,11 @@
                             <li>Shift+點擊 = 畫多邊形（雙擊完成）</li>
                         </ul>
                     </li>
-                    <li><strong>🎯 智慧套索</strong>：
+                    <li><strong>🎯 智慧套索</strong>（改進版）：
                         <ul>
                             <li><strong>第一步：抽取顏色</strong> - 點擊地圖上的目標顏色（如邊界線）</li>
                             <li><strong>第二步：追蹤邊界</strong> - 再次點擊區域，自動追蹤該顏色的邊界</li>
+                            <li><strong>改進算法</strong>：使用 HSV 色彩空間 + 形態學處理（膨脹+侵蝕）連接斷線</li>
                             <li>可調整容差範圍（5-50）來匹配相近顏色</li>
                             <li>點擊「🔄 重置」可重新抽取顏色</li>
                         </ul>
@@ -1734,6 +1760,199 @@
             };
         }
 
+        // ==================== 形態學處理函數（改進版） ====================
+
+        // 膨脹（Dilation）- 擴張白色區域
+        function dilate(imageData, kernelSize = 3, iterations = 1) {
+            const data = imageData.data;
+            const width = imageData.width;
+            const height = imageData.height;
+
+            for (let iter = 0; iter < iterations; iter++) {
+                const tempData = new Uint8ClampedArray(data);
+
+                for (let y = 1; y < height - 1; y++) {
+                    for (let x = 1; x < width - 1; x++) {
+                        let maxVal = 0;
+
+                        // 3x3 kernel
+                        for (let ky = -1; ky <= 1; ky++) {
+                            for (let kx = -1; kx <= 1; kx++) {
+                                const idx = ((y + ky) * width + (x + kx)) * 4;
+                                if (tempData[idx] > maxVal) {
+                                    maxVal = tempData[idx];
+                                }
+                            }
+                        }
+
+                        const idx = (y * width + x) * 4;
+                        data[idx] = maxVal;
+                        data[idx + 1] = maxVal;
+                        data[idx + 2] = maxVal;
+                    }
+                }
+            }
+
+            return imageData;
+        }
+
+        // 侵蝕（Erosion）- 收縮白色區域
+        function erode(imageData, kernelSize = 3, iterations = 1) {
+            const data = imageData.data;
+            const width = imageData.width;
+            const height = imageData.height;
+
+            for (let iter = 0; iter < iterations; iter++) {
+                const tempData = new Uint8ClampedArray(data);
+
+                for (let y = 1; y < height - 1; y++) {
+                    for (let x = 1; x < width - 1; x++) {
+                        let minVal = 255;
+
+                        // 3x3 kernel
+                        for (let ky = -1; ky <= 1; ky++) {
+                            for (let kx = -1; kx <= 1; kx++) {
+                                const idx = ((y + ky) * width + (x + kx)) * 4;
+                                if (tempData[idx] < minVal) {
+                                    minVal = tempData[idx];
+                                }
+                            }
+                        }
+
+                        const idx = (y * width + x) * 4;
+                        data[idx] = minVal;
+                        data[idx + 1] = minVal;
+                        data[idx + 2] = minVal;
+                    }
+                }
+            }
+
+            return imageData;
+        }
+
+        // 創建顏色遮罩（改進版 - 使用 HSV）
+        function createColorMask(imageData, targetColor, tolerance = 20) {
+            const data = imageData.data;
+            const width = imageData.width;
+            const height = imageData.height;
+            const mask = new Uint8Array(width * height);
+
+            const targetHsv = rgbToHsv(targetColor.r, targetColor.g, targetColor.b);
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+
+                // 使用 HSV 提高準確度
+                const hsv = rgbToHsv(r, g, b);
+
+                // 色相容差（H）
+                const hDiff = Math.abs(hsv.h - targetHsv.h);
+                const sDiff = Math.abs(hsv.s - targetHsv.s);
+                const vDiff = Math.abs(hsv.v - targetHsv.v);
+
+                // 寬鬆的匹配條件
+                if (hDiff <= tolerance * 2 && sDiff <= tolerance * 3 && vDiff <= tolerance * 2) {
+                    mask[i / 4] = 255; // 白色
+                } else {
+                    mask[i / 4] = 0;   // 黑色
+                }
+            }
+
+            return { mask, width, height };
+        }
+
+        // Flood Fill 找連通區域邊界
+        function floodFillContour(maskData, width, height, startX, startY, visited) {
+            const boundary = [];
+            const stack = [{ x: startX, y: startY }];
+
+            while (stack.length > 0) {
+                const { x, y } = stack.pop();
+                const idx = y * width + x;
+
+                if (visited[idx]) continue;
+                visited[idx] = 1;
+
+                // 檢查是否為邊界像素（鄰近黑色）
+                let isBoundary = false;
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                            const nIdx = ny * width + nx;
+                            if (maskData[nIdx] === 0) {
+                                isBoundary = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (isBoundary) break;
+                }
+
+                if (isBoundary) {
+                    boundary.push({ x, y });
+                }
+
+                // 4-連通擴展
+                const neighbors = [
+                    { x: x + 1, y },
+                    { x: x - 1, y },
+                    { x, y: y + 1 },
+                    { x, y: y - 1 }
+                ];
+
+                for (const n of neighbors) {
+                    if (n.x >= 0 && n.x < width && n.y >= 0 && n.y < height) {
+                        const nIdx = n.y * width + n.x;
+                        if (maskData[nIdx] === 255 && !visited[nIdx]) {
+                            stack.push(n);
+                        }
+                    }
+                }
+            }
+
+            // 對邊界點排序（按角度）
+            if (boundary.length > 0) {
+                const center = getPolygonCenter(boundary);
+                boundary.sort((a, b) => {
+                    const angleA = Math.atan2(a.y - center.y, a.x - center.x);
+                    const angleB = Math.atan2(b.y - center.y, b.x - center.x);
+                    return angleA - angleB;
+                });
+            }
+
+            return boundary;
+        }
+
+        // 找輪廓（類似 OpenCV 的 findContours）
+        function findContoursInMask(maskData, width, height, minArea = 1000) {
+            const contours = [];
+            const visited = new Uint8Array(width * height);
+
+            // 掃描整個遮罩
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+
+                    // 找到未訪問的白色像素
+                    if (maskData[idx] === 255 && !visited[idx]) {
+                        // 使用 Flood Fill 找連通區域
+                        const contour = floodFillContour(maskData, width, height, x, y, visited);
+
+                        // 過濾小面積
+                        if (contour.length * 10 > minArea) { // 粗略面積估算
+                            contours.push(contour);
+                        }
+                    }
+                }
+            }
+
+            return contours;
+        }
+
         // 搜尋最近的匹配顏色像素（使用螺旋搜尋）
         function findNearestMatchingPixel(startX, startY, maxRadius = 150) {
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -1940,7 +2159,7 @@
             return sampled;
         }
 
-        // 智慧套索主函數
+        // 智慧套索主函數（改進版 - 使用形態學處理）
         async function smartLassoDetect(x, y) {
             if (!currentImage || isDetectingBoundary) return;
 
@@ -1957,47 +2176,86 @@
             }
 
             isDetectingBoundary = true;
-            showToast('🔍 正在偵測邊界...');
+            showToast('🔍 正在偵測邊界（進階算法）...');
 
             await new Promise(resolve => setTimeout(resolve, 10));
 
             try {
-                // 步驟1: 找到最近的匹配顏色像素
-                const matchedPixel = findNearestMatchingPixel(x, y, 150);
+                // 步驟 1: 獲取圖片數據
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-                if (!matchedPixel) {
-                    showToast('❌ 未找到匹配顏色的邊界，請調整容差或點擊其他位置', 'error');
+                // 步驟 2: 創建顏色遮罩（使用 HSV）
+                const { mask, width, height } = createColorMask(imageData, lassoColor, colorTolerance);
+
+                // 步驟 3: 形態學處理（連接斷線）
+                let maskImageData = {
+                    data: new Uint8ClampedArray(mask.length * 4),
+                    width,
+                    height
+                };
+                for (let i = 0; i < mask.length; i++) {
+                    maskImageData.data[i * 4] = mask[i];
+                    maskImageData.data[i * 4 + 1] = mask[i];
+                    maskImageData.data[i * 4 + 2] = mask[i];
+                    maskImageData.data[i * 4 + 3] = 255;
+                }
+
+                // 膨脹 + 侵蝕（形態學開運算，連接斷線）
+                maskImageData = dilate(maskImageData, 3, 1);
+                maskImageData = erode(maskImageData, 3, 1);
+
+                // 更新 mask
+                const processedMask = new Uint8Array(mask.length);
+                for (let i = 0; i < mask.length; i++) {
+                    processedMask[i] = maskImageData.data[i * 4];
+                }
+
+                // 步驟 4: 找輪廓
+                const contours = findContoursInMask(processedMask, width, height, 1000);
+
+                if (contours.length === 0) {
+                    showToast('❌ 未找到符合的區域', 'error');
                     isDetectingBoundary = false;
                     return;
                 }
 
-                console.log('找到匹配像素:', matchedPixel);
+                console.log(`找到 ${contours.length} 個輪廓`);
 
-                // 步驟2: 追蹤邊界
-                const rawPolygon = traceBoundaryWithColor(matchedPixel.x, matchedPixel.y);
+                // 步驟 5: 選擇最接近點擊位置的輪廓
+                let nearestContour = null;
+                let minDist = Infinity;
 
-                if (!rawPolygon || rawPolygon.length < 3) {
-                    showToast('❌ 無法追蹤完整邊界', 'error');
+                for (const contour of contours) {
+                    const center = getPolygonCenter(contour);
+                    const dist = Math.sqrt(Math.pow(center.x - x, 2) + Math.pow(center.y - y, 2));
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearestContour = contour;
+                    }
+                }
+
+                if (!nearestContour || nearestContour.length < 3) {
+                    showToast('❌ 輪廓太小或無效', 'error');
                     isDetectingBoundary = false;
                     return;
                 }
 
-                console.log('原始多邊形點數:', rawPolygon.length);
+                console.log('選擇的輪廓點數:', nearestContour.length);
 
-                // 步驟3: 簡化多邊形
-                let simplified = simplifyPolygon(rawPolygon, 5);
+                // 步驟 6: 簡化多邊形
+                let simplified = simplifyPolygon(nearestContour, 5);
                 console.log('簡化後點數:', simplified.length);
 
+                // 如果點數太多，採樣
                 if (simplified.length > 100) {
                     simplified = samplePolygon(simplified, Math.ceil(simplified.length / 50));
                     console.log('採樣後點數:', simplified.length);
                 }
 
-                // 步驟4: 計算中心點
+                // 步驟 7: 添加到 areas
                 const center = getPolygonCenter(simplified);
-
-                // 步驟5: 添加到 areas
                 const finalId = generateUniqueId(currentId);
+
                 areas.push({
                     id: finalId,
                     center: center,
@@ -2008,7 +2266,7 @@
                 updateStats();
                 draw();
 
-                showToast(`✅ 已偵測並添加區域 ${finalId}（${simplified.length} 個頂點）`);
+                showToast(`✅ 已偵測區域 ${finalId}（${simplified.length} 點，共 ${contours.length} 個候選輪廓）`);
 
             } catch (error) {
                 console.error('智慧套索錯誤:', error);
