@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.2 - 專業版（智慧套索 HSV + 形態學 + 自動貼齊）</title>
+    <title>區域標註工具 v2.3 - 專業版（手機觸控優化）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -467,11 +467,78 @@
             transform: none;
             box-shadow: none;
         }
+
+        /* 手機專用工具列 */
+        .mobile-toolbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a2e;
+            padding: 10px;
+            display: none;
+            gap: 8px;
+            justify-content: space-around;
+            border-top: 1px solid #334155;
+            z-index: 1000;
+        }
+
+        .mobile-toolbar button {
+            flex: 1;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .mobile-toolbar button:active {
+            background: #2563eb;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-toolbar {
+                display: flex !important;
+            }
+            
+            .mobile-instructions {
+                display: block !important;
+            }
+            
+            body {
+                padding-bottom: 80px;
+            }
+        }
+
+        /* 手機版使用說明 */
+        .mobile-instructions {
+            display: none;
+            background: rgba(124, 58, 237, 0.15);
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #7c3aed;
+        }
+
+        .mobile-instructions h4 {
+            color: #a78bfa;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .mobile-instructions ul {
+            margin-left: 20px;
+            font-size: 13px;
+            color: #c4b5fd;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.2</span> <small style="color: #94a3b8; font-size: 14px;">HSV + 形態學 + 多輪廓 + 自動貼齊</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.3</span> <small style="color: #94a3b8; font-size: 14px;">手機觸控優化</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -577,9 +644,29 @@
             <div class="instructions">
                 <h3>📖 使用說明</h3>
                 
+                <!-- 手機版操作指南 -->
+                <div class="mobile-instructions">
+                    <h4>📱 手機操作指南</h4>
+                    <ul>
+                        <li>👆 <strong>單指拖曳</strong>：平移地圖（瀏覽模式）</li>
+                        <li>👌 <strong>雙指縮放</strong>：放大/縮小地圖</li>
+                        <li>✴️ <strong>長按頂點</strong>：選中並拖曳（編輯模式）</li>
+                        <li>🖱️ <strong>點擊邊線</strong>：添加新節點</li>
+                        <li>🗑️ <strong>底部工具列</strong>：快速刪除/添加節點</li>
+                    </ul>
+                </div>
+                
                 <!-- 版本更新資訊 -->
                 <div style="background: rgba(124, 58, 237, 0.15); padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #7c3aed;">
-                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.2 更新（2026-03-22）</h4>
+                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.3 更新（2026-03-22）</h4>
+                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
+                        <li>📱 <strong>手機觸控優化</strong>：增大觸控目標（20px），更容易點選節點</li>
+                        <li>👌 <strong>雙指縮放</strong>：支援 pinch-to-zoom 手勢</li>
+                        <li>✴️ <strong>長按選擇</strong>：長按頂點 500ms 進入拖曳模式</li>
+                        <li>👆 <strong>單指平移</strong>：瀏覽模式下拖曳平移地圖</li>
+                        <li>🔧 <strong>底部工具列</strong>：手機專用快捷按鈕</li>
+                    </ul>
+                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.2 更新（2026-03-22）</h4>
                     <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
                         <li>✨ <strong>新增自動貼齊功能</strong>：手動畫邊界後，一鍵貼齊紫色線</li>
                         <li>🎯 編輯模式下點擊「🎯 自動貼齊紫色邊界」按鈕</li>
@@ -650,6 +737,13 @@
         </div>
     </div>
 
+    <!-- 手機專用工具列 -->
+    <div id="mobileToolbar" class="mobile-toolbar">
+        <button onclick="deleteVertexMobile()">🗑️ 刪除</button>
+        <button onclick="addVertexMobile()">➕ 添加</button>
+        <button onclick="snapToPurpleMobile()">🎯 貼齊</button>
+    </div>
+
     <script>
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -677,7 +771,24 @@
         let panStart = { x: 0, y: 0 };
 
         // 顶点半径
-        const VERTEX_RADIUS = 8;
+        let VERTEX_RADIUS = 8;
+        let TOUCH_THRESHOLD = 10;
+
+        // 檢測是否為手機
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // 根據裝置調整觸控參數
+        function initTouchParams() {
+            if (isMobile()) {
+                VERTEX_RADIUS = 20;
+                TOUCH_THRESHOLD = 30;
+            } else {
+                VERTEX_RADIUS = 8;
+                TOUCH_THRESHOLD = 10;
+            }
+        }
 
         // 右键菜单相关
         let contextMenuVertexIndex = -1;
@@ -689,6 +800,12 @@
         let lassoColor = null; // { r, g, b }
         let lassoPhase = 'select-color'; // 'select-color' | 'trace-boundary'
         let colorTolerance = 20;
+
+        // 手機觸控相關
+        let longPressTimer = null;
+        let selectedVertexForMobile = null;
+        let initialPinchDistance = null;
+        let lastTouchPos = null;
 
         // Toast notification
         let toastTimer = null;
@@ -1367,6 +1484,215 @@
             draw();
         });
 
+        // ==================== 手機觸控事件 ====================
+
+        // 觸控開始
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            
+            if (!currentImage) return;
+            hideContextMenu();
+
+            // 單指觸控
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                lastTouchPos = { x: touch.clientX, y: touch.clientY };
+                const pos = screenToImage(touch.clientX, touch.clientY);
+
+                if (currentMode === 'view') {
+                    isPanning = true;
+                    panStart = { x: touch.clientX - panX, y: touch.clientY - panY };
+                    canvas.style.cursor = 'grabbing';
+                }
+                else if (currentMode === 'edit') {
+                    selectedAreaIndex = findAreaAt(pos.x, pos.y);
+
+                    if (selectedAreaIndex >= 0) {
+                        // 檢查是否點擊到頂點
+                        const vertexIndex = findVertexAt(pos.x, pos.y, selectedAreaIndex);
+
+                        if (vertexIndex >= 0) {
+                            // 長按 500ms 進入拖曳模式
+                            longPressTimer = setTimeout(() => {
+                                selectedVertexForMobile = vertexIndex;
+                                isDragging = true;
+                                dragType = 'vertex';
+                                dragIndex = vertexIndex;
+                                showToast('✅ 已選中頂點，可拖曳調整', 'info');
+                                
+                                // 震動回饋
+                                if (navigator.vibrate) {
+                                    navigator.vibrate(50);
+                                }
+                            }, 500);
+                        } else {
+                            // 檢查是否點擊了中心
+                            const area = areas[selectedAreaIndex];
+                            const dx = area.center.x - pos.x;
+                            const dy = area.center.y - pos.y;
+
+                            if (Math.sqrt(dx*dx + dy*dy) < 20 / zoom) {
+                                dragType = 'move';
+                                isDragging = true;
+                            } else {
+                                // 檢查是否點擊了邊線（添加節點）
+                                const edgeIndex = findEdgeAt(pos.x, pos.y, selectedAreaIndex);
+                                if (edgeIndex >= 0) {
+                                    addVertexOnEdge(selectedAreaIndex, edgeIndex, pos.x, pos.y);
+                                }
+                            }
+                        }
+
+                        updateSelectedInfo();
+                    }
+
+                    draw();
+                }
+                else if (currentMode === 'add') {
+                    if (smartLassoMode) {
+                        smartLassoDetect(pos.x, pos.y);
+                    } else {
+                        // 添加矩形
+                        const finalId = generateUniqueId(currentId);
+                        areas.push({
+                            id: finalId,
+                            center: { x: pos.x, y: pos.y },
+                            polygon: [
+                                { x: pos.x - 50, y: pos.y - 50 },
+                                { x: pos.x + 50, y: pos.y - 50 },
+                                { x: pos.x + 50, y: pos.y + 50 },
+                                { x: pos.x - 50, y: pos.y + 50 }
+                            ]
+                        });
+                        currentId++;
+                        updateStats();
+                        draw();
+                    }
+                }
+                else if (currentMode === 'delete') {
+                    const index = findAreaAt(pos.x, pos.y);
+                    if (index >= 0) {
+                        areas.splice(index, 1);
+                        updateStats();
+                        draw();
+                    }
+                }
+            }
+            // 雙指觸控（開始縮放）
+            else if (e.touches.length === 2) {
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                initialPinchDistance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+            }
+        }
+
+        // 觸控移動
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+
+            if (!currentImage) return;
+
+            // 單指移動
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                const pos = screenToImage(touch.clientX, touch.clientY);
+
+                // 清除長按計時器（如果有移動）
+                if (longPressTimer && !isDragging) {
+                    const dx = touch.clientX - lastTouchPos.x;
+                    const dy = touch.clientY - lastTouchPos.y;
+                    if (Math.sqrt(dx*dx + dy*dy) > 10) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                }
+
+                if (isPanning && currentMode === 'view') {
+                    panX = touch.clientX - panStart.x;
+                    panY = touch.clientY - panStart.y;
+                    draw();
+                }
+                else if (isDragging && currentMode === 'edit' && selectedAreaIndex >= 0) {
+                    const lastPos = screenToImage(lastTouchPos.x, lastTouchPos.y);
+
+                    if (dragType === 'vertex') {
+                        // 移動頂點
+                        areas[selectedAreaIndex].polygon[dragIndex].x = pos.x;
+                        areas[selectedAreaIndex].polygon[dragIndex].y = pos.y;
+                        recalculateCenter(selectedAreaIndex);
+                    }
+                    else if (dragType === 'move') {
+                        // 移動整個區域
+                        const dx = pos.x - lastPos.x;
+                        const dy = pos.y - lastPos.y;
+                        areas[selectedAreaIndex].polygon.forEach(p => {
+                            p.x += dx;
+                            p.y += dy;
+                        });
+                        areas[selectedAreaIndex].center.x += dx;
+                        areas[selectedAreaIndex].center.y += dy;
+                    }
+
+                    lastTouchPos = { x: touch.clientX, y: touch.clientY };
+                    draw();
+                }
+            }
+            // 雙指縮放
+            else if (e.touches.length === 2) {
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const distance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+
+                if (initialPinchDistance !== null) {
+                    const scale = distance / initialPinchDistance;
+                    zoom = Math.max(0.1, Math.min(3, zoom * scale));
+                    updateZoomDisplay();
+                    draw();
+                    initialPinchDistance = distance;
+                }
+            }
+        }
+
+        // 觸控結束
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+
+            // 清除長按計時器
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+
+            if (isPanning && currentMode === 'view') {
+                isPanning = false;
+                canvas.style.cursor = 'grab';
+            }
+
+            isDragging = false;
+            dragType = null;
+            dragIndex = -1;
+            selectedVertexForMobile = null;
+
+            // 重置雙指縮放
+            if (e.touches.length < 2) {
+                initialPinchDistance = null;
+            }
+
+            lastTouchPos = null;
+        }
+
         // 点击其他地方隐藏右键菜单
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.context-menu')) {
@@ -1660,9 +1986,66 @@
             showToast(`✅ 編號已更新為 ${newId}`);
         }
 
+        // ==================== 手機專用功能 ====================
+
+        // 手機刪除節點
+        function deleteVertexMobile() {
+            if (selectedAreaIndex < 0) {
+                showToast('⚠️ 請先選擇一個區域', 'warn');
+                return;
+            }
+
+            const area = areas[selectedAreaIndex];
+            if (area.polygon.length <= 3) {
+                showToast('⚠️ 至少需要保留3個節點', 'warn');
+                return;
+            }
+
+            // 刪除最後一個節點
+            area.polygon.pop();
+            recalculateCenter(selectedAreaIndex);
+            showToast(`✅ 已刪除節點`);
+            draw();
+        }
+
+        // 手機添加節點
+        function addVertexMobile() {
+            if (selectedAreaIndex < 0) {
+                showToast('⚠️ 請先選擇一個區域', 'warn');
+                return;
+            }
+
+            const area = areas[selectedAreaIndex];
+            
+            // 在最後一個邊的中點添加節點
+            const lastIndex = area.polygon.length - 1;
+            const p1 = area.polygon[lastIndex];
+            const p2 = area.polygon[0];
+            
+            const newPoint = {
+                x: (p1.x + p2.x) / 2,
+                y: (p1.y + p2.y) / 2
+            };
+            
+            area.polygon.push(newPoint);
+            recalculateCenter(selectedAreaIndex);
+            showToast(`✅ 已添加新節點`);
+            draw();
+        }
+
+        // 手機貼齊紫色
+        function snapToPurpleMobile() {
+            if (selectedAreaIndex < 0) {
+                showToast('⚠️ 請先選擇一個區域', 'warn');
+                return;
+            }
+            snapSelectedToPurple();
+        }
+
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {
             initSupabase();
+            initTouchParams();
             setMode('view');
 
             // 容差滑桿事件
