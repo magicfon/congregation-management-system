@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.3.1 - 專業版（手機觸控優化）</title>
+    <title>區域標註工具 v2.3.2 - 專業版（手機觸控優化）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -538,7 +538,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.3.1</span> <small style="color: #94a3b8; font-size: 14px;">手機觸控優化</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.3.2</span> <small style="color: #94a3b8; font-size: 14px;">手機觸控優化</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -646,7 +646,7 @@
                 
                 <!-- 手機版操作指南 -->
                 <div class="mobile-instructions">
-                    <h4>📱 手機操作指南（v2.3.1）</h4>
+                    <h4>📱 手機操作指南（v2.3.2）</h4>
                     <ul>
                         <li>👆 <strong>單指拖曳</strong>：平移地圖（瀏覽模式）</li>
                         <li>➕➖ <strong>縮放按鈕</strong>：放大/縮小地圖</li>
@@ -658,7 +658,14 @@
                 
                 <!-- 版本更新資訊 -->
                 <div style="background: rgba(124, 58, 237, 0.15); padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #7c3aed;">
-                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.3.1 更新（2026-03-22）</h4>
+                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.3.2 更新（2026-03-22）</h4>
+                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
+                        <li>✨ <strong>新增「添加節點」模式</strong>：點擊「➕ 添加」按鈕後，再點擊邊線即可添加節點</li>
+                        <li>🗑️ <strong>新增「刪除節點」模式</strong>：點擊「🗑️ 刪除」按鈕後，再點擊頂點即可刪除</li>
+                        <li>🎨 <strong>視覺提示</strong>：添加模式下邊線會高亮，刪除模式下頂點會變紅</li>
+                        <li>❌ <strong>可取消操作</strong>：再次點擊按鈕即可取消模式</li>
+                    </ul>
+                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.3.1 更新（2026-03-22）</h4>
                     <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
                         <li>🐛 <strong>修復編輯模式觸控問題</strong>：編輯模式下可正常拖曳頂點</li>
                         <li>🔧 <strong>移除雙指縮放</strong>：避免縮放中心點跑掉，改用 +/- 按鈕</li>
@@ -807,6 +814,10 @@
         let lassoColor = null; // { r, g, b }
         let lassoPhase = 'select-color'; // 'select-color' | 'trace-boundary'
         let colorTolerance = 20;
+
+        // 手機專用模式
+        let isAddingVertexMode = false; // 添加節點模式
+        let isDeletingVertexMode = false; // 刪除節點模式
 
         // 手機觸控相關
         let lastTouchPos = null;
@@ -1150,6 +1161,40 @@
                 });
             }
 
+            // 🆕 手機模式視覺提示：高亮頂點或邊線
+            if (currentMode === 'edit' && selectedAreaIndex >= 0 && (isAddingVertexMode || isDeletingVertexMode)) {
+                const area = areas[selectedAreaIndex];
+
+                if (isDeletingVertexMode) {
+                    // 刪除模式：高亮所有頂點（紅色脈動效果）
+                    area.polygon.forEach((p, pIndex) => {
+                        ctx.beginPath();
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.5)';
+                        ctx.arc(p.x, p.y, VERTEX_RADIUS * 1.5 / zoom, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#ef4444';
+                        ctx.lineWidth = 3 / zoom;
+                        ctx.stroke();
+                    });
+                } else if (isAddingVertexMode) {
+                    // 添加模式：高亮所有邊線（綠色脈動效果）
+                    ctx.strokeStyle = '#10b981';
+                    ctx.lineWidth = 5 / zoom;
+                    ctx.setLineDash([10 / zoom, 5 / zoom]);
+
+                    for (let i = 0; i < area.polygon.length; i++) {
+                        const p1 = area.polygon[i];
+                        const p2 = area.polygon[(i + 1) % area.polygon.length];
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+
+                    ctx.setLineDash([]); // 重置虛線
+                }
+            }
+
             ctx.restore();
         }
 
@@ -1183,7 +1228,8 @@
             if (areaIndex < 0) return -1;
 
             const area = areas[areaIndex];
-            const threshold = VERTEX_RADIUS * 2 / zoom;
+            // 手機模式下增大觸發面積（已由 VERTEX_RADIUS 自動調整）
+            const threshold = VERTEX_RADIUS * 3 / zoom;
 
             for (let i = 0; i < area.polygon.length; i++) {
                 const dx = area.polygon[i].x - x;
@@ -1200,7 +1246,9 @@
             if (areaIndex < 0) return -1;
 
             const area = areas[areaIndex];
-            const threshold = 10 / zoom;
+            // 手機模式下增大觸發面積
+            const baseThreshold = isMobile() ? 30 : 10;
+            const threshold = baseThreshold / zoom;
 
             for (let i = 0; i < area.polygon.length; i++) {
                 const p1 = area.polygon[i];
@@ -1552,6 +1600,39 @@
         function handleEditTouchStart(touch) {
             const pos = screenToImage(touch.clientX, touch.clientY);
             lastTouchPos = { x: touch.clientX, y: touch.clientY };
+
+            // 🆕 刪除節點模式
+            if (isDeletingVertexMode && selectedAreaIndex >= 0) {
+                const vertexIndex = findVertexAt(pos.x, pos.y, selectedAreaIndex);
+                if (vertexIndex >= 0) {
+                    if (areas[selectedAreaIndex].polygon.length <= 3) {
+                        showToast('⚠️ 至少需要保留3個節點', 'warn');
+                    } else {
+                        areas[selectedAreaIndex].polygon.splice(vertexIndex, 1);
+                        recalculateCenter(selectedAreaIndex);
+                        showToast('✅ 已刪除節點');
+                        draw();
+                    }
+                    isDeletingVertexMode = false; // 完成後退出模式
+                    updateMobileToolbarButtons();
+                } else {
+                    showToast('⚠️ 請點擊要刪除的頂點', 'warn');
+                }
+                return;
+            }
+
+            // 🆕 添加節點模式
+            if (isAddingVertexMode && selectedAreaIndex >= 0) {
+                const edgeIndex = findEdgeAt(pos.x, pos.y, selectedAreaIndex);
+                if (edgeIndex >= 0) {
+                    addVertexOnEdge(selectedAreaIndex, edgeIndex, pos.x, pos.y);
+                    isAddingVertexMode = false; // 完成後退出模式
+                    updateMobileToolbarButtons();
+                } else {
+                    showToast('⚠️ 請點擊邊線位置', 'warn');
+                }
+                return;
+            }
 
             // 如果已有選中的區域，先檢查是否點擊頂點
             if (selectedAreaIndex >= 0) {
@@ -1975,6 +2056,15 @@
 
         // 手機刪除節點
         function deleteVertexMobile() {
+            // 如果已經在刪除模式，則取消
+            if (isDeletingVertexMode) {
+                isDeletingVertexMode = false;
+                showToast('✅ 已取消刪除節點模式', 'info');
+                updateMobileToolbarButtons();
+                draw();
+                return;
+            }
+
             if (selectedAreaIndex < 0) {
                 showToast('⚠️ 請先選擇一個區域', 'warn');
                 return;
@@ -1986,36 +2076,62 @@
                 return;
             }
 
-            // 刪除最後一個節點
-            area.polygon.pop();
-            recalculateCenter(selectedAreaIndex);
-            showToast(`✅ 已刪除節點`);
+            // 進入刪除頂點模式
+            isDeletingVertexMode = true;
+            isAddingVertexMode = false; // 確保只有一個模式激活
+            showToast('👆 請點擊要刪除的頂點', 'info');
+            updateMobileToolbarButtons();
             draw();
         }
 
         // 手機添加節點
         function addVertexMobile() {
+            // 如果已經在添加模式，則取消
+            if (isAddingVertexMode) {
+                isAddingVertexMode = false;
+                showToast('✅ 已取消添加節點模式', 'info');
+                updateMobileToolbarButtons();
+                draw();
+                return;
+            }
+
             if (selectedAreaIndex < 0) {
                 showToast('⚠️ 請先選擇一個區域', 'warn');
                 return;
             }
 
-            const area = areas[selectedAreaIndex];
-            
-            // 在最後一個邊的中點添加節點
-            const lastIndex = area.polygon.length - 1;
-            const p1 = area.polygon[lastIndex];
-            const p2 = area.polygon[0];
-            
-            const newPoint = {
-                x: (p1.x + p2.x) / 2,
-                y: (p1.y + p2.y) / 2
-            };
-            
-            area.polygon.push(newPoint);
-            recalculateCenter(selectedAreaIndex);
-            showToast(`✅ 已添加新節點`);
+            // 進入添加節點模式
+            isAddingVertexMode = true;
+            isDeletingVertexMode = false; // 確保只有一個模式激活
+            showToast('👆 請點擊區域的邊線來添加節點', 'info');
+            updateMobileToolbarButtons();
             draw();
+        }
+
+        // 更新手機工具列按鈕狀態
+        function updateMobileToolbarButtons() {
+            const addBtn = document.querySelector('#mobileToolbar button[onclick="addVertexMobile()"]');
+            const deleteBtn = document.querySelector('#mobileToolbar button[onclick="deleteVertexMobile()"]');
+
+            if (addBtn) {
+                if (isAddingVertexMode) {
+                    addBtn.classList.add('active');
+                    addBtn.textContent = '❌ 取消';
+                } else {
+                    addBtn.classList.remove('active');
+                    addBtn.textContent = '➕ 添加';
+                }
+            }
+
+            if (deleteBtn) {
+                if (isDeletingVertexMode) {
+                    deleteBtn.classList.add('active');
+                    deleteBtn.textContent = '❌ 取消';
+                } else {
+                    deleteBtn.classList.remove('active');
+                    deleteBtn.textContent = '🗑️ 刪除';
+                }
+            }
         }
 
         // 手機貼齊紫色
