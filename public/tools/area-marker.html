@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.5 - 專業版（虛擬邊界 + 自動抓取）</title>
+    <title>區域標註工具 v2.5.1 - 專業版（虛擬邊界 + Supabase）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -639,7 +639,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.5</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + 自動抓取</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.5.1</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -726,6 +726,7 @@
             <button onclick="cancelDrawingBoundary()">❌ 取消</button>
             <button onclick="extractPurpleLinesToVirtualBoundary()">🤖 自動抓取紫色邊界</button>
             <button onclick="saveVirtualBoundary()">💾 保存</button>
+            <button onclick="loadBoundaryFromSupabase()">📂 載入邊界線</button>
             <button onclick="deleteVirtualBoundary()">🗑️ 刪除邊界</button>
         </div>
 
@@ -3112,6 +3113,41 @@
             } catch (error) {
                 console.error('載入失敗:', error);
                 // 靜默失敗，不影響主要功能
+            }
+        }
+
+        // 從 Supabase 載入虛擬邊界（v2.5.1 - 手動載入按鈕）
+        async function loadBoundaryFromSupabase() {
+            if (!ensureSupabase()) return;
+            if (!currentMapId) {
+                showToast('⚠️ 請先載入地圖', 'warn');
+                return;
+            }
+
+            try {
+                showToast('🔍 正在載入邊界線...');
+
+                const { data, error } = await supabaseClient
+                    .from('virtual_boundaries')
+                    .select('*')
+                    .eq('map_id', currentMapId)
+                    .single();
+
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        showToast('⚠️ 此地圖尚無邊界線', 'warn');
+                        return;
+                    }
+                    throw error;
+                }
+
+                virtualBoundary = data;
+                draw();
+
+                showToast(`✅ 已載入 ${data.points.length} 個邊界點`);
+            } catch (error) {
+                console.error('載入失敗:', error);
+                showToast('❌ 載入失敗：' + error.message, 'error');
             }
         }
 
