@@ -87,3 +87,15 @@ model Setting {
 
   @@map("settings")
 }
+
+model VirtualBoundary {
+  id        String   @id @default(cuid())
+  mapId     String   @unique
+  name      String?
+  points    Json
+  color     String   @default("#9333ea")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("virtual_boundaries")
+}

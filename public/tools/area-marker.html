@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.5.1 - 專業版（虛擬邊界 + Supabase）</title>
+    <title>區域標註工具 v2.5.7 - 專業版（虛擬邊界+ Supabase）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -639,7 +639,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.5.1</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.5.7</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -752,6 +752,14 @@
                     <div class="stat-value" id="selectedArea">無</div>
                     <div class="stat-label">選中區域</div>
                 </div>
+                <div class="stat">
+                    <div class="stat-value" id="totalSegments">-</div>
+                    <div class="stat-label">總線段數</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="totalBoundaryPoints">-</div>
+                    <div class="stat-label">邊界點數</div>
+                </div>
             </div>
 
             <div class="instructions">
@@ -818,6 +826,11 @@
                         <li>🐛 <strong>修復 HSV 參數</strong>：參考 CV2 Python 代碼調整容差</li>
                         <li>✨ H 容差 × 4，S/V 最小值 30（避免灰階）</li>
                         <li>📊 添加 console.log 調試信息（按 F12 查看）</li>
+                    </ul>
+                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.5.2 更新（2026-03-23）</h4>
+                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
+                        <li>📊 <strong>新增統計顯示</strong>：載入邊界線後顯示「總線段數」和「邊界點數」</li>
+                        <li>📈 即時查看邊界線資料規模</li>
                     </ul>
                     <h4 style="color: #a78bfa; margin: 8px 0;">v2.1 更新（2026-03-22）</h4>
                     <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
@@ -1314,26 +1327,59 @@
                 });
             }
 
-            // 繪製已保存的虛擬邊界（單一）
+            // 繪製已保存的虛擬邊界（v2.5.3 - 支援 segments 和 points 格式）
             if (virtualBoundary && virtualBoundary.map_id === currentMapId) {
-                ctx.beginPath();
                 ctx.strokeStyle = virtualBoundary.color;
                 ctx.lineWidth = 3 / zoom;
                 ctx.setLineDash([5, 5]); // 虛線
 
-                const points = virtualBoundary.points;
-                ctx.moveTo(points[0].x, points[0].y);
-                points.forEach(p => ctx.lineTo(p.x, p.y));
-                ctx.stroke();
+                // 檢測資料格式
+                if (virtualBoundary.segments && Array.isArray(virtualBoundary.segments)) {
+                    // segments 格式：每個 segment 獨立繪製，不連接
+                    virtualBoundary.segments.forEach(seg => {
+                        if (seg.length < 2) return;
+
+                        ctx.beginPath();
+                        ctx.moveTo(seg[0][0], seg[0][1]); // 起點
+                        for (let i = 1; i < seg.length; i++) {
+                            ctx.lineTo(seg[i][0], seg[i][1]); // 終點
+                        }
+                        ctx.stroke();
+                    });
+                } else if (virtualBoundary.points && Array.isArray(virtualBoundary.points)) {
+                    // points 格式：檢測是否為「成對點」格式（Hough 直線版）
+                    // 如果 map_id 不含 '-dp' 且點數為偶數，則視為成對點
+                    const points = virtualBoundary.points;
+                    const isPairedPoints = !virtualBoundary.map_id.includes('-dp') && points.length % 2 === 0;
+                    
+                    if (isPairedPoints) {
+                        // 成對點格式：每兩個點為一條獨立線段
+                        for (let i = 0; i < points.length; i += 2) {
+                            ctx.beginPath();
+                            ctx.moveTo(points[i].x, points[i].y);
+                            ctx.lineTo(points[i + 1].x, points[i + 1].y);
+                            ctx.stroke();
+                        }
+                    } else {
+                        // 連續折線格式（Douglas-Peucker 版）
+                        ctx.beginPath();
+                        ctx.moveTo(points[0].x, points[0].y);
+                        points.forEach(p => ctx.lineTo(p.x, p.y));
+                        ctx.stroke();
+                    }
+                }
+
                 ctx.setLineDash([]); // 恢復實線
 
-                // 繪製節點
-                points.forEach(p => {
-                    ctx.beginPath();
-                    ctx.fillStyle = virtualBoundary.color;
-                    ctx.arc(p.x, p.y, 5 / zoom, 0, Math.PI * 2);
-                    ctx.fill();
-                });
+                // 繪製節點（僅 points 格式）
+                if (virtualBoundary.points && Array.isArray(virtualBoundary.points)) {
+                    virtualBoundary.points.forEach(p => {
+                        ctx.beginPath();
+                        ctx.fillStyle = virtualBoundary.color;
+                        ctx.arc(p.x, p.y, 5 / zoom, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                }
             }
 
             // 繪製正在繪製的虛擬邊界
@@ -3116,7 +3162,7 @@
             }
         }
 
-        // 從 Supabase 載入虛擬邊界（v2.5.1 - 手動載入按鈕）
+        // 從 Supabase 載入虛擬邊界（v2.5.7 - 簡化版，移除版本選擇）
         async function loadBoundaryFromSupabase() {
             if (!ensureSupabase()) return;
             if (!currentMapId) {
@@ -3135,16 +3181,27 @@
 
                 if (error) {
                     if (error.code === 'PGRST116') {
-                        showToast('⚠️ 此地圖尚無邊界線', 'warn');
+                        showToast('⚠️ 找不到此地圖的邊界線', 'warn');
                         return;
                     }
                     throw error;
                 }
 
+                // 檢測資料格式並標記
+                if (data.segments) {
+                    data._format = 'segments';
+                } else if (data.points) {
+                    data._format = 'points';
+                }
+
                 virtualBoundary = data;
                 draw();
 
-                showToast(`✅ 已載入 ${data.points.length} 個邊界點`);
+                // 更新統計資訊
+                document.getElementById('totalSegments').textContent = data.segments ? data.segments.length : '-';
+                document.getElementById('totalBoundaryPoints').textContent = data.points ? data.points.length : '-';
+
+                showToast(`✅ 已載入邊界線 - ${data.points ? data.points.length : 0} 點`);
             } catch (error) {
                 console.error('載入失敗:', error);
                 showToast('❌ 載入失敗：' + error.message, 'error');
