@@ -3162,7 +3162,7 @@
             }
         }
 
-        // 從 Supabase 載入虛擬邊界（v2.5.7 - 簡化版，移除版本選擇）
+        // 從 Supabase 載入虛擬邊界（v2.5.8 - 支援 nanzih-points）
         async function loadBoundaryFromSupabase() {
             if (!ensureSupabase()) return;
             if (!currentMapId) {
@@ -3173,11 +3173,14 @@
             try {
                 showToast('🔍 正在載入邊界線...');
 
+                // 查詢 nanzih-points（優先）
+                let boundaryMapId = currentMapId + '-points';
+                
                 const { data, error } = await supabaseClient
                     .from('virtual_boundaries')
                     .select('*')
-                    .eq('map_id', currentMapId)
-                    .single();
+                    .eq('map_id', boundaryMapId)
+                    .maybeSingle();
 
                 if (error) {
                     if (error.code === 'PGRST116') {
