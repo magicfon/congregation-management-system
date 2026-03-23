@@ -1354,19 +1354,12 @@
                     });
                 } else if (virtualBoundary.points && Array.isArray(virtualBoundary.points)) {
                     // points 格式：根據 map_id 判斷繪製方式
-                    // - '-dp' 結尾：連續折線（Douglas-Peucker 版）
-                    // - '-points' 結尾：連續折線（節點座標）
-                    // - 其他：成對點格式（每兩個點一條線段）
+                    // - '-paired' 結尾：成對點格式（每兩個點一條線段）
+                    // - 其他（包含 nanzih 等）：連續折線格式
                     const points = virtualBoundary.points;
                     const mapId = virtualBoundary.map_id;
 
-                    if (mapId.endsWith('-dp') || mapId.endsWith('-points')) {
-                        // 連續折線格式
-                        ctx.beginPath();
-                        ctx.moveTo(points[0].x, points[0].y);
-                        points.forEach(p => ctx.lineTo(p.x, p.y));
-                        ctx.stroke();
-                    } else {
+                    if (mapId.endsWith('-paired')) {
                         // 成對點格式：每兩個點為一條獨立線段
                         for (let i = 0; i < points.length; i += 2) {
                             if (i + 1 < points.length) {
@@ -1376,6 +1369,12 @@
                                 ctx.stroke();
                             }
                         }
+                    } else {
+                        // 連續折線格式（預設）
+                        ctx.beginPath();
+                        ctx.moveTo(points[0].x, points[0].y);
+                        points.forEach(p => ctx.lineTo(p.x, p.y));
+                        ctx.stroke();
                     }
                 }
 
@@ -3224,7 +3223,7 @@
                 } else if (data.points) {
                     // points 格式：檢測是否為成對點格式
                     const points = data.points;
-                    const isPairedPoints = !virtualBoundary.map_id.includes('-dp') && points.length % 2 === 0;
+                    const isPairedPoints = virtualBoundary.map_id.endsWith('-paired');
 
                     document.getElementById('totalSegments').textContent = isPairedPoints ? Math.floor(points.length / 2) : '-';
                     document.getElementById('totalBoundaryPoints').textContent = points.length;
