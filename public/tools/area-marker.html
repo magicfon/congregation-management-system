@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.5.9 - 修復點繪製判斷</title>
+    <title>區域標註工具 v2.6.0 - 修復點繪製判斷</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -639,7 +639,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.5.9</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.0</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -779,7 +779,7 @@
                 
                 <!-- 版本更新資訊 -->
                 <div style="background: rgba(124, 58, 237, 0.15); padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #7c3aed;">
-                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.5.9 更新（2026-03-23）</h4>
+                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.6.0 更新（2026-03-23）</h4>
                     <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
                         <li>🐛 <strong>修復點繪製判斷問題</strong>：`nanzih-points` 等資料現在會正確判斷為連續折線格式</li>
                         <li>🔄 <strong>改進格式判斷邏輯</strong>：移除 `-points` 後綴判斷，改用 `-dp` 檢測成對點格式</li>
@@ -1355,36 +1355,26 @@
                 } else if (virtualBoundary.points && Array.isArray(virtualBoundary.points)) {
                     // points 格式：根據 map_id 判斷繪製方式
                     // - '-dp' 結尾：連續折線（Douglas-Peucker 版）
-                    // - 成對點格式：map_id 不包含 '-dp' 且點數為偶數
+                    // - '-points' 結尾：連續折線（節點座標）
+                    // - 其他：成對點格式（每兩個點一條線段）
                     const points = virtualBoundary.points;
                     const mapId = virtualBoundary.map_id;
 
-                    if (mapId.includes('-dp')) {
-                        // 連續折線格式（Douglas-Peucker 版）
+                    if (mapId.endsWith('-dp') || mapId.endsWith('-points')) {
+                        // 連續折線格式
                         ctx.beginPath();
                         ctx.moveTo(points[0].x, points[0].y);
                         points.forEach(p => ctx.lineTo(p.x, p.y));
                         ctx.stroke();
                     } else {
-                        // 檢測是否為成對點格式（不含 '-dp' 且點數為偶數）
-                        const isPairedPoints = !mapId.includes('-dp') && points.length % 2 === 0;
-
-                        if (isPairedPoints) {
-                            // 成對點格式：每兩個點為一條獨立線段
-                            for (let i = 0; i < points.length; i += 2) {
-                                if (i + 1 < points.length) {
-                                    ctx.beginPath();
-                                    ctx.moveTo(points[i].x, points[i].y);
-                                    ctx.lineTo(points[i + 1].x, points[i + 1].y);
-                                    ctx.stroke();
-                                }
+                        // 成對點格式：每兩個點為一條獨立線段
+                        for (let i = 0; i < points.length; i += 2) {
+                            if (i + 1 < points.length) {
+                                ctx.beginPath();
+                                ctx.moveTo(points[i].x, points[i].y);
+                                ctx.lineTo(points[i + 1].x, points[i + 1].y);
+                                ctx.stroke();
                             }
-                        } else {
-                            // 連續折線格式（節點座標）
-                            ctx.beginPath();
-                            ctx.moveTo(points[0].x, points[0].y);
-                            points.forEach(p => ctx.lineTo(p.x, p.y));
-                            ctx.stroke();
                         }
                     }
                 }
@@ -3182,7 +3172,7 @@
             }
         }
 
-        // 從 Supabase 載入虛擬邊界（v2.5.9 - 支援 fallback 到無後綴 map_id）
+        // 從 Supabase 載入虛擬邊界（v2.6.0 - 支援 fallback 到無後綴 map_id）
         async function loadBoundaryFromSupabase() {
             if (!ensureSupabase()) return;
             if (!currentMapId) {
@@ -3193,7 +3183,7 @@
             try {
                 showToast('🔍 正在載入邊界線...');
 
-                // v2.5.9: 優先查詢無後綴的 map_id（如 'nanzih'）
+                // v2.6.0: 優先查詢無後綴的 map_id（如 'nanzih'）
                 // 這樣可以正確判斷是否為連續折線格式
                 let boundaryMapId = currentMapId;
 
