@@ -1366,8 +1366,8 @@
                         ctx.moveTo(points[0].x, points[0].y);
                         points.forEach(p => ctx.lineTo(p.x, p.y));
                         ctx.stroke();
-                    } else if (mapId.endsWith('-points') || mapId.endsWith('-dots')) {
-                        // 只顯示節點，不連線（節點已在下方統一繪製）
+                    } else if (mapId.endsWith('-points') || mapId.endsWith('-dots') || mapId === 'nanzih') {
+                        // v2.6.4: 只顯示節點，不連線（節點已在下方統一繪製）
                     } else {
                         // 成對點格式：每兩個點為一條獨立線段
                         for (let i = 0; i < points.length; i += 2) {
