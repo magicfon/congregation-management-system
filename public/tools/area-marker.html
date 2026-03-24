@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.6.4 - 修復點繪製判斷</title>
+    <title>區域標註工具 v2.6.5 - 連接鄰近點功能</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -639,7 +639,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.4</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.5</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -727,6 +727,7 @@
             <button onclick="extractPurpleLinesToVirtualBoundary()">🤖 自動抓取紫色邊界</button>
             <button onclick="saveVirtualBoundary()">💾 保存</button>
             <button onclick="loadBoundaryFromSupabase()">📂 載入邊界線</button>
+            <button onclick="connectNearestNeighbors()">🔗 連接鄰近點</button>
             <button onclick="deleteVirtualBoundary()">🗑️ 刪除邊界</button>
         </div>
 
@@ -3237,6 +3238,61 @@
                 console.error('載入失敗:', error);
                 showToast('❌ 載入失敗：' + error.message, 'error');
             }
+        }
+
+        // 連接鄰近點（v2.6.5 - 每個點與最近的兩個鄰居連線）
+        function connectNearestNeighbors() {
+            if (!virtualBoundary || !virtualBoundary.points || virtualBoundary.points.length < 3) {
+                showToast('⚠️ 需要至少 3 個節點才能連接', 'warn');
+                return;
+            }
+
+            const points = virtualBoundary.points;
+            const connections = [];
+            const maxDistance = 500; // 最大連接距離（像素）
+
+            // 對每個點，找到最近的兩個鄰居
+            points.forEach((point, i) => {
+                // 計算與其他所有點的距離
+                const distances = points
+                    .map((p, j) => ({
+                        index: j,
+                        distance: Math.sqrt(Math.pow(p.x - point.x, 2) + Math.pow(p.y - point.y, 2))
+                    }))
+                    .filter(d => d.index !== i) // 排除自己
+                    .sort((a, b) => a.distance - b.distance); // 按距離排序
+
+                // 取最近的兩個鄰居
+                const nearestTwo = distances.slice(0, 2);
+                
+                // 添加連接（避免重複）
+                nearestTwo.forEach(neighbor => {
+                    if (neighbor.distance <= maxDistance) {
+                        const connectionKey = [
+                            Math.min(i, neighbor.index),
+                            Math.max(i, neighbor.index)
+                        ].join('-');
+                        
+                        if (!connections.find(c => c.key === connectionKey)) {
+                            connections.push({
+                                key: connectionKey,
+                                from: points[i],
+                                to: points[neighbor.index],
+                                distance: neighbor.distance
+                            });
+                        }
+                    }
+                });
+            });
+
+            // 更新 virtualBoundary，添加 segments
+            virtualBoundary.segments = connections.map(c => [
+                [c.from.x, c.from.y],
+                [c.to.x, c.to.y]
+            ]);
+
+            draw();
+            showToast(`✅ 已連接 ${connections.length} 條線段（最大距離: ${maxDistance}px）`);
         }
 
         // 刪除虛擬邊界（v2.4.1）
