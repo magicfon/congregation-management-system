@@ -1615,7 +1615,7 @@
             else if (currentMode === 'virtual') {
                 // 虛擬邊界模式
                 if (isAddingBoundaryPointMode || isDeletingBoundaryPointMode) {
-                    // 新增/刪除邊界節點模式（v2.6.7）
+                    // 新增/刪除邊界節點模式（v2.6.8）
                     handleBoundaryPointClick(pos.x, pos.y);
                 } else if (isDrawingBoundary) {
                     // 繪製模式：添加邊界點
@@ -3267,7 +3267,7 @@
             }
         }
 
-        // 新增邊界節點模式（v2.6.7）
+        // 新增邊界節點模式（v2.6.8）
         let isAddingBoundaryPointMode = false;
 
         function toggleAddBoundaryPoint() {
@@ -3286,7 +3286,7 @@
             }
         }
 
-        // 刪除邊界節點模式（v2.6.7）
+        // 刪除邊界節點模式（v2.6.8）
         let isDeletingBoundaryPointMode = false;
 
         function toggleDeleteBoundaryPoint() {
@@ -3305,7 +3305,7 @@
             }
         }
 
-        // 處理邊界節點點擊（v2.6.7）
+        // 處理邊界節點點擊（v2.6.8）
         function handleBoundaryPointClick(x, y) {
             if (!virtualBoundary || !virtualBoundary.points) return;
 
