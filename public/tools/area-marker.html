@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.6.6 - 上傳 JSON 功能</title>
+    <title>區域標註工具 v2.6.7 - 邊界節點編輯功能</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -639,7 +639,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.6</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.7</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -719,18 +719,20 @@
             <button onclick="copyToClipboard()">📋 複製</button>
         </div>
 
-        <!-- 虛擬邊界工具列 -->
+        <!-- 虚拟边界工具列 -->
         <div id="virtualBoundaryToolbar" class="virtual-boundary-toolbar" style="display: none;">
-            <button onclick="startDrawingBoundary()">✏️ 開始繪製</button>
-            <button onclick="finishDrawingBoundary()">✅ 完成繪製</button>
+            <button onclick="startDrawingBoundary()">✏️ 开始绘制</button>
+            <button onclick="finishDrawingBoundary()">✅ 完成绘制</button>
             <button onclick="cancelDrawingBoundary()">❌ 取消</button>
-            <button onclick="extractPurpleLinesToVirtualBoundary()">🤖 自動抓取紫色邊界</button>
+            <button onclick="extractPurpleLinesToVirtualBoundary()">🤖 自动抓取紫色边界</button>
             <button onclick="saveVirtualBoundary()">💾 保存</button>
-            <button onclick="loadBoundaryFromSupabase()">📂 載入邊界線</button>
-            <button onclick="connectNearestNeighbors()">🔗 連接鄰近點</button>
+            <button onclick="loadBoundaryFromSupabase()">📂 载入边界线</button>
+            <button onclick="connectNearestNeighbors()">🔗 连接邻近点</button>
             <input type="file" id="jsonFileInput" accept=".json" style="display: none;" onchange="handleJsonUpload(event)">
-            <button onclick="document.getElementById('jsonFileInput').click()">📤 上傳 JSON</button>
-            <button onclick="deleteVirtualBoundary()">🗑️ 刪除邊界</button>
+            <button onclick="document.getElementById('jsonFileInput').click()">📤 上传 JSON</button>
+            <button id="btnAddBoundaryPoint" onclick="toggleAddBoundaryPoint()">➕ 新增节点</button>
+            <button id="btnDeleteBoundaryPoint" onclick="toggleDeleteBoundaryPoint()">➖ 删除节点</button>
+            <button onclick="deleteVirtualBoundary()">🗑️ 删除边界</button>
         </div>
 
         <div class="map-container" id="mapContainer">
@@ -1611,8 +1613,12 @@
                 canvas.style.cursor = 'grabbing';
             }
             else if (currentMode === 'virtual') {
-                // 虛擬邊界模式：點擊添加邊界點
-                if (isDrawingBoundary) {
+                // 虛擬邊界模式
+                if (isAddingBoundaryPointMode || isDeletingBoundaryPointMode) {
+                    // 新增/刪除邊界節點模式（v2.6.7）
+                    handleBoundaryPointClick(pos.x, pos.y);
+                } else if (isDrawingBoundary) {
+                    // 繪製模式：添加邊界點
                     currentBoundaryPoints.push({ x: pos.x, y: pos.y });
                     draw();
                     showToast(`已添加第 ${currentBoundaryPoints.length} 個點`);
@@ -3239,6 +3245,84 @@
             } catch (error) {
                 console.error('載入失敗:', error);
                 showToast('❌ 載入失敗：' + error.message, 'error');
+            }
+        }
+
+        // 新增邊界節點模式（v2.6.7）
+        let isAddingBoundaryPointMode = false;
+
+        function toggleAddBoundaryPoint() {
+            isAddingBoundaryPointMode = !isAddingBoundaryPointMode;
+            isDeletingBoundaryPointMode = false;
+            
+            const btn = document.getElementById('btnAddBoundaryPoint');
+            btn.classList.toggle('active', isAddingBoundaryPointMode);
+            document.getElementById('btnDeleteBoundaryPoint').classList.remove('active');
+            
+            if (isAddingBoundaryPointMode) {
+                showToast('➕ 點擊地圖添加節點', 'info');
+                canvas.style.cursor = 'crosshair';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        // 刪除邊界節點模式（v2.6.7）
+        let isDeletingBoundaryPointMode = false;
+
+        function toggleDeleteBoundaryPoint() {
+            isDeletingBoundaryPointMode = !isDeletingBoundaryPointMode;
+            isAddingBoundaryPointMode = false;
+            
+            const btn = document.getElementById('btnDeleteBoundaryPoint');
+            btn.classList.toggle('active', isDeletingBoundaryPointMode);
+            document.getElementById('btnAddBoundaryPoint').classList.remove('active');
+            
+            if (isDeletingBoundaryPointMode) {
+                showToast('➖ 點擊節點刪除', 'info');
+                canvas.style.cursor = 'pointer';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        // 處理邊界節點點擊（v2.6.7）
+        function handleBoundaryPointClick(x, y) {
+            if (!virtualBoundary || !virtualBoundary.points) return;
+
+            const threshold = 15 / zoom; // 點擊閾值
+
+            if (isDeletingBoundaryPointMode) {
+                // 刪除模式：找到並刪除最近的點
+                let nearestIndex = -1;
+                let minDist = Infinity;
+
+                virtualBoundary.points.forEach((p, i) => {
+                    const dist = Math.sqrt(Math.pow(p.x - x, 2) + Math.pow(p.y - y, 2));
+                    if (dist < threshold && dist < minDist) {
+                        minDist = dist;
+                        nearestIndex = i;
+                    }
+                });
+
+                if (nearestIndex >= 0) {
+                    virtualBoundary.points.splice(nearestIndex, 1);
+                    
+                    // 更新統計
+                    document.getElementById('totalBoundaryPoints').textContent = virtualBoundary.points.length;
+                    
+                    draw();
+                    showToast(`✅ 已刪除節點（剩餘 ${virtualBoundary.points.length} 個）`);
+                }
+            } else if (isAddingBoundaryPointMode) {
+                // 新增模式：添加新點
+                virtualBoundary.points.push({ x, y });
+                
+                // 更新統計
+                document.getElementById('totalBoundaryPoints').textContent = virtualBoundary.points.length;
+                
+                draw();
+                showToast(`✅ 已添加節點（共 ${virtualBoundary.points.length} 個）`);
             }
         }
 
