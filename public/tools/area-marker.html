@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>區域標註工具 v2.6.7 - 邊界節點編輯功能</title>
+    <title>區域標註工具 v2.6.8 - 修復邊界保存功能</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
             onerror="console.error('❌ Supabase CDN 載入失敗'); window.supabaseLoadFailed = true;"></script>
     <script>
@@ -639,7 +639,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.7</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.8</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -3126,34 +3126,53 @@
         // 保存虛擬邊界到 Supabase（v2.4.1 - upsert 娡式）
         async function saveVirtualBoundary() {
             if (!ensureSupabase()) return;
-            if (currentBoundaryPoints.length < 2) {
-                showToast('⚠️ 請先繪製邊界（至少需要 2 個點）', 'warn');
+            
+            // v2.6.8: 支援兩種來源
+            let pointsToSave = null;
+            
+            if (virtualBoundary && virtualBoundary.points && virtualBoundary.points.length >= 2) {
+                pointsToSave = virtualBoundary.points;
+            } else if (currentBoundaryPoints.length >= 2) {
+                pointsToSave = currentBoundaryPoints;
+            } else {
+                showToast('⚠️ 請先載入或繪製邊界（至少需要 2 個點）', 'warn');
                 return;
             }
 
             const boundary = {
                 map_id: currentMapId,
-                points: currentBoundaryPoints,
-                color: '#9333ea',
+                points: pointsToSave,
+                color: (virtualBoundary && virtualBoundary.color) || '#f59e0b',
+                segments: (virtualBoundary && virtualBoundary.segments) || null,
                 updated_at: new Date().toISOString()
             };
 
+            // 如果是更新現有邊界，保留 id
+            if (virtualBoundary && virtualBoundary.id) {
+                boundary.id = virtualBoundary.id;
+            }
+
             try {
-                const { error } = await supabaseClient
+                const { data, error } = await supabaseClient
                     .from('virtual_boundaries')
-                    .upsert(boundary, { onConflict: 'map_id' });
+                    .upsert(boundary, { onConflict: 'map_id' })
+                    .select()
+                    .single();
 
                 if (error) throw error;
 
-                virtualBoundary = boundary;
+                // 使用伺服器返回的完整資料（包含 id）
+                virtualBoundary = data;
                 currentBoundaryPoints = [];
                 isDrawingBoundary = false;
                 draw();
 
-                showToast(`✅ 已保存虛擬邊界`);
+                showToast(`✅ 已保存虛擬邊界（${pointsToSave.length} 個節點）`);
             } catch (error) {
                 console.error('保存失敗:', error);
                 showToast('❌ 保存失敗：' + error.message, 'error');
+            }
+        }
             }
         }
 
