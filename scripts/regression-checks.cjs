@@ -17,4 +17,18 @@ assert(/password:\s*passwordHash/.test(membersRoute), 'member creation must stor
 const statisticsRoute = fs.readFileSync('src/app/api/statistics/route.ts', 'utf8')
 assert(!/from\('schedules'\)[\s\S]*?\.eq\('status',\s*'scheduled'\)/.test(statisticsRoute), 'statistics scheduleCount should count all schedules, not only status=scheduled')
 
+const supabaseServer = fs.readFileSync('src/lib/supabase-server.ts', 'utf8')
+const supabaseClient = fs.readFileSync('src/lib/supabase.ts', 'utf8')
+const authLib = fs.readFileSync('src/lib/auth.ts', 'utf8')
+const simpleLoginRoute = fs.readFileSync('src/app/api/simple-login/route.ts', 'utf8')
+const gitignore = fs.readFileSync('.gitignore', 'utf8')
+
+assert(!/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(supabaseServer + supabaseClient + authLib), 'source must not contain hard-coded JWT/API tokens')
+assert(!/OpenClaw2026Secret/.test(authLib), 'NextAuth must not use a hard-coded fallback secret')
+assert(/secret:\s*process\.env\.NEXTAUTH_SECRET/.test(authLib), 'NextAuth secret should come from NEXTAUTH_SECRET only')
+assert(/process\.env\.SUPABASE_SERVICE_KEY/.test(supabaseServer), 'server Supabase client should read SUPABASE_SERVICE_KEY from env')
+assert(!/SUPABASE_SERVICE_KEY\s*\|\|/.test(supabaseServer), 'server Supabase client must not fallback to a hard-coded service key')
+assert(simpleLoginRoute.includes("../../../lib/supabase-server"), 'simple-login should use the server Supabase client consistently')
+assert(gitignore.split(/\r?\n/).includes('.env.production'), '.env.production must be ignored')
+
 console.log('regression checks passed')

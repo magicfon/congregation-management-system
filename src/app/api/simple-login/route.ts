@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { compare } from 'bcryptjs'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '../../../lib/supabase-server'
 
 export async function POST(request: Request) {
   try {
