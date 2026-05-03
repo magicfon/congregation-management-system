@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase-server'
+import { requireApiUser, rolesAtLeast } from '../../../lib/api-auth'
 
 export async function GET(request: NextRequest) {
+  const auth = await requireApiUser()
+  if ('response' in auth) return auth.response
+
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
@@ -36,6 +40,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiUser()
+  if ('response' in auth) return auth.response
+
   try {
     const body = await request.json()
     const { areaId, memberId, content, status } = body

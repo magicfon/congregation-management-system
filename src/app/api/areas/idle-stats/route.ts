@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../../lib/supabase-server'
+import { requireApiUser } from '../../../../lib/api-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  const auth = await requireApiUser()
+  if ('response' in auth) return auth.response
+
   try {
     const { data: areas, error } = await supabase
       .from('areas')

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '../../../../lib/supabase-server'
+import { requireApiUser } from '../../../../lib/api-auth'
 
 const SAFE_MEMBER_COLUMNS = 'id, name, email, phone, role, active, lineuid, createdat, updatedat'
 
@@ -7,6 +8,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireApiUser(['admin'])
+  if ('response' in auth) return auth.response
+
   try {
     const { data: member, error } = await supabase
       .from('members')
@@ -66,6 +70,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireApiUser(['admin'])
+  if ('response' in auth) return auth.response
+
   try {
     const body = await request.json()
     const { name, email, phone, role, active } = body
@@ -110,6 +117,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireApiUser(['admin'])
+  if ('response' in auth) return auth.response
+
   try {
     const { data: existing } = await supabase
       .from('members')

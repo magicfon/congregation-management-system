@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '../../../../lib/supabase-server'
+import { requireApiUser, rolesAtLeast } from '../../../../lib/api-auth'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireApiUser()
+  if ('response' in auth) return auth.response
+
   try {
     const { data: schedule, error } = await supabase
       .from('schedules')
@@ -27,6 +31,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireApiUser(rolesAtLeast('elder'))
+  if ('response' in auth) return auth.response
+
   try {
     const body = await request.json()
     const { status, notes } = body
@@ -64,6 +71,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireApiUser(rolesAtLeast('elder'))
+  if ('response' in auth) return auth.response
+
   try {
     const { data: existing } = await supabase
       .from('schedules')

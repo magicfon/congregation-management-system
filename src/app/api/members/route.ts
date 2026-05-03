@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hash } from 'bcryptjs'
 import { supabase } from '../../../lib/supabase-server'
+import { requireApiUser } from '../../../lib/api-auth'
 
 const SAFE_MEMBER_COLUMNS = 'id, name, email, phone, role, active, lineuid, createdat, updatedat'
 
 export async function GET(request: NextRequest) {
+  const auth = await requireApiUser(['admin'])
+  if ('response' in auth) return auth.response
+
   try {
     const { searchParams } = new URL(request.url)
     const role = searchParams.get('role')
@@ -52,6 +56,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireApiUser(['admin'])
+  if ('response' in auth) return auth.response
+
   try {
     const body = await request.json()
     const { name, email, password, phone, role } = body
