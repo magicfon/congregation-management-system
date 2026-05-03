@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '../../../../lib/supabase-server'
 
+const SAFE_MEMBER_COLUMNS = 'id, name, email, phone, role, active, lineuid, createdat, updatedat'
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -8,7 +10,7 @@ export async function GET(
   try {
     const { data: member, error } = await supabase
       .from('members')
-      .select('*')
+      .select(SAFE_MEMBER_COLUMNS)
       .eq('id', params.id)
       .single()
 
@@ -92,7 +94,7 @@ export async function PUT(
         active: active !== undefined ? active : existing.active,
       })
       .eq('id', params.id)
-      .select()
+      .select(SAFE_MEMBER_COLUMNS)
       .single()
 
     if (error) throw error

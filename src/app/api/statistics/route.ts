@@ -13,8 +13,8 @@ export async function GET() {
     ] = await Promise.all([
       supabase.from('areas').select('id', { count: 'exact', head: true }),
       supabase.from('members').select('id', { count: 'exact', head: true }),
-      supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('status', 'scheduled'),
-      supabase.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('schedules').select('id', { count: 'exact', head: true }),
+      supabase.from('reports').select('id', { count: 'exact', head: true }),
       supabase.from('areas').select('id, name, lastactivityat, assignedto').order('lastactivityat', { ascending: true }).limit(5)
     ])
 

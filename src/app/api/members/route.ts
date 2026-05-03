@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { hash } from 'bcryptjs'
 import { supabase } from '../../../lib/supabase-server'
+
+const SAFE_MEMBER_COLUMNS = 'id, name, email, phone, role, active, lineuid, createdat, updatedat'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('members')
-      .select('*')
+      .select(SAFE_MEMBER_COLUMNS)
 
     if (role) {
       query = query.eq('role', role)
@@ -57,17 +60,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '姓名、Email 和密碼為必填' }, { status: 400 })
     }
 
+    const passwordHash = await hash(password.trim(), 10)
+
     const { data: member, error } = await supabase
       .from('members')
       .insert({
         name: name.trim(),
         email: email.trim(),
-        password: password.trim(),
+        password: passwordHash,
         phone: phone?.trim() || null,
         role: role || 'publisher',
         active: true,
       })
-      .select()
+      .select(SAFE_MEMBER_COLUMNS)
       .single()
 
     if (error) throw error
