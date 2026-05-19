@@ -1235,12 +1235,45 @@
             draw();
         }
 
-        function resetZoom() {
-            zoom = 1;
-            panX = 0;
-            panY = 0;
+        function getFitToDeviceZoom() {
+            if (!currentImage) return 1;
+
+            const container = document.getElementById('mapContainer');
+            const containerRect = container.getBoundingClientRect();
+            const bodyPadding = isMobile() ? 16 : 40;
+            const availableWidth = Math.max(320, container.clientWidth || (window.innerWidth - bodyPadding));
+            const availableHeight = Math.max(260, window.innerHeight - containerRect.top - 24);
+
+            // 留一點邊界，避免剛好貼齊時出現不必要的捲動條。
+            const fitZoom = Math.min(
+                availableWidth / currentImage.width,
+                availableHeight / currentImage.height
+            ) * 0.98;
+
+            return Math.max(0.05, Math.min(1, fitZoom));
+        }
+
+        function fitMapToDevice() {
+            zoom = getFitToDeviceZoom();
+
+            const container = document.getElementById('mapContainer');
+            const containerRect = container.getBoundingClientRect();
+            const bodyPadding = isMobile() ? 16 : 40;
+            const availableWidth = Math.max(320, container.clientWidth || (window.innerWidth - bodyPadding));
+            const availableHeight = Math.max(260, window.innerHeight - containerRect.top - 24);
+            const fittedWidth = currentImage ? currentImage.width * zoom : 0;
+            const fittedHeight = currentImage ? currentImage.height * zoom : 0;
+
+            // 當縮小後比可視區域小時置中；放大時則從左上開始，方便平移瀏覽。
+            panX = Math.max(0, (availableWidth - fittedWidth) / 2);
+            panY = Math.max(0, (availableHeight - fittedHeight) / 2);
             updateZoomDisplay();
             draw();
+        }
+
+        function resetZoom() {
+            // 重置為「符合目前裝置螢幕」的大小，而不是原圖 100%。
+            fitMapToDevice();
         }
 
         function updateZoomDisplay() {
@@ -1275,8 +1308,8 @@
                 canvas.width = img.width;
                 canvas.height = img.height;
 
-                // 重置视图
-                resetZoom();
+                // 初始視圖改為依目前裝置大小完整顯示地圖。
+                fitMapToDevice();
 
                 areas = [];
                 currentPolygon = [];
