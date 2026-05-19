@@ -635,11 +635,224 @@
             color: #c4b5fd;
             line-height: 1.6;
         }
+
+        .layer-panel {
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin: 10px 0 14px;
+            color: #e2e8f0;
+        }
+
+        .layer-panel h3 {
+            margin: 0 0 8px;
+            font-size: 15px;
+            color: #93c5fd;
+        }
+
+        .layer-panel .layer-help {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .layer-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            align-items: center;
+        }
+
+        .layer-grid label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .boundary-layer-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 14px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        .boundary-layer-list .empty {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        /* 多邊形化預覽控制 */
+        .polygonize-preview-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            padding: 10px 14px;
+            margin: 10px 0 14px;
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(234, 179, 8, 0.35);
+            border-radius: 8px;
+            color: #e2e8f0;
+        }
+
+        .polygonize-preview-bar h3 {
+            margin: 0;
+            font-size: 15px;
+            color: #fbbf24;
+            margin-right: 8px;
+        }
+
+        .polygonize-preview-bar select {
+            background: #1e293b;
+            color: #e5e5e5;
+            border: 1px solid #334155;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            max-width: 320px;
+        }
+
+        .polygonize-preview-bar button {
+            background: #b45309;
+            color: white;
+            border: none;
+            padding: 7px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .polygonize-preview-bar button:hover {
+            background: #d97706;
+        }
+
+        .polygonize-preview-bar button.apply-btn {
+            background: #dc2626;
+        }
+
+        .polygonize-preview-bar button.apply-btn:hover {
+            background: #ef4444;
+        }
+
+        .polygonize-preview-bar button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .polygonize-preview-bar .preview-status {
+            font-size: 12px;
+            color: #fbbf24;
+            margin-left: 4px;
+        }
+
+        .polygonize-preview-bar label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* ── Phase 2: 分界線編輯面板 ── */
+        .boundary-edit-panel {
+            display: none;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            padding: 10px 14px;
+            margin: 10px 0 14px;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(0, 255, 136, 0.35);
+            border-radius: 8px;
+            color: #e2e8f0;
+        }
+
+        .boundary-edit-panel.visible {
+            display: flex;
+        }
+
+        .boundary-edit-panel h3 {
+            margin: 0;
+            font-size: 15px;
+            color: #00ff88;
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+
+        .boundary-edit-panel button {
+            background: #065f46;
+            color: white;
+            border: none;
+            padding: 7px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .boundary-edit-panel button:hover {
+            background: #047857;
+        }
+
+        .boundary-edit-panel button.danger {
+            background: #7f1d1d;
+        }
+
+        .boundary-edit-panel button.danger:hover {
+            background: #991b1b;
+        }
+
+        .boundary-edit-panel button.connect {
+            background: #1e3a5f;
+        }
+
+        .boundary-edit-panel button.connect:hover {
+            background: #1e4d78;
+        }
+
+        .boundary-edit-panel button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .boundary-edit-status {
+            font-size: 12px;
+            color: #86efac;
+            margin-left: 4px;
+            white-space: nowrap;
+        }
+
+        .boundary-edit-selection {
+            font-size: 12px;
+            color: #fde68a;
+            margin-left: 4px;
+            white-space: nowrap;
+        }
+
+        .boundary-edit-connect-hint {
+            font-size: 12px;
+            color: #93c5fd;
+            margin-left: 4px;
+            white-space: nowrap;
+        }
+
+        .mode-boundary-edit {
+            background: #047857;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.8</span> <small style="color: #94a3b8; font-size: 14px;">虛擬邊界 + Supabase</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.8</span> <small style="color: #94a3b8; font-size: 14px;">正式標註 + Supabase</small></h1>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -653,7 +866,6 @@
             <input type="number" id="startId" placeholder="起始編號" value="1" style="width: 90px;">
 
             <button onclick="loadMap()">載入地圖</button>
-            <button class="secondary" onclick="loadCV2Areas()">📥 CV2 區域</button>
 
             <div class="controls-divider"></div>
 
@@ -671,31 +883,14 @@
         <div class="controls">
             <button id="btnView" class="active" onclick="setMode('view')">👁️ 瀏覽</button>
             <button id="btnAdd" onclick="setMode('add')">➕ 新增</button>
-            <button id="btnSmartLasso" class="smart-lasso" onclick="toggleSmartLasso()">🎯 智慧套索</button>
-            <button id="btnVirtualBoundary" onclick="setMode('virtual')">✏️ 虛擬邊界</button>
             <button id="btnEdit" onclick="setMode('edit')">✏️ 編輯</button>
             <button id="btnDelete" onclick="setMode('delete')">🗑️ 刪除</button>
-
-            <!-- 智慧套索控制面板 -->
-            <div id="lassoPanel" class="smart-lasso-panel" style="display: none;">
-                <span id="lassoPhaseIndicator" class="lasso-phase">階段 1: 抽色</span>
-                <div id="lassoColorPreview" class="color-preview" style="display: none;">
-                    <div class="color-box" id="selectedColorBox"></div>
-                    <span id="selectedColorText">未選擇顏色</span>
-                </div>
-                <div class="lasso-tolerance">
-                    <label>容差: <input type="range" min="5" max="50" value="20" id="toleranceSlider"></label>
-                    <span id="toleranceValue">20</span>
-                </div>
-                <button id="btnResetColor" class="secondary" onclick="resetLassoColor()" style="display: none;">🔄 重置</button>
-            </div>
 
             <!-- 更新編號：僅在編輯模式顯示 -->
             <div id="editIdControls">
                 <div class="controls-divider"></div>
                 <input type="text" id="editAreaId" placeholder="選中編號" style="width: 90px;">
                 <button onclick="updateAreaId()">更新編號</button>
-                <button id="btnSnapToPurple" onclick="snapSelectedToVirtualBoundary()">🎯 自動貼齊虛擬邊界</button>
             </div>
 
             <div class="controls-divider"></div>
@@ -713,26 +908,8 @@
             <button class="cloud-save" onclick="saveToCloud()">💾 保存到雲端</button>
             <button class="cloud-load" onclick="loadFromCloud()">☁️ 從雲端載入</button>
 
-            <div class="controls-divider"></div>
-
             <button onclick="exportJSON()">📤 導出 JSON</button>
             <button onclick="copyToClipboard()">📋 複製</button>
-        </div>
-
-        <!-- 虚拟边界工具列 -->
-        <div id="virtualBoundaryToolbar" class="virtual-boundary-toolbar" style="display: none;">
-            <button onclick="startDrawingBoundary()">✏️ 开始绘制</button>
-            <button onclick="finishDrawingBoundary()">✅ 完成绘制</button>
-            <button onclick="cancelDrawingBoundary()">❌ 取消</button>
-            <button onclick="extractPurpleLinesToVirtualBoundary()">🤖 自动抓取紫色边界</button>
-            <button onclick="saveVirtualBoundary()">💾 保存</button>
-            <button onclick="loadBoundaryFromSupabase()">📂 载入边界线</button>
-            <button onclick="connectNearestNeighbors()">🔗 连接邻近点</button>
-            <input type="file" id="jsonFileInput" accept=".json" style="display: none;" onchange="handleJsonUpload(event)">
-            <button onclick="document.getElementById('jsonFileInput').click()">📤 上传 JSON</button>
-            <button id="btnAddBoundaryPoint" onclick="toggleAddBoundaryPoint()">➕ 新增节点</button>
-            <button id="btnDeleteBoundaryPoint" onclick="toggleDeleteBoundaryPoint()">➖ 删除节点</button>
-            <button onclick="deleteVirtualBoundary()">🗑️ 删除边界</button>
         </div>
 
         <div class="map-container" id="mapContainer">
@@ -782,99 +959,12 @@
                     </ul>
                 </div>
                 
-                <!-- 版本更新資訊 -->
-                <div style="background: rgba(124, 58, 237, 0.15); padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #7c3aed;">
-                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.6.4 更新（2026-03-23）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>🐛 <strong>修復點繪製判斷問題</strong>：`nanzih-points` 等資料現在會正確判斷為連續折線格式</li>
-                        <li>🔄 <strong>改進格式判斷邏輯</strong>：移除 `-points` 後綴判斷，改用 `-dp` 檢測成對點格式</li>
-                        <li>📊 <strong>更新統計顯示</strong>：根據格式顯示「總線段數」或「邊界點數」</li>
-                    </ul>
-                    <h4 style="color: #a78bfa; margin-bottom: 8px;">🆕 v2.4.1 更新（2026-03-22）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>✨ <strong>簡化虛擬邊界</strong>：每張地圖只會有一組虛擬邊界</li>
-                        <li>🎯 <strong>自動 upsert</strong>：保存時自動更新或新增</li>
-                        <li>🗑️ <strong>一鍵刪除</strong>：移除列表，直接刪除邊界</li>
-                    </ul>
-                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.4 更新（2026-03-22）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>✨ <strong>新增「虛擬邊界」功能</strong>：手動繪製自定義邊界線並儲存到雲端</li>
-                        <li>🎯 <strong>改進自動貼齊</strong>：從貼齊紫色像素改為貼齊虛擬邊界</li>
-                        <li>☁️ <strong>雲端儲存</strong>：虛擬邊界自動儲存到 Supabase</li>
-                        <li>📂 <strong>自動載入</strong>：載入地圖時自動載入虛擬邊界</li>
-                    </ul>
-                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.3.2 更新（2026-03-22）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>✨ <strong>新增「添加節點」模式</strong>：點擊「➕ 添加」按鈕後，再點擊邊線即可添加節點</li>
-                        <li>🗑️ <strong>新增「刪除節點」模式</strong>：點擊「🗑️ 刪除」按鈕後，再點擊頂點即可刪除</li>
-                        <li>🎨 <strong>視覺提示</strong>：添加模式下邊線會高亮，刪除模式下頂點會變紅</li>
-                        <li>❌ <strong>可取消操作</strong>：再次點擊按鈕即可取消模式</li>
-                    </ul>
-                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.3.1 更新（2026-03-22）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>🐛 <strong>修復編輯模式觸控問題</strong>：編輯模式下可正常拖曳頂點</li>
-                        <li>🔧 <strong>移除雙指縮放</strong>：避免縮放中心點跑掉，改用 +/- 按鈕</li>
-                        <li>✨ <strong>移除長按功能</strong>：改為直接點擊頂點即可拖曳</li>
-                        <li>👍 <strong>操作更直觀</strong>：點擊頂點立即進入拖曳模式</li>
-                    </ul>
-                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.3 更新（2026-03-22）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>📱 <strong>手機觸控優化</strong>：增大觸控目標（20px），更容易點選節點</li>
-                        <li>👌 <strong>雙指縮放</strong>：支援 pinch-to-zoom 手勢</li>
-                        <li>✴️ <strong>長按選擇</strong>：長按頂點 500ms 進入拖曳模式</li>
-                        <li>👆 <strong>單指平移</strong>：瀏覽模式下拖曳平移地圖</li>
-                        <li>🔧 <strong>底部工具列</strong>：手機專用快捷按鈕</li>
-                    </ul>
-                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.2 更新（2026-03-22）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>✨ <strong>新增自動貼齊功能</strong>：手動畫邊界後，一鍵貼齊紫色線</li>
-                        <li>🎯 編輯模式下點擊「🎯 自動貼齊紫色邊界」按鈕</li>
-                        <li>📏 最大貼齊距離 100px，自動搜尋半徑 200px（可擴展至 400px）</li>
-                        <li>📊 添加 console.log 調試信息（按 F12 查看）</li>
-                    </ul>
-                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.1.1 更新（2026-03-22）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>🐛 <strong>修復 HSV 參數</strong>：參考 CV2 Python 代碼調整容差</li>
-                        <li>✨ H 容差 × 4，S/V 最小值 30（避免灰階）</li>
-                        <li>📊 添加 console.log 調試信息（按 F12 查看）</li>
-                    </ul>
-                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.5.2 更新（2026-03-23）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>📊 <strong>新增統計顯示</strong>：載入邊界線後顯示「總線段數」和「邊界點數」</li>
-                        <li>📈 即時查看邊界線資料規模</li>
-                    </ul>
-                    <h4 style="color: #a78bfa; margin: 8px 0;">v2.1 更新（2026-03-22）</h4>
-                    <ul style="margin-left: 20px; font-size: 13px; color: #c4b5fd;">
-                        <li>✨ <strong>智慧套索重大改進</strong>：HSV 色彩空間 + 形態學處理</li>
-                        <li>🔧 膨脹+侵蝕算法連接斷線（模擬 OpenCV）</li>
-                        <li>🎯 多輪廓檢測，自動選擇最近的封閉區域</li>
-                        <li>🔍 過濾小面積雜訊（< 1000px²）</li>
-                        <li>📊 紫色邊界檢測準確度大幅提升</li>
-                    </ul>
-                </div>
-                
                 <ul>
                     <li><strong>👁️ 瀏覽模式</strong>：查看和選中區域，拖拽平移地圖</li>
                     <li><strong>➕ 新增模式</strong>：
                         <ul>
                             <li>點擊地圖 = 新增矩形區域</li>
                             <li>Shift+點擊 = 畫多邊形（雙擊完成）</li>
-                        </ul>
-                    </li>
-                    <li><strong>🎯 智慧套索</strong>（改進版）：
-                        <ul>
-                            <li><strong>第一步：抽取顏色</strong> - 點擊地圖上的目標顏色（如邊界線）</li>
-                            <li><strong>第二步：追蹤邊界</strong> - 再次點擊區域，自動追蹤該顏色的邊界</li>
-                            <li><strong>改進算法</strong>：使用 HSV 色彩空間 + 形態學處理（膨脹+侵蝕）連接斷線</li>
-                            <li>可調整容差範圍（5-50）來匹配相近顏色</li>
-                            <li>點擊「🔄 重置」可重新抽取顏色</li>
-                        </ul>
-                    </li>
-                    <li><strong>✏️ 虛擬邊界模式</strong>：
-                        <ul>
-                            <li><strong>手動繪製</strong>：點擊地圖繪製邊界點</li>
-                            <li><strong>🤖 自動抓取</strong>：自動偵測紫色邊界線並轉換</li>
-                            <li>虛擬邊界用於智慧套索和自動貼齊功能</li>
                         </ul>
                     </li>
                     <li><strong>✏️ 編輯模式</strong>：
@@ -884,7 +974,6 @@
                             <li>拖拽中心 = 移動區域</li>
                             <li><strong>點擊邊線 = 添加新節點</strong></li>
                             <li><strong>右鍵點擊節點 = 刪除節點</strong>（最少保留3個）</li>
-                            <li><strong>🎯 自動貼齊虛擬邊界</strong>：選中區域後，點擊按鈕自動將頂點貼齊最近的虛擬邊界（距離 < 100px）</li>
                         </ul>
                     </li>
                     <li><strong>🗑️ 刪除模式</strong>：點擊區域刪除</li>
@@ -912,7 +1001,6 @@
     <div id="mobileToolbar" class="mobile-toolbar">
         <button onclick="deleteVertexMobile()">🗑️ 刪除</button>
         <button onclick="addVertexMobile()">➕ 添加</button>
-        <button onclick="snapToPurpleMobile()">🎯 貼齊</button>
     </div>
 
     <script>
@@ -926,6 +1014,27 @@
         let currentPolygon = [];
         let currentId = 1;
         let currentMapId = '';
+
+        // 圖層顯示控制：正式標註流程預設只顯示目前區域與編號；
+        // 分界線 overlay / polygonize preview / 虛擬邊界等實驗功能不在 UI 中呈現。
+        let layerVisibility = {
+            areas: true,
+            areaLabels: true,
+            virtualBoundary: false,
+            currentDraft: true,
+            boundaryLines: false,
+            polygonizePreview: false
+        };
+
+        // 自動抽取分界線 overlay：可同時載入多個版本
+        let boundaryLineOverlay = null; // 主要版本，保留給既有統計/按鈕相容
+        let boundaryLineLayers = []; // [{ id, label, url, type, visible, color, lines, lineCount, pointCount }]
+        let showBoundaryLineOverlay = false;
+
+        // 多邊形化預覽相關（非破壞性預覽層）
+        let polygonizePreviewAreas = null; // [{ id, center:{x,y}, polygon:[{x,y},...] }] 已轉換座標
+        let polygonizePreviewMeta = null;  // { mapName, totalAreas, expectedCount, source, generator }
+        let polygonizePreviewVisible = false;
 
         // 编辑相关
         let selectedAreaIndex = -1;
@@ -949,6 +1058,23 @@
         let virtualBoundary = null; // 單一邊界物件
         let currentBoundaryPoints = [];
         let isDrawingBoundary = false;
+
+        // ── 可編輯分界線資料模型（Phase 1） ──
+        let boundaryEditMode = false;
+        let editableBoundaryLines = null;  // cloned compact-style: { lines: [[[x,y],[x,y],...], ...] }
+        let boundaryEditLog = {
+            disabledLines: [],    // indices of lines disabled in edit mode
+            movedPoints: [],      // { lineIndex, pointIndex, from:[x,y], to:[x,y] }
+            addedLines: [],       // [[x,y],[x,y],...] newly drawn lines
+            connectedEndpoints: [], // { from:{lineIdx, end:'start'|'end'}, to:{lineIdx, end:'start'|'end'} }
+            splitLines: [],       // { lineIndex, splitAtIndex, newLines:[[...],[...]] }
+            simplifiedLines: [],  // { lineIndex, fromPoints, toPoints, tolerance }
+            mergedNodes: []       // { radius, clusterCount, movedPoints }
+        };
+        let selectedBoundaryLine = null;   // index into editableBoundaryLines.lines
+        let selectedBoundaryPoint = null;  // { lineIndex, pointIndex }
+        let boundaryEndpoints = [];        // [{ lineIndex, end:'start'|'end', point:[x,y] }]
+        let showBoundaryEndpoints = true;
 
         // 檢測是否為手機
         function isMobile() {
@@ -1031,7 +1157,8 @@
             // 如果離開新增模式，關閉智慧套索
             if (mode !== 'add' && smartLassoMode) {
                 smartLassoMode = false;
-                document.getElementById('btnSmartLasso').classList.remove('active');
+                const smartBtn = document.getElementById('btnSmartLasso');
+                if (smartBtn) smartBtn.classList.remove('active');
             }
 
             // 更新按钮样式
@@ -1042,12 +1169,14 @@
 
             if (mode !== 'add' || !smartLassoMode) {
                 const btnId = mode === 'virtual' ? 'btnVirtualBoundary' : 'btn' + mode.charAt(0).toUpperCase() + mode.slice(1);
-                document.getElementById(btnId).classList.add('active');
+                const activeBtn = document.getElementById(btnId);
+                if (activeBtn) activeBtn.classList.add('active');
             }
 
             // 如果是新增模式且智慧套索開啟，高亮智慧套索按鈕
             if (mode === 'add' && smartLassoMode) {
-                document.getElementById('btnSmartLasso').classList.add('active');
+                const smartBtn = document.getElementById('btnSmartLasso');
+                if (smartBtn) smartBtn.classList.add('active');
             }
 
             // 更新指示器
@@ -1078,10 +1207,13 @@
 
             // 虛擬邊界模式
             const virtualToolbar = document.getElementById('virtualBoundaryToolbar');
-            if (mode === 'virtual') {
+            if (virtualToolbar && mode === 'virtual') {
                 virtualToolbar.style.display = 'flex';
-            } else {
+            } else if (virtualToolbar) {
                 virtualToolbar.style.display = 'none';
+                isDrawingBoundary = false;
+                currentBoundaryPoints = [];
+            } else if (mode !== 'virtual') {
                 isDrawingBoundary = false;
                 currentBoundaryPoints = [];
             }
@@ -1149,6 +1281,22 @@
                 areas = [];
                 currentPolygon = [];
                 selectedAreaIndex = -1;
+
+                // 清除多邊形化預覽（實驗功能已從 UI 移除）
+                polygonizePreviewAreas = null;
+                polygonizePreviewMeta = null;
+                polygonizePreviewVisible = false;
+
+                // 清除可編輯分界線狀態（Phase 1）
+                resetBoundaryEditorState();
+                layerVisibility.polygonizePreview = false;
+                const polyStatusEl = document.getElementById('polygonizeStatus');
+                if (polyStatusEl) polyStatusEl.textContent = '未載入';
+                const btnClearPoly = document.getElementById('btnClearPolygonize');
+                if (btnClearPoly) btnClearPoly.disabled = true;
+                const btnApplyPoly = document.getElementById('btnApplyPolygonize');
+                if (btnApplyPoly) btnApplyPoly.disabled = true;
+
                 updateStats();
 
                 document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
@@ -1156,8 +1304,8 @@
                 // 自动从云端载入已保存标注
                 await autoLoadFromCloud();
 
-                // 自動載入虛擬邊界
-                await loadVirtualBoundary();
+                // 實驗性的虛擬邊界 / 分界線 overlay / polygonize preview 不再自動載入，
+                // 避免干擾正式標註流程。
             };
 
             img.src = mapFile;
@@ -1238,6 +1386,1435 @@
             }
         }
 
+        // 圖層顯示控制
+        function setLayerVisibility(layer, visible) {
+            layerVisibility[layer] = visible;
+            if (layer === 'boundaryLines') {
+                showBoundaryLineOverlay = visible;
+            }
+            if (layer === 'polygonizePreview') {
+                polygonizePreviewVisible = visible;
+            }
+            syncLayerControls();
+            draw();
+        }
+
+        function setPreviewOnlyLayers() {
+            layerVisibility.areas = false;
+            layerVisibility.areaLabels = false;
+            layerVisibility.virtualBoundary = false;
+            layerVisibility.currentDraft = false;
+            layerVisibility.boundaryLines = true;
+            showBoundaryLineOverlay = true;
+            boundaryLineLayers.forEach(layer => {
+                layer.visible = layer.id.includes('v3');
+            });
+            syncLayerControls();
+            updateBoundaryLineOverlayStats();
+            updateBoundaryLayerList();
+            draw();
+            showToast('已切換成乾淨分界線預覽');
+        }
+
+        function syncLayerControls() {
+            const map = {
+                toggleAreas: layerVisibility.areas,
+                toggleAreaLabels: layerVisibility.areaLabels,
+                toggleVirtualBoundary: layerVisibility.virtualBoundary,
+                toggleCurrentDraft: layerVisibility.currentDraft
+            };
+            Object.entries(map).forEach(([id, checked]) => {
+                const el = document.getElementById(id);
+                if (el) el.checked = checked;
+            });
+            updateBoundaryLineOverlayButton();
+        }
+
+        function getBoundaryLineCandidates(mapId) {
+            return [
+                {
+                    id: `${mapId}-v3-compact`,
+                    label: 'v3 compact JSON（目前建議）',
+                    url: `/maps/generated/${mapId}-boundary-lines-simplified-v3.json`,
+                    type: 'compact-json',
+                    color: '#00ff88',
+                    visible: true
+                },
+                {
+                    id: `${mapId}-v2-geojson`,
+                    label: 'v2 GeoJSON（舊版/較大）',
+                    url: `/maps/generated/${mapId}-boundary-lines-v2.geojson`,
+                    type: 'geojson',
+                    color: '#38bdf8',
+                    visible: false
+                }
+            ];
+        }
+
+        function normalizeBoundaryLines(data, type) {
+            if (type === 'compact-json') {
+                if (!data.lines || !Array.isArray(data.lines)) {
+                    throw new Error('JSON 格式錯誤：缺少 lines 陣列');
+                }
+                return data.lines;
+            }
+
+            if (type === 'geojson') {
+                if (!data.features || !Array.isArray(data.features)) {
+                    throw new Error('GeoJSON 格式錯誤：缺少 features 陣列');
+                }
+                const lines = [];
+                data.features.forEach(feature => {
+                    const geom = feature.geometry;
+                    if (!geom) return;
+                    if (geom.type === 'LineString') {
+                        lines.push(geom.coordinates);
+                    } else if (geom.type === 'MultiLineString') {
+                        geom.coordinates.forEach(line => lines.push(line));
+                    }
+                });
+                return lines;
+            }
+
+            throw new Error(`未知分界線格式：${type}`);
+        }
+
+        async function loadBoundaryLineOverlay(options = {}) {
+            const { silent = false } = options;
+            if (!currentMapId) {
+                if (!silent) showToast('請先載入地圖', 'warn');
+                return false;
+            }
+
+            boundaryLineLayers = [];
+            boundaryLineOverlay = null;
+            const candidates = getBoundaryLineCandidates(currentMapId);
+
+            for (const candidate of candidates) {
+                try {
+                    const response = await fetch(candidate.url, { cache: 'no-cache' });
+                    if (!response.ok) continue;
+
+                    const data = await response.json();
+                    const lines = normalizeBoundaryLines(data, candidate.type);
+                    const lineCount = data.lineCount || lines.length;
+                    const pointCount = data.pointCount || countBoundaryLinePoints(lines);
+                    const layer = { ...candidate, data, lines, lineCount, pointCount };
+                    boundaryLineLayers.push(layer);
+
+                    if (!boundaryLineOverlay || candidate.visible) {
+                        boundaryLineOverlay = layer;
+                    }
+                } catch (error) {
+                    console.warn('略過分界線版本:', candidate.url, error);
+                }
+            }
+
+            if (!boundaryLineOverlay && boundaryLineLayers.length > 0) {
+                boundaryLineOverlay = boundaryLineLayers[0];
+            }
+
+            showBoundaryLineOverlay = boundaryLineLayers.some(layer => layer.visible);
+            layerVisibility.boundaryLines = showBoundaryLineOverlay;
+            updateBoundaryLineOverlayStats();
+            updateBoundaryLineOverlayButton();
+            updateBoundaryLayerList();
+            draw();
+
+            if (!boundaryLineLayers.length) {
+                if (!silent) showToast('找不到任何分界線版本', 'warn');
+                return false;
+            }
+
+            if (!silent) {
+                const loaded = boundaryLineLayers.map(layer => layer.label).join('、');
+                showToast(`✅ 已載入分界線版本：${loaded}`);
+            }
+
+            // Clone into editable model whenever overlay loads successfully (Phase 1)
+            cloneBoundaryLinesForEditing();
+
+            return true;
+        }
+
+        async function toggleBoundaryLineOverlay() {
+            if (!boundaryLineLayers.length) {
+                await loadBoundaryLineOverlay({ silent: false });
+                return;
+            }
+
+            const nextVisible = !boundaryLineLayers.some(layer => layer.visible);
+            boundaryLineLayers.forEach(layer => { layer.visible = nextVisible; });
+            showBoundaryLineOverlay = nextVisible;
+            layerVisibility.boundaryLines = nextVisible;
+            updateBoundaryLineOverlayStats();
+            updateBoundaryLineOverlayButton();
+            updateBoundaryLayerList();
+            draw();
+            showToast(nextVisible ? '已顯示所有分界線 overlay' : '已隱藏所有分界線 overlay');
+        }
+
+        function toggleBoundaryLineLayer(layerId, visible) {
+            const layer = boundaryLineLayers.find(item => item.id === layerId);
+            if (!layer) return;
+            layer.visible = visible;
+            showBoundaryLineOverlay = boundaryLineLayers.some(item => item.visible);
+            layerVisibility.boundaryLines = showBoundaryLineOverlay;
+            boundaryLineOverlay = boundaryLineLayers.find(item => item.visible) || boundaryLineLayers[0] || null;
+            updateBoundaryLineOverlayStats();
+            updateBoundaryLineOverlayButton();
+            updateBoundaryLayerList();
+            draw();
+        }
+
+        function updateBoundaryLayerList() {
+            const list = document.getElementById('boundaryLayerList');
+            if (!list) return;
+
+            if (!boundaryLineLayers.length) {
+                list.innerHTML = '<span class="empty">目前沒有可用的分界線版本。</span>';
+                return;
+            }
+
+            list.innerHTML = boundaryLineLayers.map(layer => `
+                <label title="${layer.url}">
+                    <input type="checkbox" ${layer.visible ? 'checked' : ''}
+                        onchange="toggleBoundaryLineLayer('${layer.id}', this.checked)">
+                    <span style="color:${layer.color}">━</span>
+                    ${layer.label}
+                    <small>(${layer.lineCount} 線 / ${layer.pointCount} 點)</small>
+                </label>
+            `).join('');
+        }
+
+        function updateBoundaryLineOverlayButton() {
+            const btn = document.getElementById('btnBoundaryLineOverlay');
+            if (!btn) return;
+            const anyVisible = boundaryLineLayers.some(layer => layer.visible);
+            btn.classList.toggle('active', anyVisible);
+            btn.textContent = anyVisible ? '🧭 隱藏分界線' : '🧭 顯示分界線';
+        }
+
+        function countBoundaryLinePoints(lines) {
+            return lines.reduce((sum, line) => sum + line.length, 0);
+        }
+
+        // ── 可編輯分界線輔助函式（Phase 1） ──
+
+        /** Deep-clone a compact lines array: [[[x,y],...], ...] */
+        function deepCloneBoundaryLines(lines) {
+            if (!Array.isArray(lines)) return [];
+            return lines.map(line => {
+                if (!Array.isArray(line)) return [];
+                return line.map(pt => (Array.isArray(pt) ? [pt[0], pt[1]] : pt));
+            });
+        }
+
+        /** Reset all edit-mode state to defaults */
+        function resetBoundaryEditorState() {
+            boundaryEditMode = false;
+            editableBoundaryLines = null;
+            boundaryEditLog = {
+                disabledLines: [],
+                movedPoints: [],
+                addedLines: [],
+                connectedEndpoints: [],
+                splitLines: [],
+                simplifiedLines: [],
+                mergedNodes: []
+            };
+            selectedBoundaryLine = null;
+            selectedBoundaryPoint = null;
+            boundaryEndpoints = [];
+            showBoundaryEndpoints = true;
+        }
+
+        /**
+         * Clone a layer's lines into the editable data model.
+         * If no layer is provided, uses the first visible layer,
+         * falling back to boundaryLineOverlay then the first layer.
+         * Returns true if cloning succeeded.
+         */
+        function cloneBoundaryLinesForEditing(layer) {
+            const source = layer
+                || boundaryLineLayers.find(l => l.visible)
+                || boundaryLineOverlay
+                || boundaryLineLayers[0]
+                || null;
+            if (!source || !Array.isArray(source.lines)) {
+                console.warn('[boundary-edit] cloneBoundaryLinesForEditing: no source lines available');
+                return false;
+            }
+            editableBoundaryLines = {
+                lines: deepCloneBoundaryLines(source.lines),
+                sourceLayerId: source.id || null,
+                sourceLabel: source.label || '(unknown)',
+                sourceUrl: source.url || null
+            };
+            // Reset edit log and selections when cloning fresh
+            boundaryEditLog = {
+                disabledLines: [],
+                movedPoints: [],
+                addedLines: [],
+                connectedEndpoints: [],
+                splitLines: [],
+                simplifiedLines: [],
+                mergedNodes: []
+            };
+            selectedBoundaryLine = null;
+            selectedBoundaryPoint = null;
+            recomputeBoundaryEndpoints();
+            return true;
+        }
+
+        /**
+         * Compute boundary endpoints from editableBoundaryLines.
+         * Skips lines listed in boundaryEditLog.disabledLines.
+         * Stores result in boundaryEndpoints.
+         */
+        function recomputeBoundaryEndpoints() {
+            boundaryEndpoints = [];
+            if (!editableBoundaryLines || !Array.isArray(editableBoundaryLines.lines)) return;
+
+            const disabled = new Set(boundaryEditLog.disabledLines);
+            editableBoundaryLines.lines.forEach((line, idx) => {
+                if (disabled.has(idx)) return;
+                if (!line || line.length < 1) return;
+                boundaryEndpoints.push({ lineIndex: idx, end: 'start', point: [line[0][0], line[0][1]] });
+                if (line.length >= 2) {
+                    const last = line[line.length - 1];
+                    boundaryEndpoints.push({ lineIndex: idx, end: 'end', point: [last[0], last[1]] });
+                }
+            });
+        }
+
+        /** Return summary stats for the current editable boundary state */
+        function getEditableBoundaryStats() {
+            if (!editableBoundaryLines) {
+                return { available: false };
+            }
+            const totalLines = editableBoundaryLines.lines.length;
+            const activeLines = totalLines - boundaryEditLog.disabledLines.length;
+            const totalPoints = editableBoundaryLines.lines.reduce((s, l) => s + (Array.isArray(l) ? l.length : 0), 0);
+            return {
+                available: true,
+                sourceLayerId: editableBoundaryLines.sourceLayerId,
+                sourceLabel: editableBoundaryLines.sourceLabel,
+                totalLines,
+                activeLines,
+                disabledLines: boundaryEditLog.disabledLines.length,
+                totalPoints,
+                endpointCount: boundaryEndpoints.length,
+                editLogEntries: boundaryEditLog.movedPoints.length + boundaryEditLog.addedLines.length + boundaryEditLog.connectedEndpoints.length + boundaryEditLog.splitLines.length + (boundaryEditLog.simplifiedLines ? boundaryEditLog.simplifiedLines.length : 0) + (boundaryEditLog.mergedNodes ? boundaryEditLog.mergedNodes.length : 0),
+                hasSelection: selectedBoundaryLine !== null || selectedBoundaryPoint !== null
+            };
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  Phase 2: Boundary Line Editor UI MVP
+        // ══════════════════════════════════════════════════════════════
+
+        // Drag state for boundary point editing
+        let boundaryDragActive = false;
+        let boundaryDragPoint = null; // { lineIndex, pointIndex, originalCoords:[x,y] }
+
+        // Connect-endpoints pending state
+        let connectEndpointPending = null; // { lineIndex, end, point:[x,y] } (first click)
+
+        /** Return true when the editable boundary layer differs from the raw detected overlay. */
+        function hasBoundaryLineEdits() {
+            return !!(editableBoundaryLines && boundaryEditLog && (
+                boundaryEditLog.disabledLines.length > 0 ||
+                boundaryEditLog.movedPoints.length > 0 ||
+                boundaryEditLog.addedLines.length > 0 ||
+                boundaryEditLog.connectedEndpoints.length > 0 ||
+                boundaryEditLog.splitLines.length > 0 ||
+                (boundaryEditLog.simplifiedLines && boundaryEditLog.simplifiedLines.length > 0) ||
+                (boundaryEditLog.mergedNodes && boundaryEditLog.mergedNodes.length > 0)
+            ));
+        }
+
+        /** Toggle boundary edit mode on/off */
+        function toggleBoundaryEditMode() {
+            if (!boundaryEditMode) {
+                // Enter boundary edit mode
+                if (!editableBoundaryLines || !editableBoundaryLines.lines || editableBoundaryLines.lines.length === 0) {
+                    // Try cloning from overlay
+                    const cloned = cloneBoundaryLinesForEditing();
+                    if (!cloned) {
+                        showToast('⚠️ 沒有可編輯的分界線資料，請先載入地圖和分界線', 'warn');
+                        return;
+                    }
+                }
+                boundaryEditMode = true;
+                selectedBoundaryLine = null;
+                selectedBoundaryPoint = null;
+                connectEndpointPending = null;
+                boundaryDragActive = false;
+                recomputeBoundaryEndpoints();
+
+                // Hide old layers to reduce clutter
+                layerVisibility.areas = false;
+                layerVisibility.areaLabels = false;
+                layerVisibility.virtualBoundary = false;
+                layerVisibility.currentDraft = false;
+                // Show boundary line overlay in editable form
+                showBoundaryLineOverlay = false; // hide raw overlay, we'll draw editable version
+                syncLayerControls();
+
+                const boundaryEditBtn = document.getElementById('btnBoundaryEdit');
+                if (boundaryEditBtn) {
+                    boundaryEditBtn.classList.add('active');
+                    boundaryEditBtn.textContent = '🧭 退出分界線編輯';
+                }
+                const boundaryEditPanel = document.getElementById('boundaryEditPanel');
+                if (boundaryEditPanel) boundaryEditPanel.classList.add('visible');
+
+                updateBoundaryEditPanelUI();
+                canvas.style.cursor = 'crosshair';
+
+                // Update mode indicator
+                const indicator = document.getElementById('modeIndicator');
+                if (indicator) {
+                    indicator.textContent = '模式：分界線編輯';
+                    indicator.className = 'mode-indicator mode-boundary-edit';
+                }
+
+                draw();
+                showToast('🧭 已進入分界線編輯模式');
+            } else {
+                // Exit boundary edit mode
+                boundaryEditMode = false;
+                selectedBoundaryLine = null;
+                selectedBoundaryPoint = null;
+                connectEndpointPending = null;
+                boundaryDragActive = false;
+
+                // Restore layer visibility. If the user made edits, keep showing the edited
+                // boundary network as the green divider preview instead of reverting visually
+                // to the raw detected overlay.
+                const hasEdits = hasBoundaryLineEdits();
+                layerVisibility.boundaryLines = true;
+                showBoundaryLineOverlay = !hasEdits;
+                syncLayerControls();
+
+                const boundaryEditBtn = document.getElementById('btnBoundaryEdit');
+                if (boundaryEditBtn) {
+                    boundaryEditBtn.classList.remove('active');
+                    boundaryEditBtn.textContent = '🧭 分界線編輯';
+                }
+                const boundaryEditPanel = document.getElementById('boundaryEditPanel');
+                if (boundaryEditPanel) boundaryEditPanel.classList.remove('visible');
+
+                updateBoundaryEditPanelUI();
+                canvas.style.cursor = 'grab';
+
+                // Restore mode indicator
+                const indicator = document.getElementById('modeIndicator');
+                if (indicator) {
+                    indicator.textContent = '模式：瀏覽';
+                    indicator.className = 'mode-indicator mode-view';
+                }
+
+                draw();
+                showToast(hasEdits ? '已退出分界線編輯模式，顯示編輯後分界線' : '已退出分界線編輯模式');
+            }
+        }
+
+        /** Update the boundary edit panel UI elements */
+        function updateBoundaryEditPanelUI() {
+            const statusEl = document.getElementById('boundaryEditStatus');
+            const selectionEl = document.getElementById('boundaryEditSelection');
+            const connectHintEl = document.getElementById('boundaryEditConnectHint');
+            const disableBtn = document.getElementById('btnDisableLine');
+
+            if (!statusEl) return;
+
+            if (!boundaryEditMode) {
+                statusEl.textContent = '未啟用';
+                selectionEl.textContent = '';
+                connectHintEl.style.display = 'none';
+                if (disableBtn) disableBtn.disabled = true;
+                return;
+            }
+
+            const stats = getEditableBoundaryStats();
+            if (!stats.available) {
+                statusEl.textContent = '❌ 無資料';
+                selectionEl.textContent = '';
+                connectHintEl.style.display = 'none';
+                return;
+            }
+
+            statusEl.textContent = `線段: ${stats.activeLines}/${stats.totalLines} | 停用: ${stats.disabledLines} | 端點: ${stats.endpointCount} | 編輯: ${stats.editLogEntries}`;
+
+            // Selection info
+            let selText = '';
+            if (selectedBoundaryPoint) {
+                const line = editableBoundaryLines.lines[selectedBoundaryPoint.lineIndex];
+                const pt = line ? line[selectedBoundaryPoint.pointIndex] : null;
+                selText = `選取端點: 線#${selectedBoundaryPoint.lineIndex} 點#${selectedBoundaryPoint.pointIndex}`;
+                if (pt) selText += ` (${Math.round(pt[0])}, ${Math.round(pt[1])})`;
+            } else if (selectedBoundaryLine !== null) {
+                const line = editableBoundaryLines.lines[selectedBoundaryLine];
+                selText = `選取線段: #${selectedBoundaryLine}`;
+                if (line) selText += ` (${line.length} 點)`;
+            }
+            selectionEl.textContent = selText;
+
+            // Disable button state
+            if (disableBtn) {
+                disableBtn.disabled = (selectedBoundaryLine === null);
+            }
+
+            // Connect hint
+            if (connectEndpointPending) {
+                connectHintEl.style.display = 'inline';
+                const pt = connectEndpointPending.point;
+                connectHintEl.textContent = `🔗 已選來源端點 (線#${connectEndpointPending.lineIndex} ${connectEndpointPending.end}) → 請點擊另一端點`;
+            } else {
+                connectHintEl.style.display = 'none';
+            }
+        }
+
+        /** Deselect boundary line/point selection */
+        function deselectBoundary() {
+            selectedBoundaryLine = null;
+            selectedBoundaryPoint = null;
+            connectEndpointPending = null;
+            boundaryDragActive = false;
+            updateBoundaryEditPanelUI();
+            draw();
+        }
+
+        /** Start connect-endpoints flow */
+        function startConnectEndpoints() {
+            if (!boundaryEditMode) return;
+
+            if (selectedBoundaryPoint) {
+                // Use the currently selected point as the source
+                const ep = boundaryEndpoints.find(ep =>
+                    ep.lineIndex === selectedBoundaryPoint.lineIndex &&
+                    ((ep.end === 'start' && selectedBoundaryPoint.pointIndex === 0) ||
+                     (ep.end === 'end' && selectedBoundaryPoint.pointIndex === editableBoundaryLines.lines[ep.lineIndex].length - 1))
+                );
+                if (ep) {
+                    connectEndpointPending = { lineIndex: ep.lineIndex, end: ep.end, point: [ep.point[0], ep.point[1]] };
+                    showToast('🔗 已選來源端點，請點擊目標端點');
+                } else {
+                    // Allow using any point as source
+                    const line = editableBoundaryLines.lines[selectedBoundaryPoint.lineIndex];
+                    const pt = line[selectedBoundaryPoint.pointIndex];
+                    connectEndpointPending = {
+                        lineIndex: selectedBoundaryPoint.lineIndex,
+                        end: selectedBoundaryPoint.pointIndex === 0 ? 'start' : (selectedBoundaryPoint.pointIndex === line.length - 1 ? 'end' : 'mid'),
+                        point: [pt[0], pt[1]]
+                    };
+                    showToast('🔗 已選端點，請點擊目標端點');
+                }
+            } else {
+                connectEndpointPending = null;
+                showToast('請先選取一個端點，再按「🔗 連接端點」', 'warn');
+            }
+            updateBoundaryEditPanelUI();
+        }
+
+        /** Disable the currently selected line */
+        function disableSelectedLine() {
+            if (!boundaryEditMode || selectedBoundaryLine === null) return;
+
+            const idx = selectedBoundaryLine;
+            if (boundaryEditLog.disabledLines.includes(idx)) {
+                showToast('此線段已被停用', 'warn');
+                return;
+            }
+
+            boundaryEditLog.disabledLines.push(idx);
+            selectedBoundaryLine = null;
+            selectedBoundaryPoint = null;
+            recomputeBoundaryEndpoints();
+            updateBoundaryEditPanelUI();
+            draw();
+            showToast(`🚫 已停用線段 #${idx}`);
+        }
+
+        function boundaryPointDistanceToSegment(pt, a, b) {
+            const x = pt[0], y = pt[1];
+            const x1 = a[0], y1 = a[1];
+            const x2 = b[0], y2 = b[1];
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            if (dx === 0 && dy === 0) return Math.hypot(x - x1, y - y1);
+            const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy)));
+            return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
+        }
+
+        function simplifyBoundaryPolyline(line, tolerancePx = 6) {
+            if (!Array.isArray(line) || line.length <= 2) return line ? line.map(p => [p[0], p[1]]) : [];
+
+            function rdp(points) {
+                if (points.length <= 2) return [points[0], points[points.length - 1]];
+                let maxDist = -1;
+                let index = -1;
+                const first = points[0];
+                const last = points[points.length - 1];
+                for (let i = 1; i < points.length - 1; i++) {
+                    const dist = boundaryPointDistanceToSegment(points[i], first, last);
+                    if (dist > maxDist) {
+                        maxDist = dist;
+                        index = i;
+                    }
+                }
+                if (maxDist > tolerancePx) {
+                    const left = rdp(points.slice(0, index + 1));
+                    const right = rdp(points.slice(index));
+                    return left.slice(0, -1).concat(right);
+                }
+                return [first, last];
+            }
+
+            return rdp(line).map(p => [p[0], p[1]]);
+        }
+
+        function simplifyBoundaryLineByIndex(lineIndex, tolerancePx = 6) {
+            if (!editableBoundaryLines || !Array.isArray(editableBoundaryLines.lines)) return null;
+            const line = editableBoundaryLines.lines[lineIndex];
+            if (!Array.isArray(line) || line.length <= 2) return null;
+            const before = line.length;
+            const simplified = simplifyBoundaryPolyline(line, tolerancePx);
+            if (!Array.isArray(simplified) || simplified.length < 2 || simplified.length >= before) return { before, after: before, changed: false };
+            editableBoundaryLines.lines[lineIndex] = simplified;
+            if (!boundaryEditLog.simplifiedLines) boundaryEditLog.simplifiedLines = [];
+            boundaryEditLog.simplifiedLines.push({ lineIndex, fromPoints: before, toPoints: simplified.length, tolerance: tolerancePx });
+            return { before, after: simplified.length, changed: true };
+        }
+
+        function simplifySelectedBoundaryLine() {
+            if (!boundaryEditMode) return;
+            if (selectedBoundaryLine === null) {
+                showToast('請先點選一條要簡化的線', 'warn');
+                return;
+            }
+            const result = simplifyBoundaryLineByIndex(selectedBoundaryLine, 6);
+            if (!result) {
+                showToast('這條線沒有可簡化的節點', 'warn');
+                return;
+            }
+            recomputeBoundaryEndpoints();
+            selectedBoundaryPoint = null;
+            updateBoundaryEditPanelUI();
+            draw();
+            showToast(result.changed ? `🧹 已簡化線#${selectedBoundaryLine}: ${result.before} → ${result.after} 點` : '這條線已經夠簡化');
+        }
+
+        function simplifyAllBoundaryLines() {
+            if (!boundaryEditMode || !editableBoundaryLines || !Array.isArray(editableBoundaryLines.lines)) return;
+            if (!confirm('要用 6px 容差簡化所有分界線嗎？端點會保留，但過密中間點會被移除。')) return;
+
+            const disabled = new Set(boundaryEditLog.disabledLines);
+            let changedLines = 0;
+            let beforePoints = 0;
+            let afterPoints = 0;
+            editableBoundaryLines.lines.forEach((line, idx) => {
+                if (disabled.has(idx) || !Array.isArray(line)) return;
+                beforePoints += line.length;
+                const result = simplifyBoundaryLineByIndex(idx, 6);
+                if (result && result.changed) changedLines++;
+                const newLine = editableBoundaryLines.lines[idx];
+                afterPoints += Array.isArray(newLine) ? newLine.length : 0;
+            });
+
+            recomputeBoundaryEndpoints();
+            selectedBoundaryPoint = null;
+            updateBoundaryEditPanelUI();
+            draw();
+            showToast(`🧹 已簡化 ${changedLines} 條線：${beforePoints} → ${afterPoints} 點`);
+        }
+
+        function mergeNearbyBoundaryNodes(radiusPx = 8) {
+            if (!boundaryEditMode || !editableBoundaryLines || !Array.isArray(editableBoundaryLines.lines)) return;
+            if (!confirm(`要把 ${radiusPx}px 內的跨線段鄰近節點吸附/合併到同一位置嗎？適合處理路口附近多條線節點擠在一起的情況。`)) return;
+
+            const disabled = new Set(boundaryEditLog.disabledLines);
+            const refs = [];
+            editableBoundaryLines.lines.forEach((line, lineIndex) => {
+                if (disabled.has(lineIndex) || !Array.isArray(line)) return;
+                line.forEach((pt, pointIndex) => {
+                    if (Array.isArray(pt) && pt.length >= 2) refs.push({ lineIndex, pointIndex, x: pt[0], y: pt[1] });
+                });
+            });
+
+            if (refs.length < 2) {
+                showToast('沒有足夠節點可合併', 'warn');
+                return;
+            }
+
+            const parent = refs.map((_, i) => i);
+            function find(i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+            function unite(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[rb] = ra; }
+
+            const cellSize = radiusPx;
+            const grid = new Map();
+            const keyFor = (x, y) => `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)}`;
+            refs.forEach((ref, i) => {
+                const cx = Math.floor(ref.x / cellSize);
+                const cy = Math.floor(ref.y / cellSize);
+                for (let gx = cx - 1; gx <= cx + 1; gx++) {
+                    for (let gy = cy - 1; gy <= cy + 1; gy++) {
+                        const bucket = grid.get(`${gx},${gy}`);
+                        if (!bucket) continue;
+                        bucket.forEach(j => {
+                            const other = refs[j];
+                            if (Math.hypot(ref.x - other.x, ref.y - other.y) <= radiusPx) unite(i, j);
+                        });
+                    }
+                }
+                const key = keyFor(ref.x, ref.y);
+                if (!grid.has(key)) grid.set(key, []);
+                grid.get(key).push(i);
+            });
+
+            const clusters = new Map();
+            refs.forEach((ref, i) => {
+                const root = find(i);
+                if (!clusters.has(root)) clusters.set(root, []);
+                clusters.get(root).push(ref);
+            });
+
+            let movedPoints = 0;
+            let clusterCount = 0;
+            clusters.forEach(cluster => {
+                if (cluster.length < 2) return;
+                const cx = cluster.reduce((s, p) => s + p.x, 0) / cluster.length;
+                const cy = cluster.reduce((s, p) => s + p.y, 0) / cluster.length;
+                clusterCount++;
+                cluster.forEach(ref => {
+                    const pt = editableBoundaryLines.lines[ref.lineIndex][ref.pointIndex];
+                    if (Math.hypot(pt[0] - cx, pt[1] - cy) > 0.25) movedPoints++;
+                    pt[0] = cx;
+                    pt[1] = cy;
+                });
+            });
+
+            // Remove consecutive duplicate/near-duplicate points created by snapping.
+            let removedDuplicates = 0;
+            editableBoundaryLines.lines.forEach((line, lineIndex) => {
+                if (disabled.has(lineIndex) || !Array.isArray(line) || line.length <= 2) return;
+                const cleaned = [];
+                line.forEach(pt => {
+                    const prev = cleaned[cleaned.length - 1];
+                    if (prev && Math.hypot(prev[0] - pt[0], prev[1] - pt[1]) < 0.5) {
+                        removedDuplicates++;
+                    } else {
+                        cleaned.push(pt);
+                    }
+                });
+                if (cleaned.length >= 2 && cleaned.length !== line.length) editableBoundaryLines.lines[lineIndex] = cleaned;
+            });
+
+            if (!boundaryEditLog.mergedNodes) boundaryEditLog.mergedNodes = [];
+            boundaryEditLog.mergedNodes.push({ radius: radiusPx, clusterCount, movedPoints, removedDuplicates });
+            recomputeBoundaryEndpoints();
+            selectedBoundaryPoint = null;
+            updateBoundaryEditPanelUI();
+            draw();
+            showToast(`🧲 已合併 ${clusterCount} 組鄰近節點，移動 ${movedPoints} 點，移除 ${removedDuplicates} 個重複點`);
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  Phase 3: Export / Import Edited Boundary Line JSON
+        // ══════════════════════════════════════════════════════════════
+
+        /**
+         * Build the export data object for the current edited boundary lines.
+         * Excludes disabled lines. Returns a compact JSON-friendly object.
+         */
+        function buildEditedBoundaryExportData() {
+            if (!editableBoundaryLines || !Array.isArray(editableBoundaryLines.lines)) {
+                return null;
+            }
+            const disabledSet = new Set(boundaryEditLog.disabledLines);
+            // Filter out disabled lines; keep active lines
+            const activeLines = editableBoundaryLines.lines.filter((line, idx) => !disabledSet.has(idx));
+            const lineCount = activeLines.length;
+            const pointCount = activeLines.reduce((sum, line) => sum + (Array.isArray(line) ? line.length : 0), 0);
+
+            const exportData = {
+                version: 1,
+                mapId: currentMapId || '',
+                source: editableBoundaryLines.sourceUrl || editableBoundaryLines.sourceLayerId || editableBoundaryLines.sourceLabel || '(unknown)',
+                imageSize: currentImage ? [currentImage.naturalWidth || currentImage.width, currentImage.naturalHeight || currentImage.height] : [0, 0],
+                units: 'px',
+                encoding: 'polyline-xy-array',
+                lineCount: lineCount,
+                pointCount: pointCount,
+                editLog: {
+                    movedPoints: boundaryEditLog.movedPoints.slice(),
+                    addedLines: boundaryEditLog.addedLines.map(l => deepCloneBoundaryLines([l])[0]),
+                    connectedEndpoints: boundaryEditLog.connectedEndpoints.slice(),
+                    splitLines: boundaryEditLog.splitLines.slice()
+                },
+                lines: activeLines
+            };
+            return exportData;
+        }
+
+        /**
+         * Export the current edited boundary lines as a downloadable JSON file.
+         */
+        function exportEditedBoundaryJSON() {
+            if (!editableBoundaryLines || !editableBoundaryLines.lines || editableBoundaryLines.lines.length === 0) {
+                showToast('⚠️ 沒有可匯出的編輯線資料', 'warn');
+                return;
+            }
+            const data = buildEditedBoundaryExportData();
+            if (!data) {
+                showToast('❌ 建立匯出資料失敗', 'error');
+                return;
+            }
+
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentMapId || 'unknown'}-boundary-lines-edited-v1.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast(`📤 已匯出 ${data.lineCount} 條線段 (${data.pointCount} 點)`);
+            const exportedName = a.download;
+            const polygonizeCommand = `. .venv-boundaries/bin/activate && python3 scripts/polygonize-boundary-lines.py --input-lines public/maps/generated/${exportedName} --map-id ${currentMapId || 'nanzih'} --reference-areas public/maps/${currentMapId || 'nanzih'}-areas-cv2.json --output-dir public/maps/generated --version-suffix edited-v1`;
+            console.info('[boundary-edit] 將匯出的 JSON 放到 public/maps/generated/ 後，可執行：\n' + polygonizeCommand);
+        }
+
+        /**
+         * One-click: POST the current edited boundary lines to the local dev server,
+         * which runs polygonize-boundary-lines.py and returns the preview.
+         * On success, auto-loads the resulting preview into polygonizePreviewAreas.
+         * Falls back gracefully if the dev server is not running (static-only server).
+         */
+        async function polygonizeEditedBoundaryViaServer() {
+            if (!editableBoundaryLines || !editableBoundaryLines.lines || editableBoundaryLines.lines.length === 0) {
+                showToast('⚠️ 沒有可處理的編輯線資料', 'warn');
+                return;
+            }
+            const data = buildEditedBoundaryExportData();
+            if (!data) {
+                showToast('❌ 建立匯出資料失敗', 'error');
+                return;
+            }
+
+            // Attach extra fields the server needs
+            data.mapId = currentMapId || 'nanzih';
+            data.versionSuffix = 'edited-dev';
+
+            const btn = document.getElementById('btnPolygonizeEdited');
+            const origText = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ 處理中...'; }
+
+            try {
+                const resp = await fetch('/api/boundary-lines/polygonize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+
+                if (!resp.ok) {
+                    const errBody = await resp.json().catch(() => ({}));
+                    throw new Error(errBody.error || `HTTP ${resp.status}`);
+                }
+
+                const result = await resp.json();
+                console.log('[boundary-edit] polygonize result:', result);
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Server returned success=false');
+                }
+
+                showToast(`✅ 已儲存線段 & 產生預覽 (${result.summary?.areasOutput || '?'} 區)`);
+
+                // Auto-load the preview areas JSON
+                if (result.areasPreviewUrl) {
+                    try {
+                        const previewResp = await fetch(result.areasPreviewUrl, { cache: 'no-cache' });
+                        if (previewResp.ok) {
+                            const previewData = await previewResp.json();
+                            if (previewData.areas && Array.isArray(previewData.areas)) {
+                                polygonizePreviewAreas = previewData.areas.map(area => ({
+                                    id: area.id,
+                                    center: { x: area.center[1], y: area.center[0] },
+                                    polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
+                                }));
+                                polygonizePreviewMeta = {
+                                    mapName: previewData.mapName,
+                                    totalAreas: previewData.totalAreas || polygonizePreviewAreas.length,
+                                    expectedCount: previewData.expectedCount || '-',
+                                    source: previewData.source,
+                                    generator: previewData.generator
+                                };
+                                polygonizePreviewVisible = true;
+                                layerVisibility.polygonizePreview = true;
+
+                                // Update UI controls
+                                const toggleEl = document.getElementById('togglePolygonizePreview');
+                                if (toggleEl) toggleEl.checked = true;
+                                const clearBtn = document.getElementById('btnClearPolygonize');
+                                if (clearBtn) clearBtn.disabled = false;
+                                const applyBtn = document.getElementById('btnApplyPolygonize');
+                                if (applyBtn) applyBtn.disabled = false;
+                                const statusEl = document.getElementById('polygonizeStatus');
+                                if (statusEl) {
+                                    statusEl.textContent = `✅ ${polygonizePreviewMeta.totalAreas} 區 / 預期 ${polygonizePreviewMeta.expectedCount}（edited-dev）`;
+                                }
+
+                                // Try to add/update the edited-dev option in polygonize select
+                                const select = document.getElementById('polygonizeSelect');
+                                if (select) {
+                                    let found = false;
+                                    for (const opt of select.options) {
+                                        if (opt.value === 'edited-dev') { found = true; opt.selected = true; break; }
+                                    }
+                                    if (!found) {
+                                        const opt = document.createElement('option');
+                                        opt.value = 'edited-dev';
+                                        opt.textContent = 'edited-dev（一鍵產生）';
+                                        opt.selected = true;
+                                        select.appendChild(opt);
+                                    }
+                                }
+
+                                draw();
+                                showToast(`✅ 預覽已自動載入：${polygonizePreviewAreas.length} 個區域`);
+                            }
+                        }
+                    } catch (previewErr) {
+                        console.warn('[boundary-edit] auto-load preview failed:', previewErr);
+                        showToast('⚠️ 預覽檔已產生但自動載入失敗，請手動按「載入預覽」', 'warn');
+                    }
+                }
+
+                // Also log summary
+                if (result.summary) {
+                    console.info('[boundary-edit] polygonize summary:', result.summary);
+                }
+
+            } catch (err) {
+                console.error('[boundary-edit] polygonize via server failed:', err);
+                if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Network request'))) {
+                    showToast('❌ 無法連接 dev server。請使用「python3 scripts/boundary-editor-dev-server.py」啟動後重試，或手動「匯出→執行腳本→匯入」', 'error');
+                } else {
+                    showToast('❌ 產生預覽失敗：' + err.message, 'error');
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = origText; }
+            }
+        }
+
+        /**
+         * Import edited boundary lines from a local JSON file.
+         * Validates encoding/lines/imageSize minimally, then replaces
+         * editableBoundaryLines only (not original boundaryLineLayers).
+         * Recomputes endpoints, resets selections, updates panel & redraws.
+         */
+        function importEditedBoundaryJSON(event) {
+            const fileInput = event.target;
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+
+                    // ── Validation ──
+                    if (!data || typeof data !== 'object') {
+                        throw new Error('無效的 JSON 物件');
+                    }
+                    if (data.encoding !== 'polyline-xy-array') {
+                        throw new Error(`不支援的編碼格式: ${data.encoding}（需要 polyline-xy-array）`);
+                    }
+                    if (!Array.isArray(data.lines)) {
+                        throw new Error('缺少 lines 陣列');
+                    }
+                    // Validate each line is an array of [x,y] pairs
+                    for (let i = 0; i < data.lines.length; i++) {
+                        const line = data.lines[i];
+                        if (!Array.isArray(line)) {
+                            throw new Error(`lines[${i}] 不是陣列`);
+                        }
+                        for (let j = 0; j < line.length; j++) {
+                            const pt = line[j];
+                            if (!Array.isArray(pt) || pt.length < 2 || typeof pt[0] !== 'number' || typeof pt[1] !== 'number') {
+                                throw new Error(`lines[${i}][${j}] 不是有效的 [x,y] 座標`);
+                            }
+                        }
+                    }
+
+                    // Warn if imageSize mismatch
+                    if (data.imageSize && currentImage) {
+                        const w = currentImage.naturalWidth || currentImage.width;
+                        const h = currentImage.naturalHeight || currentImage.height;
+                        if (data.imageSize[0] !== w || data.imageSize[1] !== h) {
+                            console.warn(`[import] imageSize 不匹配: 匯入=${data.imageSize}, 當前=[${w},${h}]`);
+                            showToast(`⚠️ 影像尺寸不匹配（匯入: ${data.imageSize.join('x')}, 當前: ${w}x${h}），座標可能有偏移`, 'warn');
+                        }
+                    }
+
+                    // ── Apply ──
+                    editableBoundaryLines = {
+                        lines: deepCloneBoundaryLines(data.lines),
+                        sourceLayerId: data.mapId || null,
+                        sourceLabel: `imported-${file.name}`,
+                        sourceUrl: null
+                    };
+
+                    // Load editLog if present, otherwise reset
+                    if (data.editLog && typeof data.editLog === 'object') {
+                        boundaryEditLog = {
+                            disabledLines: [],
+                            movedPoints: Array.isArray(data.editLog.movedPoints) ? data.editLog.movedPoints.slice() : [],
+                            addedLines: Array.isArray(data.editLog.addedLines) ? data.editLog.addedLines.map(l => deepCloneBoundaryLines([l])[0]) : [],
+                            connectedEndpoints: Array.isArray(data.editLog.connectedEndpoints) ? data.editLog.connectedEndpoints.slice() : [],
+                            splitLines: Array.isArray(data.editLog.splitLines) ? data.editLog.splitLines.slice() : [],
+                            simplifiedLines: Array.isArray(data.editLog.simplifiedLines) ? data.editLog.simplifiedLines.slice() : [],
+                            mergedNodes: Array.isArray(data.editLog.mergedNodes) ? data.editLog.mergedNodes.slice() : []
+                        };
+                    } else {
+                        boundaryEditLog = {
+                            disabledLines: [],
+                            movedPoints: [],
+                            addedLines: [],
+                            connectedEndpoints: [],
+                            splitLines: [],
+                            simplifiedLines: [],
+                            mergedNodes: []
+                        };
+                    }
+
+                    // Reset selections
+                    selectedBoundaryLine = null;
+                    selectedBoundaryPoint = null;
+                    connectEndpointPending = null;
+                    boundaryDragActive = false;
+
+                    // Recompute and redraw
+                    recomputeBoundaryEndpoints();
+                    updateBoundaryEditPanelUI();
+                    draw();
+
+                    const lineCount = editableBoundaryLines.lines.length;
+                    const pointCount = editableBoundaryLines.lines.reduce((s, l) => s + l.length, 0);
+                    showToast(`📂 已匯入 ${lineCount} 條線段 (${pointCount} 點) 來源: ${file.name}`);
+
+                } catch (err) {
+                    console.error('[importEditedBoundaryJSON]', err);
+                    showToast('❌ 匯入失敗: ' + err.message, 'error');
+                }
+            };
+            reader.onerror = function() {
+                showToast('❌ 檔案讀取失敗', 'error');
+            };
+            reader.readAsText(file);
+
+            // Reset input so the same file can be re-imported
+            fileInput.value = '';
+        }
+
+        /** Draw editable boundary lines (Phase 2) — called inside draw() */
+        function drawEditableBoundaryLines() {
+            if ((!boundaryEditMode && !hasBoundaryLineEdits()) || !editableBoundaryLines || !Array.isArray(editableBoundaryLines.lines)) return;
+
+            const disabled = new Set(boundaryEditLog.disabledLines);
+            const previewEditedResult = !boundaryEditMode;
+
+            editableBoundaryLines.lines.forEach((line, idx) => {
+                if (!line || line.length < 2) return;
+
+                const isDisabled = disabled.has(idx);
+                if (previewEditedResult && isDisabled) return;
+                const isSelected = boundaryEditMode && (selectedBoundaryLine === idx);
+
+                ctx.save();
+
+                if (isDisabled) {
+                    // Disabled lines: gray, thin, dashed
+                    ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+                    ctx.lineWidth = 0.8 / zoom;
+                    ctx.setLineDash([4 / zoom, 4 / zoom]);
+                } else if (isSelected) {
+                    // Selected line: yellow, thicker
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 3.5 / zoom;
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.shadowBlur = 6 / zoom;
+                    ctx.setLineDash([]);
+                } else {
+                    // Normal editable line: cyan in edit mode, green in post-edit preview
+                    ctx.strokeStyle = previewEditedResult ? '#00ff88' : '#22d3ee';
+                    ctx.lineWidth = previewEditedResult ? 1.5 / zoom : 1.8 / zoom;
+                    ctx.setLineDash([]);
+                }
+
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+
+                ctx.beginPath();
+                ctx.moveTo(line[0][0], line[0][1]);
+                for (let i = 1; i < line.length; i++) {
+                    ctx.lineTo(line[i][0], line[i][1]);
+                }
+                ctx.stroke();
+
+                ctx.restore();
+            });
+
+            // Draw endpoints only while actively editing. After exit, the edited linework
+            // remains visible as green dividers without edit handles.
+            if (boundaryEditMode && showBoundaryEndpoints) {
+                boundaryEndpoints.forEach(ep => {
+                    if (disabled.has(ep.lineIndex)) return;
+
+                    const isPointSelected = selectedBoundaryPoint &&
+                        selectedBoundaryPoint.lineIndex === ep.lineIndex &&
+                        ((ep.end === 'start' && selectedBoundaryPoint.pointIndex === 0) ||
+                         (ep.end === 'end' && selectedBoundaryPoint.pointIndex === editableBoundaryLines.lines[ep.lineIndex].length - 1));
+
+                    const isConnectSource = connectEndpointPending &&
+                        connectEndpointPending.lineIndex === ep.lineIndex &&
+                        connectEndpointPending.end === ep.end;
+
+                    ctx.save();
+                    ctx.beginPath();
+
+                    const radius = (isPointSelected || isConnectSource) ? 6 / zoom : 4 / zoom;
+
+                    if (isPointSelected) {
+                        // Selected point: white/yellow
+                        ctx.fillStyle = '#ffffff';
+                        ctx.strokeStyle = '#fbbf24';
+                        ctx.lineWidth = 2.5 / zoom;
+                    } else if (isConnectSource) {
+                        // Connect source: pulsing blue
+                        ctx.fillStyle = '#3b82f6';
+                        ctx.strokeStyle = '#93c5fd';
+                        ctx.lineWidth = 2.5 / zoom;
+                    } else {
+                        // Normal endpoint: red
+                        ctx.fillStyle = '#ef4444';
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 1.5 / zoom;
+                    }
+
+                    ctx.arc(ep.point[0], ep.point[1], radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.restore();
+                });
+            }
+
+            // Draw editable control points on the selected line.
+            // Red dots above are only dangling polyline endpoints; a boundary line can also
+            // contain many intermediate bend/control points. Showing all of them globally is
+            // noisy, so expose them once a line is selected.
+            if (boundaryEditMode && selectedBoundaryLine !== null && !disabled.has(selectedBoundaryLine)) {
+                const selectedLine = editableBoundaryLines.lines[selectedBoundaryLine];
+                if (Array.isArray(selectedLine) && selectedLine.length > 2) {
+                    selectedLine.forEach((pt, pointIndex) => {
+                        // Endpoints are already drawn as red/selected endpoint handles.
+                        if (pointIndex === 0 || pointIndex === selectedLine.length - 1) return;
+
+                        const isPointSelected = selectedBoundaryPoint &&
+                            selectedBoundaryPoint.lineIndex === selectedBoundaryLine &&
+                            selectedBoundaryPoint.pointIndex === pointIndex;
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(pt[0], pt[1], (isPointSelected ? 5 : 3) / zoom, 0, Math.PI * 2);
+                        ctx.fillStyle = isPointSelected ? '#ffffff' : '#f97316';
+                        ctx.strokeStyle = isPointSelected ? '#fbbf24' : '#fff7ed';
+                        ctx.lineWidth = (isPointSelected ? 2.5 : 1.2) / zoom;
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.restore();
+                    });
+                }
+            }
+        }
+
+        /** Find nearest boundary endpoint to (imgX, imgY). Returns { lineIndex, end, point, dist } or null */
+        function findNearestBoundaryEndpoint(imgX, imgY) {
+            if (!boundaryEditMode || boundaryEndpoints.length === 0) return null;
+
+            const tolerance = 8 / zoom;
+            let best = null;
+
+            const disabled = new Set(boundaryEditLog.disabledLines);
+
+            boundaryEndpoints.forEach(ep => {
+                if (disabled.has(ep.lineIndex)) return;
+                const dx = ep.point[0] - imgX;
+                const dy = ep.point[1] - imgY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < tolerance && (!best || dist < best.dist)) {
+                    best = { lineIndex: ep.lineIndex, end: ep.end, point: ep.point, dist };
+                }
+            });
+
+            return best;
+        }
+
+        /** Find nearest boundary control point to (imgX, imgY), including intermediate bend points. */
+        function findNearestBoundaryPoint(imgX, imgY) {
+            if (!boundaryEditMode || !editableBoundaryLines || !Array.isArray(editableBoundaryLines.lines)) return null;
+
+            const tolerance = 7 / zoom;
+            let best = null;
+            const disabled = new Set(boundaryEditLog.disabledLines);
+
+            editableBoundaryLines.lines.forEach((line, lineIndex) => {
+                if (disabled.has(lineIndex) || !Array.isArray(line)) return;
+                line.forEach((pt, pointIndex) => {
+                    if (!Array.isArray(pt) || pt.length < 2) return;
+                    const dx = pt[0] - imgX;
+                    const dy = pt[1] - imgY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < tolerance && (!best || dist < best.dist)) {
+                        best = { lineIndex, pointIndex, point: pt, dist };
+                    }
+                });
+            });
+
+            return best;
+        }
+
+        /** Find nearest boundary line segment to (imgX, imgY). Returns { lineIndex, dist } or null */
+        function findNearestBoundaryLine(imgX, imgY) {
+            if (!boundaryEditMode || !editableBoundaryLines) return null;
+
+            const tolerance = 8 / zoom;
+            let best = null;
+
+            const disabled = new Set(boundaryEditLog.disabledLines);
+
+            editableBoundaryLines.lines.forEach((line, idx) => {
+                if (disabled.has(idx) || !line || line.length < 2) return;
+
+                for (let i = 0; i < line.length - 1; i++) {
+                    const dist = pointToLineDistance(imgX, imgY, line[i][0], line[i][1], line[i + 1][0], line[i + 1][1]);
+                    if (dist < tolerance && (!best || dist < best.dist)) {
+                        best = { lineIndex: idx, dist };
+                    }
+                }
+            });
+
+            return best;
+        }
+
+        /** Handle mousedown in boundary edit mode. Returns true if handled. */
+        function handleBoundaryEditMouseDown(imgX, imgY) {
+            if (!boundaryEditMode) return false;
+
+            // 1. Check if clicking an endpoint
+            const nearEp = findNearestBoundaryEndpoint(imgX, imgY);
+
+            if (connectEndpointPending && nearEp) {
+                // Connect endpoints flow: second click
+                const src = connectEndpointPending;
+                const tgt = nearEp;
+
+                // Don't connect to same endpoint
+                if (src.lineIndex === tgt.lineIndex && src.end === tgt.end) {
+                    showToast('⚠️ 不能連接到同一端點', 'warn');
+                    return true;
+                }
+
+                // Create new line connecting the two endpoints
+                const newLine = [[src.point[0], src.point[1]], [tgt.point[0], tgt.point[1]]];
+                editableBoundaryLines.lines.push(newLine);
+
+                const newLineIdx = editableBoundaryLines.lines.length - 1;
+                boundaryEditLog.addedLines.push(newLineIdx);
+                boundaryEditLog.connectedEndpoints.push({
+                    from: { lineIdx: src.lineIndex, end: src.end },
+                    to: { lineIdx: tgt.lineIndex, end: tgt.end },
+                    newLineIndex: newLineIdx
+                });
+
+                connectEndpointPending = null;
+                recomputeBoundaryEndpoints();
+                updateBoundaryEditPanelUI();
+                draw();
+                showToast(`✅ 已連接端點，新增線段 #${newLineIdx}`);
+                return true;
+            }
+
+            if (nearEp) {
+                // Select endpoint and start drag
+                const lineIdx = nearEp.lineIndex;
+                const ptIdx = nearEp.end === 'start' ? 0 : editableBoundaryLines.lines[lineIdx].length - 1;
+
+                selectedBoundaryPoint = { lineIndex: lineIdx, pointIndex: ptIdx };
+                selectedBoundaryLine = lineIdx;
+
+                // Start drag
+                boundaryDragActive = true;
+                boundaryDragPoint = {
+                    lineIndex: lineIdx,
+                    pointIndex: ptIdx,
+                    originalCoords: [nearEp.point[0], nearEp.point[1]]
+                };
+
+                updateBoundaryEditPanelUI();
+                draw();
+                return true;
+            }
+
+            // 2. Check if clicking an intermediate control point / bend node.
+            // This lets users adjust visible bend nodes, not only red endpoints.
+            const nearPoint = findNearestBoundaryPoint(imgX, imgY);
+            if (nearPoint) {
+                selectedBoundaryPoint = { lineIndex: nearPoint.lineIndex, pointIndex: nearPoint.pointIndex };
+                selectedBoundaryLine = nearPoint.lineIndex;
+                connectEndpointPending = null;
+
+                boundaryDragActive = true;
+                boundaryDragPoint = {
+                    lineIndex: nearPoint.lineIndex,
+                    pointIndex: nearPoint.pointIndex,
+                    originalCoords: [nearPoint.point[0], nearPoint.point[1]]
+                };
+
+                updateBoundaryEditPanelUI();
+                draw();
+                return true;
+            }
+
+            // 3. Check if clicking near a line segment
+            const nearLine = findNearestBoundaryLine(imgX, imgY);
+            if (nearLine) {
+                selectedBoundaryLine = nearLine.lineIndex;
+                selectedBoundaryPoint = null;
+                connectEndpointPending = null;
+                updateBoundaryEditPanelUI();
+                draw();
+                return true;
+            }
+
+            // 4. Click on empty space — deselect
+            selectedBoundaryLine = null;
+            selectedBoundaryPoint = null;
+            connectEndpointPending = null;
+            updateBoundaryEditPanelUI();
+            draw();
+            return true; // consume the event in boundary edit mode
+        }
+
+        /** Handle mousemove in boundary edit mode. Returns true if handled. */
+        function handleBoundaryEditMouseMove(imgX, imgY) {
+            if (!boundaryEditMode) return false;
+
+            if (boundaryDragActive && boundaryDragPoint) {
+                const { lineIndex, pointIndex } = boundaryDragPoint;
+                const line = editableBoundaryLines.lines[lineIndex];
+                if (!line || !line[pointIndex]) return true;
+
+                // Update coordinate
+                line[pointIndex][0] = imgX;
+                line[pointIndex][1] = imgY;
+
+                recomputeBoundaryEndpoints();
+                updateBoundaryEditPanelUI();
+                draw();
+                return true;
+            }
+
+            return false;
+        }
+
+        /** Handle mouseup in boundary edit mode. */
+        function handleBoundaryEditMouseUp() {
+            if (!boundaryEditMode) return false;
+
+            if (boundaryDragActive && boundaryDragPoint) {
+                const { lineIndex, pointIndex, originalCoords } = boundaryDragPoint;
+                const line = editableBoundaryLines.lines[lineIndex];
+                const newCoords = line[pointIndex];
+
+                // Record in edit log if actually moved
+                const dx = newCoords[0] - originalCoords[0];
+                const dy = newCoords[1] - originalCoords[1];
+                if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+                    boundaryEditLog.movedPoints.push({
+                        lineIndex,
+                        pointIndex,
+                        from: [originalCoords[0], originalCoords[1]],
+                        to: [newCoords[0], newCoords[1]]
+                    });
+                }
+
+                boundaryDragActive = false;
+                boundaryDragPoint = null;
+                updateBoundaryEditPanelUI();
+                return true;
+            }
+
+            return false;
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  End Phase 2 functions
+        // ══════════════════════════════════════════════════════════════
+
+        function updateBoundaryLineOverlayStats() {
+            const segmentsEl = document.getElementById('totalSegments');
+            const pointsEl = document.getElementById('totalBoundaryPoints');
+            if (!segmentsEl || !pointsEl) return;
+
+            const visibleLayers = boundaryLineLayers.filter(layer => layer.visible);
+            if (visibleLayers.length) {
+                segmentsEl.textContent = visibleLayers.reduce((sum, layer) => sum + layer.lineCount, 0);
+                pointsEl.textContent = visibleLayers.reduce((sum, layer) => sum + layer.pointCount, 0);
+            } else if (boundaryLineLayers.length) {
+                segmentsEl.textContent = '0';
+                pointsEl.textContent = '0';
+            } else {
+                segmentsEl.textContent = '-';
+                pointsEl.textContent = '-';
+            }
+        }
+
+        function drawBoundaryLineOverlay() {
+            if (!showBoundaryLineOverlay || !boundaryLineLayers.length) return;
+
+            boundaryLineLayers.forEach(layer => {
+                if (!layer.visible || !Array.isArray(layer.lines)) return;
+
+                ctx.save();
+                ctx.strokeStyle = layer.color || '#00ff88';
+                ctx.lineWidth = layer.id.includes('v2') ? 1 / zoom : 1.5 / zoom;
+                ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
+                ctx.globalAlpha = layer.id.includes('v2') ? 0.55 : 0.95;
+                ctx.setLineDash(layer.id.includes('v2') ? [6 / zoom, 4 / zoom] : []);
+
+                layer.lines.forEach(line => {
+                    if (!line || line.length < 2) return;
+                    ctx.beginPath();
+                    ctx.moveTo(line[0][0], line[0][1]);
+                    for (let i = 1; i < line.length; i++) {
+                        ctx.lineTo(line[i][0], line[i][1]);
+                    }
+                    ctx.stroke();
+                });
+
+                ctx.restore();
+            });
+        }
+
         // 坐标转换
         function screenToImage(x, y) {
             const rect = canvas.getBoundingClientRect();
@@ -1268,41 +2845,52 @@
             // 绘制地图
             ctx.drawImage(currentImage, 0, 0);
 
-            // 绘制所有区域
+            // 繪製 v3 compact 分界線 overlay（純線段資料，非 PNG）
+            drawBoundaryLineOverlay();
+
+            // Phase 2: 繪製可編輯分界線（在 boundaryEditMode 中取代原始 overlay）
+            drawEditableBoundaryLines();
+
+            // 绘制所有区域（可由圖層控制隱藏，避免遮住分界線預覽）
+            if (layerVisibility.areas || layerVisibility.areaLabels || currentMode === 'edit') {
             areas.forEach((area, index) => {
                 const isSelected = index === selectedAreaIndex;
 
                 // 绘制多边形
-                ctx.beginPath();
-                ctx.strokeStyle = isSelected ? '#f59e0b' : '#10b981';
-                ctx.fillStyle = isSelected ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.2)';
-                ctx.lineWidth = isSelected ? 3 / zoom : 2 / zoom;
+                if (layerVisibility.areas || currentMode === 'edit') {
+                    ctx.beginPath();
+                    ctx.strokeStyle = isSelected ? '#f59e0b' : '#10b981';
+                    ctx.fillStyle = isSelected ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.2)';
+                    ctx.lineWidth = isSelected ? 3 / zoom : 2 / zoom;
 
-                if (area.polygon.length > 2) {
-                    ctx.moveTo(area.polygon[0].x, area.polygon[0].y);
-                    area.polygon.forEach(p => ctx.lineTo(p.x, p.y));
-                    ctx.closePath();
-                    ctx.fill();
+                    if (area.polygon.length > 2) {
+                        ctx.moveTo(area.polygon[0].x, area.polygon[0].y);
+                        area.polygon.forEach(p => ctx.lineTo(p.x, p.y));
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    ctx.stroke();
                 }
-                ctx.stroke();
 
                 // 绘制编号
-                const center = area.center;
-                ctx.fillStyle = isSelected ? '#f59e0b' : '#3b82f6';
-                ctx.font = `bold ${24 / zoom}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
+                if (layerVisibility.areaLabels || currentMode === 'edit') {
+                    const center = area.center;
+                    ctx.fillStyle = isSelected ? '#f59e0b' : '#3b82f6';
+                    ctx.font = `bold ${24 / zoom}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
 
-                // 背景（根據文字長度調整寬度）
-                const text = String(area.id);
-                const textWidth = ctx.measureText(text).width;
-                const bgWidth = Math.max(30, textWidth + 10) / zoom;
-                const bgHeight = 24 / zoom;
-                ctx.fillRect(center.x - bgWidth/2, center.y - bgHeight/2, bgWidth, bgHeight);
+                    // 背景（根據文字長度調整寬度）
+                    const text = String(area.id);
+                    const textWidth = ctx.measureText(text).width;
+                    const bgWidth = Math.max(30, textWidth + 10) / zoom;
+                    const bgHeight = 24 / zoom;
+                    ctx.fillRect(center.x - bgWidth/2, center.y - bgHeight/2, bgWidth, bgHeight);
 
-                // 文字
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText(text, center.x, center.y);
+                    // 文字
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(text, center.x, center.y);
+                }
 
                 // 编辑模式下绘制顶点
                 if (currentMode === 'edit' && isSelected) {
@@ -1317,9 +2905,10 @@
                     });
                 }
             });
+            }
 
             // 绘制正在画的多边形
-            if (currentPolygon.length > 0) {
+            if (layerVisibility.currentDraft && currentPolygon.length > 0) {
                 ctx.beginPath();
                 ctx.strokeStyle = '#f59e0b';
                 ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
@@ -1339,7 +2928,7 @@
             }
 
             // 繪製已保存的虛擬邊界（v2.5.3 - 支援 segments 和 points 格式）
-            if (virtualBoundary && virtualBoundary.map_id === currentMapId) {
+            if (layerVisibility.virtualBoundary && virtualBoundary && virtualBoundary.map_id === currentMapId) {
                 ctx.strokeStyle = virtualBoundary.color;
                 ctx.lineWidth = 3 / zoom;
                 ctx.setLineDash([5, 5]); // 虛線
@@ -1452,6 +3041,43 @@
 
                     ctx.setLineDash([]); // 重置虛線
                 }
+            }
+
+            // 🔷 繪製多邊形化預覽層（非破壞性，獨立樣式）
+            if (layerVisibility.polygonizePreview && polygonizePreviewAreas && polygonizePreviewVisible) {
+                polygonizePreviewAreas.forEach((area) => {
+                    if (!area.polygon || area.polygon.length < 3) return;
+
+                    // 填充半透明琥珀色
+                    ctx.beginPath();
+                    ctx.moveTo(area.polygon[0].x, area.polygon[0].y);
+                    area.polygon.forEach(p => ctx.lineTo(p.x, p.y));
+                    ctx.closePath();
+                    ctx.fillStyle = 'rgba(251, 191, 36, 0.18)';
+                    ctx.fill();
+
+                    // 描邊：琥珀色虛線
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 2.5 / zoom;
+                    ctx.setLineDash([8 / zoom, 4 / zoom]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // 標籤
+                    if (area.center) {
+                        const text = String(area.id);
+                        ctx.font = `bold ${18 / zoom}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const tw = ctx.measureText(text).width;
+                        const bgW = Math.max(24, tw + 8) / zoom;
+                        const bgH = 18 / zoom;
+                        ctx.fillStyle = 'rgba(180, 83, 9, 0.85)';
+                        ctx.fillRect(area.center.x - bgW / 2, area.center.y - bgH / 2, bgW, bgH);
+                        ctx.fillStyle = '#fef3c7';
+                        ctx.fillText(text, area.center.x, area.center.y);
+                    }
+                });
             }
 
             ctx.restore();
@@ -1607,6 +3233,12 @@
             const pos = screenToImage(e.clientX, e.clientY);
             lastMousePos = { x: e.clientX, y: e.clientY };
 
+            // Phase 2: boundary edit mode takes priority over other modes
+            if (boundaryEditMode) {
+                handleBoundaryEditMouseDown(pos.x, pos.y);
+                return;
+            }
+
             if (currentMode === 'view') {
                 isPanning = true;
                 panStart = { x: e.clientX - panX, y: e.clientY - panY };
@@ -1715,6 +3347,26 @@
         canvas.addEventListener('mousemove', (e) => {
             if (!currentImage) return;
 
+            // Phase 2: boundary edit drag handling
+            if (boundaryEditMode) {
+                const pos = screenToImage(e.clientX, e.clientY);
+                if (handleBoundaryEditMouseMove(pos.x, pos.y)) return;
+                // Allow panning even in boundary edit mode (view-like behavior when not dragging)
+                if (!boundaryDragActive) {
+                    // Check cursor hint
+                    const nearEp = findNearestBoundaryEndpoint(pos.x, pos.y);
+                    if (nearEp) {
+                        canvas.style.cursor = 'pointer';
+                    } else {
+                        const nearLine = findNearestBoundaryLine(pos.x, pos.y);
+                        canvas.style.cursor = nearLine ? 'pointer' : 'crosshair';
+                    }
+                } else {
+                    canvas.style.cursor = 'grabbing';
+                }
+                return;
+            }
+
             if (isPanning && currentMode === 'view') {
                 panX = e.clientX - panStart.x;
                 panY = e.clientY - panStart.y;
@@ -1756,6 +3408,13 @@
         });
 
         canvas.addEventListener('mouseup', () => {
+            // Phase 2: boundary edit drag end
+            if (boundaryEditMode) {
+                handleBoundaryEditMouseUp();
+                canvas.style.cursor = 'crosshair';
+                return;
+            }
+
             if (isPanning && currentMode === 'view') {
                 isPanning = false;
                 canvas.style.cursor = 'grab';
@@ -2059,6 +3718,7 @@
         function updateStats() {
             document.getElementById('totalAreas').textContent = areas.length;
             document.getElementById('currentId').textContent = currentId;
+            updateBoundaryLineOverlayStats();
             updateSelectedInfo();
             updateOutput();
         }
@@ -2426,13 +4086,16 @@
             initSupabase();
             initTouchParams();
             setMode('view');
+            syncLayerControls();
+            updateBoundaryLayerList();
 
             // 容差滑桿事件
             const toleranceSlider = document.getElementById('toleranceSlider');
             if (toleranceSlider) {
                 toleranceSlider.addEventListener('input', (e) => {
                     colorTolerance = parseInt(e.target.value);
-                    document.getElementById('toleranceValue').textContent = colorTolerance;
+                    const toleranceValue = document.getElementById('toleranceValue');
+                    if (toleranceValue) toleranceValue.textContent = colorTolerance;
                 });
             }
         });
@@ -2445,13 +4108,17 @@
 
             if (smartLassoMode) {
                 setMode('add'); // 自動切換到新增模式
-                document.getElementById('btnSmartLasso').classList.add('active');
-                document.getElementById('lassoPanel').style.display = 'flex';
+                const smartBtn = document.getElementById('btnSmartLasso');
+                if (smartBtn) smartBtn.classList.add('active');
+                const lassoPanel = document.getElementById('lassoPanel');
+                if (lassoPanel) lassoPanel.style.display = 'flex';
                 resetLassoColor();
                 showToast('🎯 智慧套索：請點擊地圖抽取顏色');
             } else {
-                document.getElementById('btnSmartLasso').classList.remove('active');
-                document.getElementById('lassoPanel').style.display = 'none';
+                const smartBtn = document.getElementById('btnSmartLasso');
+                if (smartBtn) smartBtn.classList.remove('active');
+                const lassoPanel = document.getElementById('lassoPanel');
+                if (lassoPanel) lassoPanel.style.display = 'none';
                 resetLassoColor();
                 showToast('智慧套索模式已關閉');
             }
@@ -2469,6 +4136,10 @@
             const preview = document.getElementById('lassoColorPreview');
             const resetBtn = document.getElementById('btnResetColor');
             const phaseIndicator = document.getElementById('lassoPhaseIndicator');
+            const selectedColorText = document.getElementById('selectedColorText');
+            const selectedColorBox = document.getElementById('selectedColorBox');
+
+            if (!preview || !resetBtn || !phaseIndicator) return;
 
             if (lassoColor) {
                 preview.style.display = 'flex';
@@ -2476,16 +4147,18 @@
                 phaseIndicator.textContent = '階段 2: 追蹤';
                 phaseIndicator.classList.add('trace');
 
-                document.getElementById('selectedColorBox').style.backgroundColor =
-                    `rgb(${lassoColor.r}, ${lassoColor.g}, ${lassoColor.b})`;
-                document.getElementById('selectedColorText').textContent =
-                    `RGB(${lassoColor.r}, ${lassoColor.g}, ${lassoColor.b})`;
+                if (selectedColorBox) {
+                    selectedColorBox.style.backgroundColor = `rgb(${lassoColor.r}, ${lassoColor.g}, ${lassoColor.b})`;
+                }
+                if (selectedColorText) {
+                    selectedColorText.textContent = `RGB(${lassoColor.r}, ${lassoColor.g}, ${lassoColor.b})`;
+                }
             } else {
                 preview.style.display = 'none';
                 resetBtn.style.display = 'none';
                 phaseIndicator.textContent = '階段 1: 抽色';
                 phaseIndicator.classList.remove('trace');
-                document.getElementById('selectedColorText').textContent = '未選擇顏色';
+                if (selectedColorText) selectedColorText.textContent = '未選擇顏色';
             }
 
             // 更新模式指示器
@@ -3273,8 +4946,9 @@
             isDeletingBoundaryPointMode = false;
             
             const btn = document.getElementById('btnAddBoundaryPoint');
-            btn.classList.toggle('active', isAddingBoundaryPointMode);
-            document.getElementById('btnDeleteBoundaryPoint').classList.remove('active');
+            if (btn) btn.classList.toggle('active', isAddingBoundaryPointMode);
+            const deleteBtn = document.getElementById('btnDeleteBoundaryPoint');
+            if (deleteBtn) deleteBtn.classList.remove('active');
             
             if (isAddingBoundaryPointMode) {
                 showToast('➕ 點擊地圖添加節點', 'info');
@@ -3292,8 +4966,9 @@
             isAddingBoundaryPointMode = false;
             
             const btn = document.getElementById('btnDeleteBoundaryPoint');
-            btn.classList.toggle('active', isDeletingBoundaryPointMode);
-            document.getElementById('btnAddBoundaryPoint').classList.remove('active');
+            if (btn) btn.classList.toggle('active', isDeletingBoundaryPointMode);
+            const addBtn = document.getElementById('btnAddBoundaryPoint');
+            if (addBtn) addBtn.classList.remove('active');
             
             if (isDeletingBoundaryPointMode) {
                 showToast('➖ 點擊節點刪除', 'info');
@@ -3988,30 +5663,179 @@
                 showToast('❌ 貼齊失敗：' + error.message, 'error');
             }
         }
-    </script>
-</body>
-</html>
-rn { x: nearestPurple.x, y: nearestPurple.y };
-                    }
-                    return point; // 如果找不到，保持原位
-                });
 
-                // 步驟 3: 更新多邊形
-                areas[selectedAreaIndex].polygon = snappedPolygon;
-                recalculateCenter(selectedAreaIndex);
+        // ==================== 多邊形化預覽功能 ====================
 
-                draw();
+        /**
+         * 根據 currentMapId 回傳可用的多邊形化預覽檔案清單。
+         * 每個項目包含 { value, label, url } 。
+         */
+        function getPolygonizeCandidates(mapId) {
+            const candidates = [];
+            // 主版本
+            candidates.push({ value: 'v2',       label: 'v2（預設, 30 區）',      url: `/maps/generated/${mapId}-areas-polygonize-preview-v2.json` });
+            candidates.push({ value: 'v2r60',    label: 'v2r60（31 區）',          url: `/maps/generated/${mapId}-areas-polygonize-preview-v2r60.json` });
+            candidates.push({ value: 'v1',       label: 'v1（舊版）',              url: `/maps/generated/${mapId}-areas-polygonize-preview-v1.json` });
+            // tune 子目錄下的 v1 變體
+            const tuneV1Dirs = ['tune-c5','tune-c9','tune-c15','tune-c21','tune-k13','tune-k17','tune-k21','tune-k25','tune-k31'];
+            tuneV1Dirs.forEach(dir => {
+                candidates.push({ value: dir + '-v1', label: `${dir}/v1`, url: `/maps/generated/${dir}/${mapId}-areas-polygonize-preview-v1.json` });
+            });
+            // tune 子目錄下的 v2 變體
+            const tuneV2Dirs = ['tune-v2-r50','tune-v2-r80','tune-v2-r120'];
+            tuneV2Dirs.forEach(dir => {
+                candidates.push({ value: dir + '-v2', label: `${dir}/v2`, url: `/maps/generated/${dir}/${mapId}-areas-polygonize-preview-v2.json` });
+            });
+            return candidates;
+        }
 
-                if (snappedCount === 0) {
-                    showToast('⚠️ 未找到可貼齊的紫色邊界（所有頂點距離 > 100px）', 'warn');
-                } else {
-                    showToast(`✅ 已貼齊紫色邊界（移動 ${snappedCount}/${area.polygon.length} 個頂點）`);
+        /** 更新下拉選單選項 */
+        function updatePolygonizeOptions() {
+            const select = document.getElementById('polygonizeSelect');
+            if (!select) return;
+            const previousValue = select.value;
+            const candidates = getPolygonizeCandidates(currentMapId || 'nanzih');
+            select.innerHTML = '<option value="">選擇預覽版本...</option>' +
+                candidates.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+
+            // 載入地圖後預選 v2，讓使用者可直接按「載入預覽」；若原選項仍存在則保留。
+            const stillExists = candidates.some(c => c.value === previousValue);
+            select.value = stillExists ? previousValue : (candidates.some(c => c.value === 'v2') ? 'v2' : '');
+        }
+
+        /** 載入選取的多邊形化預覽 JSON */
+        async function loadPolygonizePreview() {
+            const select = document.getElementById('polygonizeSelect');
+            const statusEl = document.getElementById('polygonizeStatus');
+            const selectedValue = select ? select.value : '';
+
+            if (!currentMapId) {
+                showToast('請先載入地圖', 'warn');
+                return;
+            }
+            if (!selectedValue) {
+                showToast('請先從下拉選單選擇一個預覽版本', 'warn');
+                return;
+            }
+
+            const candidates = getPolygonizeCandidates(currentMapId);
+            const chosen = candidates.find(c => c.value === selectedValue);
+            if (!chosen) {
+                showToast('找不到所選版本的 URL 設定', 'error');
+                return;
+            }
+
+            if (statusEl) statusEl.textContent = '載入中...';
+
+            try {
+                const response = await fetch(chosen.url, { cache: 'no-cache' });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status} – ${response.statusText}`);
+                }
+                const data = await response.json();
+
+                if (!data.areas || !Array.isArray(data.areas) || data.areas.length === 0) {
+                    throw new Error('JSON 中沒有 areas 陣列或為空');
                 }
 
+                // polygonize preview JSON 使用 [y, x]，與 loadCV2Areas() 相同；轉成 canvas 需要的 { x, y }
+                polygonizePreviewAreas = data.areas.map(area => ({
+                    id: area.id,
+                    center: { x: area.center[1], y: area.center[0] },
+                    polygon: area.polygon.map(p => ({ x: p[1], y: p[0] }))
+                }));
+                polygonizePreviewMeta = {
+                    mapName: data.mapName,
+                    totalAreas: data.totalAreas || polygonizePreviewAreas.length,
+                    expectedCount: data.expectedCount || '-',
+                    source: data.source,
+                    generator: data.generator
+                };
+                polygonizePreviewVisible = true;
+                layerVisibility.polygonizePreview = true;
+
+                // 更新 UI 狀態
+                const toggleEl = document.getElementById('togglePolygonizePreview');
+                if (toggleEl) toggleEl.checked = true;
+                const clearBtn = document.getElementById('btnClearPolygonize');
+                if (clearBtn) clearBtn.disabled = false;
+                const applyBtn = document.getElementById('btnApplyPolygonize');
+                if (applyBtn) applyBtn.disabled = false;
+                if (statusEl) {
+                    statusEl.textContent = `✅ ${polygonizePreviewMeta.totalAreas} 區 / 預期 ${polygonizePreviewMeta.expectedCount}（${chosen.label}）`;
+                }
+
+                console.log(`✅ Polygonize preview loaded: ${chosen.label}, ${polygonizePreviewAreas.length} areas from ${chosen.url}`);
+                draw();
+                showToast(`✅ 已載入多邊形化預覽：${polygonizePreviewAreas.length} 個區域（${chosen.label}）`);
             } catch (error) {
-                console.error('貼齊錯誤:', error);
-                showToast('❌ 貼齊失敗：' + error.message, 'error');
+                console.error('多邊形化預覽載入失敗:', error);
+                polygonizePreviewAreas = null;
+                polygonizePreviewMeta = null;
+                const clearBtn = document.getElementById('btnClearPolygonize');
+                if (clearBtn) clearBtn.disabled = true;
+                const applyBtn = document.getElementById('btnApplyPolygonize');
+                if (applyBtn) applyBtn.disabled = true;
+                if (statusEl) statusEl.textContent = '❌ 載入失敗';
+                showToast('❌ 多邊形化預覽載入失敗：' + error.message, 'error');
             }
+        }
+
+        /** 清除多邊形化預覽 */
+        function clearPolygonizePreview() {
+            polygonizePreviewAreas = null;
+            polygonizePreviewMeta = null;
+            polygonizePreviewVisible = true;
+            layerVisibility.polygonizePreview = true;
+
+            const toggleEl = document.getElementById('togglePolygonizePreview');
+            if (toggleEl) toggleEl.checked = true;
+            const clearBtn = document.getElementById('btnClearPolygonize');
+            if (clearBtn) clearBtn.disabled = true;
+            const applyBtn = document.getElementById('btnApplyPolygonize');
+            if (applyBtn) applyBtn.disabled = true;
+            const statusEl = document.getElementById('polygonizeStatus');
+            if (statusEl) statusEl.textContent = '未載入';
+
+            draw();
+            showToast('🗑️ 已清除多邊形化預覽');
+        }
+
+        /** 匯入預覽區域到主 areas（需 confirm） */
+        function applyPolygonizePreview() {
+            if (!polygonizePreviewAreas || polygonizePreviewAreas.length === 0) {
+                showToast('目前沒有已載入的預覽區域', 'warn');
+                return;
+            }
+            const existingCount = areas.length;
+            const previewCount = polygonizePreviewAreas.length;
+            const msg =
+                `⚠️ 確定要用多邊形化預覽的 ${previewCount} 個區域\n` +
+                `取代現有的 ${existingCount} 個區域嗎？\n\n` +
+                `此操作會覆蓋目前所有已標註的區域！\n` +
+                `建議先「💾 本地保存」或「💾 保存到雲端」備份。`;
+
+            if (!confirm(msg)) {
+                showToast('已取消匯入');
+                return;
+            }
+
+            // 深拷貝預覽區域到主 areas
+            areas = polygonizePreviewAreas.map(a => ({
+                id: a.id,
+                center: { x: a.center.x, y: a.center.y },
+                polygon: a.polygon.map(p => ({ x: p.x, y: p.y }))
+            }));
+
+            // 更新 currentId
+            currentId = areas.length > 0
+                ? Math.max(...areas.map(a => { const n = parseInt(a.id); return isNaN(n) ? 0 : n; })) + 1
+                : 1;
+            selectedAreaIndex = -1;
+
+            updateStats();
+            draw();
+            showToast(`✅ 已匯入 ${areas.length} 個多邊形化預覽區域為主區域資料`);
         }
     </script>
 </body>
