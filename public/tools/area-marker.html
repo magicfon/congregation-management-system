@@ -848,6 +848,14 @@
         .mode-boundary-edit {
             background: #047857;
         }
+
+        .dev-only {
+            display: none;
+        }
+
+        body.dev-mode .dev-only {
+            display: flex;
+        }
     </style>
 </head>
 <body>
@@ -910,6 +918,33 @@
 
             <button onclick="exportJSON()">📤 導出 JSON</button>
             <button onclick="copyToClipboard()">📋 複製</button>
+        </div>
+
+        <div class="controls dev-only" id="polygonizeDevPanel">
+            <strong>🧪 Polygonize 視覺化</strong>
+            <select id="polygonizeSelect" style="min-width: 260px;">
+                <option value="">選擇預覽版本...</option>
+            </select>
+            <button class="secondary" onclick="loadPolygonizePreview()">👁️ 載入 Polygonize 預覽</button>
+            <label>
+                <input type="checkbox" id="togglePolygonizePreview" checked onchange="setLayerVisibility('polygonizePreview', this.checked)">
+                顯示預覽 polygon
+            </label>
+            <button id="btnClearPolygonize" class="secondary" onclick="clearPolygonizePreview()" disabled>清除預覽</button>
+            <button id="btnApplyPolygonize" class="secondary apply-btn" onclick="applyPolygonizePreview()" disabled>套用成區域</button>
+            <span id="polygonizeStatus" class="preview-status">未載入</span>
+        </div>
+
+        <div class="controls dev-only" id="boundaryEditDevPanel">
+            <strong>🧪 分界線編輯</strong>
+            <button class="secondary" onclick="loadBoundaryLineOverlay({ silent: false })">載入綠色分界線</button>
+            <button id="btnBoundaryEdit" class="secondary" onclick="toggleBoundaryEditMode()">✏️ 分界線編輯</button>
+            <button class="secondary" onclick="mergeNearbyBoundaryNodes(8)">合併 8px 鄰近節點</button>
+            <button class="secondary" onclick="simplifyAllBoundaryLines()">簡化線段</button>
+            <button id="btnPolygonizeEdited" class="secondary" onclick="polygonizeEditedBoundaryViaServer()">一鍵 Polygonize 編輯後線網</button>
+            <span id="boundaryEditStatus" class="boundary-edit-status">未載入</span>
+            <span id="boundaryEditSelection" class="boundary-edit-selection"></span>
+            <span id="boundaryEditConnectHint" class="boundary-edit-connect-hint"></span>
         </div>
 
         <div class="map-container" id="mapContainer">
@@ -1007,6 +1042,23 @@
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('mapContainer');
+        const urlParams = new URLSearchParams(window.location.search);
+        const devMode = urlParams.get('dev') === '1' || urlParams.get('dev') === 'true';
+        const isLocalDevServer = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        if (devMode) {
+            document.body.classList.add('dev-mode');
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            if (devMode && !isLocalDevServer) {
+                const btn = document.getElementById('btnPolygonizeEdited');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.title = '一鍵 polygonize 需要本機 Python dev server；線上版可載入既有預覽。';
+                }
+                const status = document.getElementById('boundaryEditStatus');
+                if (status) status.textContent = '線上版可視覺化；一鍵 polygonize 需本機 dev server';
+            }
+        });
 
         let currentImage = null;
         let areas = [];
@@ -1331,6 +1383,7 @@
                 if (btnApplyPoly) btnApplyPoly.disabled = true;
 
                 updateStats();
+                updatePolygonizeOptions();
 
                 document.getElementById('mapName').textContent = mapSelect.options[mapSelect.selectedIndex].text;
 
@@ -5705,10 +5758,15 @@
          */
         function getPolygonizeCandidates(mapId) {
             const candidates = [];
-            // 主版本
-            candidates.push({ value: 'v2',       label: 'v2（預設, 30 區）',      url: `/maps/generated/${mapId}-areas-polygonize-preview-v2.json` });
-            candidates.push({ value: 'v2r60',    label: 'v2r60（31 區）',          url: `/maps/generated/${mapId}-areas-polygonize-preview-v2r60.json` });
-            candidates.push({ value: 'v1',       label: 'v1（舊版）',              url: `/maps/generated/${mapId}-areas-polygonize-preview-v1.json` });
+            // 目前 smoke/check 輸出：用區域標註工具直接視覺化 polygonize 結果。
+            candidates.push({ value: `smoke-${mapId}-seeded`, label: '目前 seeded smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}-seeded.json` });
+            candidates.push({ value: `smoke-${mapId}`,        label: '目前 connected-components smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}.json` });
+            candidates.push({ value: `check-${mapId}`,        label: '手動 check 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-check-${mapId}.json` });
+            candidates.push({ value: 'edited-dev',            label: 'Boundary Editor 一鍵 polygonize 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-edited-dev.json` });
+            // 舊版/調參候選
+            candidates.push({ value: 'v2',       label: 'v2（舊版候選）',      url: `/maps/generated/${mapId}-areas-polygonize-preview-v2.json` });
+            candidates.push({ value: 'v2r60',    label: 'v2r60（舊版候選）',    url: `/maps/generated/${mapId}-areas-polygonize-preview-v2r60.json` });
+            candidates.push({ value: 'v1',       label: 'v1（舊版）',          url: `/maps/generated/${mapId}-areas-polygonize-preview-v1.json` });
             // tune 子目錄下的 v1 變體
             const tuneV1Dirs = ['tune-c5','tune-c9','tune-c15','tune-c21','tune-k13','tune-k17','tune-k21','tune-k25','tune-k31'];
             tuneV1Dirs.forEach(dir => {
@@ -5731,9 +5789,10 @@
             select.innerHTML = '<option value="">選擇預覽版本...</option>' +
                 candidates.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
 
-            // 載入地圖後預選 v2，讓使用者可直接按「載入預覽」；若原選項仍存在則保留。
+            // 載入地圖後預選最新 smoke seeded，讓使用者可直接按「載入 Polygonize 預覽」；若原選項仍存在則保留。
             const stillExists = candidates.some(c => c.value === previousValue);
-            select.value = stillExists ? previousValue : (candidates.some(c => c.value === 'v2') ? 'v2' : '');
+            const defaultValue = candidates.length ? candidates[0].value : '';
+            select.value = stillExists ? previousValue : defaultValue;
         }
 
         /** 載入選取的多邊形化預覽 JSON */

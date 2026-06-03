@@ -1,0 +1,114 @@
+{
+  "mapId": "chiaotou",
+  "versionSuffix": "smoke-chiaotou",
+  "input": "public/maps/chiaotou-90-148.png",
+  "referenceAreas": "public/maps/chiaotou-areas.json",
+  "imageSize": [
+    4827,
+    4534
+  ],
+  "params": {
+    "wallDilate": 7,
+    "borderThickness": 8,
+    "minComponentArea": 3000,
+    "simplifyEpsilon": 4.0,
+    "maxSearchRadius": 80,
+    "endpointRepairRadius": 30,
+    "endpointRepairMaxLinks": 3000,
+    "endpointDirectionWindow": 7,
+    "endpointAngleTolerance": 150.0
+  },
+  "counts": {
+    "rawMaskPixels": 532219,
+    "cleanMaskPixels": 531824,
+    "wallPixels": 899375,
+    "freeComponents": 45,
+    "freeComponentsAboveMinArea": 22,
+    "referenceCenters": 59,
+    "areasOutput": 8,
+    "expectedCount": 59,
+    "unmatchedReferenceIds": 0,
+    "componentsWithMultipleReferenceIds": 4
+  },
+  "endpointRepair": {
+    "endpointCount": 304,
+    "linksAdded": 100,
+    "linksSkippedAngle": 32,
+    "linksSkippedMaxLinks": 0
+  },
+  "unmatchedReferenceIds": [],
+  "componentsWithMultipleReferenceIds": {
+    "1": [
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      103,
+      104,
+      105,
+      106,
+      107,
+      112,
+      113,
+      114,
+      115,
+      116,
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      142,
+      143,
+      144,
+      145,
+      146,
+      147,
+      148
+    ],
+    "6": [
+      101,
+      108,
+      109
+    ],
+    "3": [
+      102,
+      117
+    ],
+    "21": [
+      110,
+      118
+    ]
+  },
+  "outputFiles": {
+    "areasPreview": "public/maps/generated/chiaotou-areas-polygonize-preview-smoke-chiaotou.json",
+    "report": "public/maps/generated/chiaotou-polygonize-report-smoke-chiaotou.json",
+    "htmlPreview": "public/maps/generated/chiaotou-polygonize-preview-smoke-chiaotou.html"
+  },
+  "warnings": [
+    "Output area count 8 != expected 59",
+    "Some reference IDs landed in the same connected component; boundaries are probably not fully closed there."
+  ]
+}
