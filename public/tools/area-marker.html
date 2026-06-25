@@ -5758,9 +5758,11 @@
          */
         function getPolygonizeCandidates(mapId) {
             const candidates = [];
-            // 目前 smoke/check 輸出：用區域標註工具直接視覺化 polygonize 結果。
-            candidates.push({ value: `smoke-${mapId}-seeded`, label: '目前 seeded smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}-seeded.json` });
-            candidates.push({ value: `smoke-${mapId}`,        label: '目前 connected-components smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}.json` });
+            // 目前最佳輸出：用參考中心點 + 邊界牆做 seeded Voronoi，確保每區都有 polygon。
+            candidates.push({ value: `voronoi-${mapId}`,      label: '目前最佳 Voronoi 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-voronoi-${mapId}.json` });
+            // 早期 smoke/check 輸出：保留供比較。
+            candidates.push({ value: `smoke-${mapId}-seeded`, label: '舊版 seeded smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}-seeded.json` });
+            candidates.push({ value: `smoke-${mapId}`,        label: '舊版 connected-components smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}.json` });
             candidates.push({ value: `check-${mapId}`,        label: '手動 check 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-check-${mapId}.json` });
             candidates.push({ value: 'edited-dev',            label: 'Boundary Editor 一鍵 polygonize 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-edited-dev.json` });
             // 舊版/調參候選
