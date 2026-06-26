@@ -5758,8 +5758,8 @@
          */
         function getPolygonizeCandidates(mapId) {
             const candidates = [];
-            // 目前最佳輸出：用參考中心點 + 邊界牆做 seeded Voronoi，確保每區都有 polygon。
-            candidates.push({ value: `voronoi-${mapId}`,      label: '目前最佳 Voronoi 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-voronoi-${mapId}.json` });
+            // 粗略中心切割：只用來確認區域數量與中心點，不代表真實疆界，不能套用成正式區域。
+            candidates.push({ value: `voronoi-${mapId}`,      label: '粗略中心切割（非真實疆界）', url: `/maps/generated/${mapId}-areas-polygonize-preview-voronoi-${mapId}.json`, unsafeApply: true });
             // 早期 smoke/check 輸出：保留供比較。
             candidates.push({ value: `smoke-${mapId}-seeded`, label: '舊版 seeded smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}-seeded.json` });
             candidates.push({ value: `smoke-${mapId}`,        label: '舊版 connected-components smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}.json` });
@@ -5854,9 +5854,14 @@
                 const clearBtn = document.getElementById('btnClearPolygonize');
                 if (clearBtn) clearBtn.disabled = false;
                 const applyBtn = document.getElementById('btnApplyPolygonize');
-                if (applyBtn) applyBtn.disabled = false;
+                if (applyBtn) {
+                    applyBtn.disabled = !!chosen.unsafeApply;
+                    applyBtn.title = chosen.unsafeApply ? '這是粗略中心切割，不是真實疆界，不能套用成正式區域' : '';
+                }
                 if (statusEl) {
-                    statusEl.textContent = `✅ ${polygonizePreviewMeta.totalAreas} 區 / 預期 ${polygonizePreviewMeta.expectedCount}（${chosen.label}）`;
+                    const prefix = chosen.unsafeApply ? '⚠️ 粗略預覽' : '✅';
+                    const suffix = chosen.unsafeApply ? '；非真實疆界，僅供檢查區域數量' : '';
+                    statusEl.textContent = `${prefix} ${polygonizePreviewMeta.totalAreas} 區 / 預期 ${polygonizePreviewMeta.expectedCount}（${chosen.label}）${suffix}`;
                 }
 
                 console.log(`✅ Polygonize preview loaded: ${chosen.label}, ${polygonizePreviewAreas.length} areas from ${chosen.url}`);
