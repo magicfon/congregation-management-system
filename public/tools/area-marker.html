@@ -5757,29 +5757,9 @@
          * 每個項目包含 { value, label, url } 。
          */
         function getPolygonizeCandidates(mapId) {
-            const candidates = [];
-            // 粗略中心切割：只用來確認區域數量與中心點，不代表真實疆界，不能套用成正式區域。
-            candidates.push({ value: `voronoi-${mapId}`,      label: '粗略中心切割（非真實疆界）', url: `/maps/generated/${mapId}-areas-polygonize-preview-voronoi-${mapId}.json`, unsafeApply: true });
-            // 早期 smoke/check 輸出：保留供比較。
-            candidates.push({ value: `smoke-${mapId}-seeded`, label: '舊版 seeded smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}-seeded.json` });
-            candidates.push({ value: `smoke-${mapId}`,        label: '舊版 connected-components smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}.json` });
-            candidates.push({ value: `check-${mapId}`,        label: '手動 check 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-check-${mapId}.json` });
-            candidates.push({ value: 'edited-dev',            label: 'Boundary Editor 一鍵 polygonize 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-edited-dev.json` });
-            // 舊版/調參候選
-            candidates.push({ value: 'v2',       label: 'v2（舊版候選）',      url: `/maps/generated/${mapId}-areas-polygonize-preview-v2.json` });
-            candidates.push({ value: 'v2r60',    label: 'v2r60（舊版候選）',    url: `/maps/generated/${mapId}-areas-polygonize-preview-v2r60.json` });
-            candidates.push({ value: 'v1',       label: 'v1（舊版）',          url: `/maps/generated/${mapId}-areas-polygonize-preview-v1.json` });
-            // tune 子目錄下的 v1 變體
-            const tuneV1Dirs = ['tune-c5','tune-c9','tune-c15','tune-c21','tune-k13','tune-k17','tune-k21','tune-k25','tune-k31'];
-            tuneV1Dirs.forEach(dir => {
-                candidates.push({ value: dir + '-v1', label: `${dir}/v1`, url: `/maps/generated/${dir}/${mapId}-areas-polygonize-preview-v1.json` });
-            });
-            // tune 子目錄下的 v2 變體
-            const tuneV2Dirs = ['tune-v2-r50','tune-v2-r80','tune-v2-r120'];
-            tuneV2Dirs.forEach(dir => {
-                candidates.push({ value: dir + '-v2', label: `${dir}/v2`, url: `/maps/generated/${dir}/${mapId}-areas-polygonize-preview-v2.json` });
-            });
-            return candidates;
+            return [
+                { value: `smoke-${mapId}-seeded`, label: '舊版 seeded smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}-seeded.json` }
+            ];
         }
 
         /** 更新下拉選單選項 */

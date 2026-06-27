@@ -216,47 +216,6 @@ def component_polygon(label_img: np.ndarray, label: int, simplify_epsilon: float
     return polygon_yx, center_yx, area
 
 
-def nearest_free_pixel_unoccupied(
-    free_mask: np.ndarray,
-    occupied: np.ndarray,
-    x: int,
-    y: int,
-    max_radius: int,
-) -> tuple[int, int] | None:
-    """Return nearest free, unoccupied (x,y) pixel.
-
-    Seeded watershed previously allowed multiple reference centers to collapse onto
-    the same nearest free pixel when a center landed on a thickened wall. Later
-    markers overwrote earlier ones, so output counts could be far below the number
-    of reference centers. Keep seeds unique by rejecting occupied pixels.
-    """
-    h, w = free_mask.shape
-    x = min(max(x, 0), w - 1)
-    y = min(max(y, 0), h - 1)
-    if free_mask[y, x] and not occupied[y, x]:
-        return x, y
-    for r in range(1, max_radius + 1):
-        x0, x1 = max(0, x - r), min(w - 1, x + r)
-        y0, y1 = max(0, y - r), min(h - 1, y + r)
-        best = None
-        best_d = 1e18
-        for xx in range(x0, x1 + 1):
-            for yy in (y0, y1):
-                if free_mask[yy, xx] and not occupied[yy, xx]:
-                    d = (xx - x) ** 2 + (yy - y) ** 2
-                    if d < best_d:
-                        best_d, best = d, (xx, yy)
-        for yy in range(y0 + 1, y1):
-            for xx in (x0, x1):
-                if free_mask[yy, xx] and not occupied[yy, xx]:
-                    d = (xx - x) ** 2 + (yy - y) ** 2
-                    if d < best_d:
-                        best_d, best = d, (xx, yy)
-        if best:
-            return best
-    return None
-
-
 def build_seeded_watershed_labels(
     free_mask: np.ndarray,
     wall_mask: np.ndarray,
@@ -268,80 +227,31 @@ def build_seeded_watershed_labels(
     This is a pragmatic v2 fallback when boundary topology is not closed enough for
     pure connected components. Existing purple/cyan boundaries act as hard walls;
     within each still-merged component, reference centers partition the component.
-
-    The implementation runs watershed per connected free-space component instead
-    of on the full image. Components with one seed are assigned directly. This is
-    much faster on large maps and avoids global marker collisions.
     """
     from scipy import ndimage as ndi
+    from skimage.segmentation import watershed
 
     markers = np.zeros(free_mask.shape, dtype=np.int32)
-    occupied = np.zeros(free_mask.shape, dtype=bool)
-    seed_stats = {
-        "seeded": 0,
-        "unseeded": 0,
-        "movedSeeds": 0,
-        "seedIds": [],
-        "seedCollisionsAvoided": 0,
-        "componentWatersheds": 0,
-        "singleSeedComponents": 0,
-    }
+    seed_stats = {"seeded": 0, "unseeded": 0, "movedSeeds": 0, "seedIds": []}
     for idx, ref in enumerate(refs, start=1):
         x0, y0 = int(round(ref["x"])), int(round(ref["y"]))
-        naive = nearest_free_pixel(free_mask, x0, y0, max_search_radius)
-        found = nearest_free_pixel_unoccupied(free_mask, occupied, x0, y0, max_search_radius)
+        found = nearest_free_pixel(free_mask, x0, y0, max_search_radius)
         if not found:
             seed_stats["unseeded"] += 1
             continue
         x, y = found
-        if naive and naive != found:
-            seed_stats["seedCollisionsAvoided"] += 1
         if (x, y) != (x0, y0):
             seed_stats["movedSeeds"] += 1
         markers[y, x] = idx
-        occupied[y, x] = True
         seed_stats["seeded"] += 1
         seed_stats["seedIds"].append(ref["id"])
 
-    labels_out = np.zeros(free_mask.shape, dtype=np.int32)
-    num_components, component_labels, component_stats, _ = cv2.connectedComponentsWithStats(
-        free_mask.astype(np.uint8), connectivity=4
-    )
-
-    for component_id in range(1, num_components):
-        x = int(component_stats[component_id, cv2.CC_STAT_LEFT])
-        y = int(component_stats[component_id, cv2.CC_STAT_TOP])
-        w = int(component_stats[component_id, cv2.CC_STAT_WIDTH])
-        h = int(component_stats[component_id, cv2.CC_STAT_HEIGHT])
-        comp_slice = np.s_[y:y + h, x:x + w]
-        comp_mask = component_labels[comp_slice] == component_id
-        comp_markers = markers[comp_slice] * comp_mask
-        marker_ids = np.unique(comp_markers[comp_markers > 0])
-        if len(marker_ids) == 0:
-            continue
-        if len(marker_ids) == 1:
-            out_view = labels_out[comp_slice]
-            out_view[comp_mask] = int(marker_ids[0])
-            seed_stats["singleSeedComponents"] += 1
-            continue
-
-        # Component-local seeded Voronoi: assign every free pixel in this merged
-        # component to the nearest reference seed. This guarantees that all seeds
-        # get an area even when the extracted wall network is not fully closed.
-        # The assignment is constrained to free-space pixels so detected walls
-        # remain holes/boundaries in the preview polygons.
-        nearest_y, nearest_x = ndi.distance_transform_edt(
-            comp_markers == 0,
-            return_distances=False,
-            return_indices=True,
-        )
-        comp_labels = comp_markers[nearest_y, nearest_x]
-        comp_labels = np.where(comp_mask, comp_labels, 0)
-        out_view = labels_out[comp_slice]
-        out_view[comp_labels > 0] = comp_labels[comp_labels > 0]
-        seed_stats["componentWatersheds"] += 1
-
-    return labels_out.astype(np.int32), seed_stats
+    # Elevation: prefer watershed cuts through open space while respecting wall mask.
+    # Smoothing the distance map avoids tiny jagged basins.
+    distance_to_wall = ndi.distance_transform_edt(free_mask)
+    elevation = -ndi.gaussian_filter(distance_to_wall, sigma=2.0)
+    labels = watershed(elevation, markers=markers, mask=free_mask, watershed_line=True)
+    return labels.astype(np.int32), seed_stats
 
 
 def make_preview_html(map_id: str, source_name: str, areas_json_name: str, report_name: str, out: Path) -> None:
@@ -839,7 +749,6 @@ def main() -> int:
             "componentsWithMultipleReferenceIds": len(duplicate_label_refs),
         },
         "endpointRepair": repair_stats if repair_stats else None,
-        "seededWatershed": watershed_stats,
         "unmatchedReferenceIds": unmatched,
         "componentsWithMultipleReferenceIds": duplicate_label_refs,
         "outputFiles": {
@@ -856,15 +765,9 @@ def main() -> int:
     if unmatched:
         report["warnings"].append("Some reference centers could not be matched to a free-space component.")
 
-    # Use the real map image as preview background even when polygonizing from
-    # pre-extracted compact line JSON.
-    preview_source_name = source_name
-    if input_lines_mode:
-        preview_source_name = {
-            "nanzih": "nanzih-1-89.png",
-            "chiaotou": "chiaotou-90-148.png",
-            "tzuguan": "tzuguan-149-213.png",
-        }.get(mid, "")
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    # In input-lines mode there is no source PNG for the preview HTML background
+    preview_source_name = source_name if not input_lines_mode else ""
     make_preview_html(mid, preview_source_name, areas_path.name, report_path.name, html_path)
 
     # Debug: save repaired-wall preview PNG
@@ -872,8 +775,6 @@ def main() -> int:
         wall_preview_path = args.output_dir / f"{mid}-repaired-wall-preview-{vs}.png"
         cv2.imwrite(str(wall_preview_path), repaired_wall_preview)
         report["outputFiles"]["repairedWallPreview"] = str(wall_preview_path)
-
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(json.dumps({
         "areasPreview": str(areas_path),
