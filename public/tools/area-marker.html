@@ -856,6 +856,14 @@
         body.dev-mode .dev-only {
             display: flex;
         }
+
+        body.dev-mode .boundary-edit-panel.dev-only {
+            display: none;
+        }
+
+        body.dev-mode .boundary-edit-panel.visible {
+            display: flex;
+        }
     </style>
 </head>
 <body>
@@ -945,6 +953,17 @@
             <span id="boundaryEditStatus" class="boundary-edit-status">未載入</span>
             <span id="boundaryEditSelection" class="boundary-edit-selection"></span>
             <span id="boundaryEditConnectHint" class="boundary-edit-connect-hint"></span>
+        </div>
+
+        <div class="boundary-edit-panel dev-only" id="boundaryEditPanel">
+            <h3>🔧 修線工作台</h3>
+            <button class="connect" onclick="startConnectEndpoints()">🔗 連接端點</button>
+            <button class="secondary" onclick="simplifySelectedBoundaryLine()">🧹 簡化選取線</button>
+            <button id="btnDisableLine" class="danger" onclick="disableSelectedLine()" disabled>🚫 停用選取線</button>
+            <button class="secondary" onclick="exportEditedBoundaryJSON()">📤 匯出修線 JSON</button>
+            <button class="secondary" onclick="document.getElementById('importBoundaryInput').click()">📂 匯入修線 JSON</button>
+            <input id="importBoundaryInput" type="file" accept="application/json,.json" style="display:none" onchange="importEditedBoundaryJSON(event)">
+            <span class="boundary-edit-status">流程：紅點=未閉合端點；點端點→🔗連接端點→點另一端點→一鍵 Polygonize</span>
         </div>
 
         <div class="map-container" id="mapContainer">
@@ -2273,7 +2292,7 @@
 
             showToast(`📤 已匯出 ${data.lineCount} 條線段 (${data.pointCount} 點)`);
             const exportedName = a.download;
-            const polygonizeCommand = `. .venv-boundaries/bin/activate && python3 scripts/polygonize-boundary-lines.py --input-lines public/maps/generated/${exportedName} --map-id ${currentMapId || 'nanzih'} --reference-areas public/maps/${currentMapId || 'nanzih'}-areas-cv2.json --output-dir public/maps/generated --version-suffix edited-v1`;
+            const polygonizeCommand = `. .venv-boundaries/bin/activate && python3 scripts/polygonize-boundary-lines.py --input-lines public/maps/generated/${exportedName} --map-id ${currentMapId || 'nanzih'} --reference-areas public/maps/${currentMapId || 'nanzih'}-areas.json --seeded-watershed --output-dir public/maps/generated --version-suffix edited-v1`;
             console.info('[boundary-edit] 將匯出的 JSON 放到 public/maps/generated/ 後，可執行：\n' + polygonizeCommand);
         }
 

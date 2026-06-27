@@ -130,6 +130,7 @@ class DevHandler(SimpleHTTPRequestHandler):
             "--map-id", map_id,
             *ref_areas_arg,
             *expected_count_arg,
+            "--seeded-watershed",
             "--output-dir", str(GENERATED_DIR),
             "--version-suffix", version_suffix,
         ]
