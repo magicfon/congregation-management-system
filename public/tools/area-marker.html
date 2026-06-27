@@ -1063,7 +1063,8 @@
         const container = document.getElementById('mapContainer');
         const urlParams = new URLSearchParams(window.location.search);
         const devMode = urlParams.get('dev') === '1' || urlParams.get('dev') === 'true';
-        const isLocalDevServer = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        const isLocalDevServer = ['localhost', '127.0.0.1'].includes(window.location.hostname) ||
+            /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./.test(window.location.hostname); // Tailscale CGNAT range
         if (devMode) {
             document.body.classList.add('dev-mode');
         }
