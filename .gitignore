@@ -40,3 +40,4 @@ next-env.d.ts
 # Prisma
 prisma/dev.db
 .worktrees/
+.venv-boundaries/
