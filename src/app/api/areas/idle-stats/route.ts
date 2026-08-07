@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase-server'
+import { prisma } from '../../../../lib/db'
 import { requireApiUser } from '../../../../lib/api-auth'
 
 export const dynamic = 'force-dynamic'
@@ -9,38 +9,31 @@ export async function GET() {
   if ('response' in auth) return auth.response
 
   try {
-    const { data: areas, error } = await supabase
-      .from('areas')
-      .select('id, name, lastactivityat, assignedto')
-      .order('lastactivityat', { ascending: true })
-
-    if (error) throw error
+    const areas = await prisma.area.findMany({
+      select: { id: true, name: true, lastActivityAt: true, assignedTo: true },
+      orderBy: { lastActivityAt: 'asc' },
+    })
 
     const now = Date.now()
     const oneDayMs = 1000 * 60 * 60 * 24
 
-    const idleStats = (areas || []).map(area => {
-      const lastActivity = area.lastactivityat ? new Date(area.lastactivityat).getTime() : 0
+    const idleStats = areas.map(area => {
+      const lastActivity = area.lastActivityAt ? new Date(area.lastActivityAt).getTime() : 0
       const idleDays = Math.floor((now - lastActivity) / oneDayMs)
-      
+
       let status: 'green' | 'yellow' | 'orange' | 'red'
-      if (idleDays < 7) {
-        status = 'green'
-      } else if (idleDays < 30) {
-        status = 'yellow'
-      } else if (idleDays < 90) {
-        status = 'orange'
-      } else {
-        status = 'red'
-      }
+      if (idleDays < 7) status = 'green'
+      else if (idleDays < 30) status = 'yellow'
+      else if (idleDays < 90) status = 'orange'
+      else status = 'red'
 
       return {
         areaId: area.id,
         areaName: area.name,
         idleDays,
         status,
-        assignedTo: area.assignedto || null,
-        lastActivityAt: area.lastactivityat
+        assignedTo: area.assignedTo || null,
+        lastActivityAt: area.lastActivityAt,
       }
     })
 

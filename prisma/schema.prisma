@@ -1,28 +1,37 @@
 // This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// learn more about it in the docs: https://pris.ly/d/prisma-schema-docs
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_DATABASE_URL")
 }
 
 model Area {
-  id            String   @id @default(cuid())
-  name          String
-  description   String?
-  assignedTo    String?
-  lastActivityAt DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  assignedTo       String?
+  assignedMemberId String?
+  mapId            String? // nanzih, chiaotou, tzuguan
+  mapAreaId        Int? // local id within map (1-89, 1-59, 1-65)
+  blockCode        String? // A-1, B-2, C-3, etc.
+  assignNote       String? // 分配目的/備註，沒有就是 null
+  dispatchedAt     DateTime? // 分發日期
+  completedAt      DateTime? // 完成日期（完成時間 > 分發時間 → 已收回，可重新分配）
+  lastActivityAt   DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  schedules     Schedule[]
-  reports       Report[]
+  assignedMember Member?        @relation("AreaAssignments", fields: [assignedMemberId], references: [id], onDelete: SetNull)
+  scheduleAreas  ScheduleArea[]
+  reports        Report[]
 
+  @@index([mapId, mapAreaId])
   @@map("areas")
 }
 
@@ -34,46 +43,75 @@ model Member {
   phone     String?
   role      String   @default("publisher") // admin, publisher, elder
   active    Boolean  @default(true)
+  lineuid   String?  @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  schedules Schedule[]
-  reports   Report[]
+  assignedAreas Area[]         @relation("AreaAssignments")
+  schedules     Schedule[]
+  reports       Report[]
+  completedScheduleAreas ScheduleArea[]
 
   @@map("members")
 }
 
+// 傳道行程 — 對齊 Google Sheet「週日分組版」格式
 model Schedule {
-  id        String   @id @default(cuid())
-  areaId    String
-  memberId  String
-  date      DateTime
-  timeSlot  String   @default("morning") // morning, afternoon, evening
-  status    String   @default("scheduled") // scheduled, completed, cancelled
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  date            DateTime // 傳道日期
+  timeSlot        String   @default("morning") // morning, afternoon, evening
+  timeStart       String?  // "09:30"
+  timeEnd         String?  // "11:00"
+  group           String   @default("集體") // 小組：AB, 集體, etc
+  leaderId        String?  // 負責人
+  preMeetingType  String?  // zoom, 聚會所, 無
+  preMeetingTime  String?  // "08:45"
+  meetingLocation String?  // 集合地點（地址+地標）
+  status          String   @default("scheduled") // scheduled, completed, cancelled
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  area      Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  leader      Member?        @relation(fields: [leaderId], references: [id], onDelete: SetNull)
+  scheduleAreas ScheduleArea[]
 
   @@map("schedules")
 }
 
+// 行程←→區域 關聯（含完成回報狀態）
+model ScheduleArea {
+  id          String    @id @default(cuid())
+  scheduleId  String
+  areaId      String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  completedById String? // 回報人
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  schedule    Schedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  area        Area      @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  completedBy Member?   @relation(fields: [completedById], references: [id], onDelete: SetNull)
+
+  @@unique([scheduleId, areaId])
+  @@map("schedule_areas")
+}
+
+// 回報記錄（獨立回報，不一定要綁行程）
 model Report {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   areaId      String
   memberId    String
   content     String
-  status      String   @default("pending") // pending, reviewed, approved
+  status      String    @default("pending") // pending, reviewed, approved
   reviewedBy  String?
   reviewedAt  DateTime?
-  submittedAt DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  submittedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  area        Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  area        Area      @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  member      Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@map("reports")
 }

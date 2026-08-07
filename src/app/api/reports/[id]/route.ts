@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase-server'
+import { prisma } from '../../../../lib/db'
 import { requireApiUser, rolesAtLeast } from '../../../../lib/api-auth'
 
 export async function GET(
@@ -10,13 +10,15 @@ export async function GET(
   if ('response' in auth) return auth.response
 
   try {
-    const { data: report, error } = await supabase
-      .from('reports')
-      .select('*, areas(id, name), members(id, name)')
-      .eq('id', params.id)
-      .single()
+    const report = await prisma.report.findUnique({
+      where: { id: params.id },
+      include: {
+        area: { select: { id: true, name: true } },
+        member: { select: { id: true, name: true } },
+      },
+    })
 
-    if (error || !report) {
+    if (!report) {
       return NextResponse.json({ error: '回報不存在' }, { status: 404 })
     }
 
@@ -38,28 +40,23 @@ export async function PUT(
     const body = await request.json()
     const { status, reviewedBy, reviewedAt } = body
 
-    const { data: existing } = await supabase
-      .from('reports')
-      .select('id, status')
-      .eq('id', params.id)
-      .single()
+    const existing = await prisma.report.findUnique({
+      where: { id: params.id },
+      select: { id: true, status: true },
+    })
 
     if (!existing) {
       return NextResponse.json({ error: '回報不存在' }, { status: 404 })
     }
 
-    const { data: report, error } = await supabase
-      .from('reports')
-      .update({
+    const report = await prisma.report.update({
+      where: { id: params.id },
+      data: {
         status: status || existing.status,
-        reviewedby: reviewedBy?.trim() || null,
-        reviewedat: reviewedAt ? new Date(reviewedAt).toISOString() : null,
-      })
-      .eq('id', params.id)
-      .select()
-      .single()
-
-    if (error) throw error
+        reviewedBy: reviewedBy?.trim() || null,
+        reviewedAt: reviewedAt ? new Date(reviewedAt) : null,
+      },
+    })
 
     return NextResponse.json(report)
   } catch (error) {
@@ -76,22 +73,12 @@ export async function DELETE(
   if ('response' in auth) return auth.response
 
   try {
-    const { data: existing } = await supabase
-      .from('reports')
-      .select('id')
-      .eq('id', params.id)
-      .single()
-
+    const existing = await prisma.report.findUnique({ where: { id: params.id } })
     if (!existing) {
       return NextResponse.json({ error: '回報不存在' }, { status: 404 })
     }
 
-    const { error } = await supabase
-      .from('reports')
-      .delete()
-      .eq('id', params.id)
-
-    if (error) throw error
+    await prisma.report.delete({ where: { id: params.id } })
 
     return NextResponse.json({ message: '回報已刪除' })
   } catch (error) {

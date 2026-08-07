@@ -1,23 +1,17 @@
 import { type NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import LineProvider from 'next-auth/providers/line'
-import { compare } from 'bcryptjs'
-import { supabase } from './supabase'
-import { supabase as supabaseServer } from './supabase-server'
-
-type MemberRow = {
-  id: string
-  email: string
-  name: string
-  role: string
-  active: boolean
-  lineuid: string | null
-}
+import { compare, hash } from 'bcryptjs'
+import { prisma } from './db'
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: 'jwt',
+    // Session stays valid for 30 days of activity.
+    // Token refreshes every 24h (sliding window).
+    maxAge: 30 * 24 * 60 * 60,       // 30 days
+    updateAge: 24 * 60 * 60,          // 1 day
   },
   pages: {
     signIn: '/login',
@@ -35,13 +29,11 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const { data: member, error } = await supabase
-          .from('members')
-          .select('*')
-          .eq('email', credentials.email)
-          .single()
+        const member = await prisma.member.findUnique({
+          where: { email: credentials.email },
+        })
 
-        if (error || !member || !member.active) return null
+        if (!member || !member.active) return null
 
         const isPasswordValid = await compare(credentials.password, member.password)
         if (!isPasswordValid) return null
@@ -56,8 +48,8 @@ export const authOptions: NextAuthOptions = {
     }),
 
     // ── LINE OAuth ────────────────────────────────────────────────────────────
-    // Only register the provider when credentials are set; an empty clientId
-    // causes NextAuth to throw "server configuration" errors at startup.
+    // Anyone with a LINE account can sign in. Role defaults to 'publisher'.
+    // Admins can promote users to 'elder' or 'admin' afterwards.
     ...(process.env.LINE_CLIENT_ID && process.env.LINE_CLIENT_SECRET
       ? [LineProvider({
           clientId: process.env.LINE_CLIENT_ID,
@@ -67,36 +59,67 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    // Validate LINE users against our members table; reject unknown LINE UIDs.
-    async signIn({ account }) {
+    // LINE login: auto-create or auto-login any user.
+    // Everyone is allowed in; role defaults to 'publisher'.
+    async signIn({ account, profile }) {
       if (account?.provider !== 'line') return true
 
       const lineUid = account.providerAccountId
       if (!lineUid) return false
 
-      const { data: member, error } = await supabaseServer
-        .from('members')
-        .select('id, active')
-        .eq('lineuid', lineUid)
-        .single()
+      const lineEmail = (profile as any)?.email
+      const lineName = (profile as any)?.displayName
+        || (profile as any)?.name
+        || `LINE用戶-${lineUid.slice(0, 8)}`
 
-      if (error || !member || !member.active) {
-        // Redirect to debug page with the actual LINE UID so user can see it
-        return `/debug-line?line_uid=${lineUid}&error=LineNotLinked`
+      // Check if member exists by lineuid or email
+      let member = await prisma.member.findFirst({
+        where: { lineuid: lineUid },
+      })
+
+      if (!member && lineEmail) {
+        member = await prisma.member.findUnique({
+          where: { email: lineEmail },
+        })
+      }
+
+      if (!member) {
+        // Auto-create a new publisher account
+        member = await prisma.member.create({
+          data: {
+            name: lineName,
+            email: lineEmail || `line-${lineUid}@line.local`,
+            password: await hash(
+              `line-oauth-${lineUid}-${Date.now()}`, 10
+            ),
+            role: 'publisher',
+            active: true,
+            lineuid: lineUid,
+          },
+        })
+      } else if (!member.lineuid) {
+        // Link LINE UID to existing member
+        await prisma.member.update({
+          where: { id: member.id },
+          data: { lineuid: lineUid },
+        })
       }
 
       return true
     },
 
-    // Populate JWT token with our member's data on first sign-in.
+    // Populate JWT token with member data
     async jwt({ token, user, account }) {
-      // LINE OAuth: look up member by LINE UID to get our internal data
+      // LINE OAuth: look up member by LINE UID
       if (account?.provider === 'line' && account.providerAccountId) {
-        const { data: member } = await supabaseServer
-          .from('members')
-          .select('id, email, name, role')
-          .eq('lineuid', account.providerAccountId)
-          .single<MemberRow>()
+        const member = await prisma.member.findFirst({
+          where: {
+            OR: [
+              { lineuid: account.providerAccountId },
+              { email: (token.email ?? '') as string },
+            ]
+          },
+        })
 
         if (member) {
           token.id = member.id
@@ -107,10 +130,10 @@ export const authOptions: NextAuthOptions = {
         return token
       }
 
-      // Credentials provider: user object already has our member data
+      // Credentials provider: user object already has member data
       if (user) {
         token.role = (user as typeof user & { role: string }).role
-        token.id = user.id
+        token.id = (user as typeof user & { id: string }).id
       }
       return token
     },

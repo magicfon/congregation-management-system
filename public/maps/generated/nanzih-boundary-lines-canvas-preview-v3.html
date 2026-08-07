@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boundary Lines Canvas Preview — nanzih</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 1rem; background: #1a1a2e; color: #eee; }
+  h1 { font-size: 1.1rem; }
+  #info { font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem; }
+  .controls { margin: 0.5rem 0; }
+  .controls label { margin-right: 1rem; font-size: 0.85rem; }
+  canvas { border: 1px solid #444; max-width: 100%; cursor: crosshair; }
+</style>
+</head>
+<body>
+<h1>Boundary Lines — nanzih</h1>
+<div id="info">Loading …</div>
+<div class="controls">
+  <label>Stroke: <input type="color" id="strokeColor" value="#00ff88" /></label>
+  <label>Width: <input type="range" id="strokeWidth" min="0.5" max="6" step="0.5" value="1.5" />
+    <span id="widthVal">1.5</span>px</label>
+  <label><input type="checkbox" id="showImage" checked /> Show image</label>
+</div>
+<canvas id="canvas"></canvas>
+
+<script>
+(async function() {
+  const jsonURL = "./nanzih-boundary-lines-simplified-v3.json";
+  const imgURL  = "../nanzih-1-89.png";
+
+  // --- Fetch data ---
+  let data;
+  try {
+    const resp = await fetch(jsonURL);
+    if (!resp.ok) throw new Error(resp.statusText);
+    data = await resp.json();
+  } catch (e) {
+    document.getElementById("info").textContent = "Failed to load JSON: " + e.message;
+    return;
+  }
+
+  const [imgW, imgH] = data.imageSize;
+  const info = document.getElementById("info");
+  info.textContent = `Lines: ${data.lineCount} | Points: ${data.pointCount} | `
+    + `Image: ${imgW}×${imgH} | Tolerance: ${data.simplifyTolerance}px`;
+
+  // --- Load image ---
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.src = imgURL;
+
+  // --- Canvas setup ---
+  // Render to a display-size canvas for browser performance, while preserving
+  // original pixel coordinates in JSON. WebUI should apply the same scale.
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const maxDisplayW = Math.min(window.innerWidth - 32, 1400);
+  const displayScale = maxDisplayW / imgW;
+  const displayW = Math.round(imgW * displayScale);
+  const displayH = Math.round(imgH * displayScale);
+  canvas.width = displayW;
+  canvas.height = displayH;
+
+  const strokeColorEl = document.getElementById("strokeColor");
+  const strokeWidthEl = document.getElementById("strokeWidth");
+  const widthValEl    = document.getElementById("widthVal");
+  const showImageEl   = document.getElementById("showImage");
+
+  function draw() {
+    const color = strokeColorEl.value;
+    const width = parseFloat(strokeWidthEl.value);
+    const showImg = showImageEl.checked;
+
+    ctx.clearRect(0, 0, displayW, displayH);
+
+    if (showImg && img.complete && img.naturalWidth) {
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(img, 0, 0, displayW, displayH);
+      ctx.globalAlpha = 1.0;
+    }
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineJoin = "round";
+    ctx.lineCap  = "round";
+
+    for (const line of data.lines) {
+      if (line.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(line[0][0] * displayScale, line[0][1] * displayScale);
+      for (let i = 1; i < line.length; i++) {
+        ctx.lineTo(line[i][0] * displayScale, line[i][1] * displayScale);
+      }
+      ctx.stroke();
+    }
+  }
+
+  strokeWidthEl.addEventListener("input", () => {
+    widthValEl.textContent = strokeWidthEl.value;
+    draw();
+  });
+  strokeColorEl.addEventListener("input", draw);
+  showImageEl.addEventListener("change", draw);
+
+  img.onload = draw;
+  // Draw even if image fails
+  img.onerror = draw;
+  // If image is already cached
+  if (img.complete) draw();
+})();
+</script>
+</body>
+</html>

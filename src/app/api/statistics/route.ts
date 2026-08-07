@@ -1,29 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../lib/supabase-server'
+import { NextResponse } from 'next/server'
+import { prisma } from '../../../lib/db'
 
 export async function GET() {
   try {
-    // Get all counts
-    const [
-      { count: areaCount },
-      { count: memberCount },
-      { count: scheduleCount },
-      { count: reportCount },
-      { data: recentAreas }
-    ] = await Promise.all([
-      supabase.from('areas').select('id', { count: 'exact', head: true }),
-      supabase.from('members').select('id', { count: 'exact', head: true }),
-      supabase.from('schedules').select('id', { count: 'exact', head: true }),
-      supabase.from('reports').select('id', { count: 'exact', head: true }),
-      supabase.from('areas').select('id, name, lastactivityat, assignedto').order('lastactivityat', { ascending: true }).limit(5)
-    ])
+    const [areaCount, memberCount, scheduleCount, reportCount, recentAreas] =
+      await Promise.all([
+        prisma.area.count(),
+        prisma.member.count(),
+        prisma.schedule.count(),
+        prisma.report.count(),
+        prisma.area.findMany({
+          select: {
+            id: true, name: true, lastActivityAt: true, assignedTo: true,
+          },
+          orderBy: { lastActivityAt: 'asc' },
+          take: 5,
+        }),
+      ])
 
     return NextResponse.json({
-      areaCount: areaCount || 0,
-      memberCount: memberCount || 0,
-      scheduleCount: scheduleCount || 0,
-      reportCount: reportCount || 0,
-      recentAreas: recentAreas || []
+      areaCount,
+      memberCount,
+      scheduleCount,
+      reportCount,
+      recentAreas,
     })
   } catch (error) {
     console.error('GET /api/statistics error:', error)

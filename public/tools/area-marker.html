@@ -857,6 +857,11 @@
             display: flex;
         }
 
+        body.dev-mode h1 .dev-only,
+        body.dev-mode .instructions .dev-only {
+            display: block;
+        }
+
         body.dev-mode .boundary-edit-panel.dev-only {
             display: none;
         }
@@ -864,11 +869,36 @@
         body.dev-mode .boundary-edit-panel.visible {
             display: flex;
         }
+
+        body.dev-mode .annotation-only {
+            display: none !important;
+        }
+
+        body.dev-mode .dev-workflow-note {
+            display: block;
+        }
+
+        .dev-workflow-note {
+            display: none;
+            margin: 8px 0 12px;
+            padding: 10px 12px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.78);
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.8</span> <small style="color: #94a3b8; font-size: 14px;">正式標註 + Supabase</small></h1>
+        <h1>🗺️ 區域標註工具 <span class="version-badge">v2.6.8</span> <small class="annotation-only" style="color: #94a3b8; font-size: 14px;">正式標註 + Supabase</small><small class="dev-only" style="color: #94a3b8; font-size: 14px;">修線 + Polygonize</small></h1>
+
+        <div class="dev-workflow-note">
+            修線流程：選地圖 → 載入地圖 → 載入綠色分界線 → 分界線編輯 → 合併/簡化/連接端點 → 一鍵 Polygonize 編輯後線網。
+            這個 dev 畫面已隱藏正式區域標註、雲端保存、套用成區域等容易誤用功能。
+        </div>
 
         <!-- Row 1: Map loading and zoom -->
         <div class="controls">
@@ -879,7 +909,7 @@
                 <option value="tzuguan">梓官 (149-213)</option>
             </select>
 
-            <input type="number" id="startId" placeholder="起始編號" value="1" style="width: 90px;">
+            <input type="number" id="startId" class="annotation-only" placeholder="起始編號" value="1" style="width: 90px;">
 
             <button onclick="loadMap()">載入地圖</button>
 
@@ -892,11 +922,11 @@
                 <button class="secondary" onclick="resetZoom()">重置</button>
             </div>
 
-            <span class="mode-indicator" id="modeIndicator">模式：瀏覽</span>
+            <span class="mode-indicator annotation-only" id="modeIndicator">模式：瀏覽</span>
         </div>
 
         <!-- Row 2: Mode buttons and actions -->
-        <div class="controls">
+        <div class="controls annotation-only">
             <button id="btnView" class="active" onclick="setMode('view')">👁️ 瀏覽</button>
             <button id="btnAdd" onclick="setMode('add')">➕ 新增</button>
             <button id="btnEdit" onclick="setMode('edit')">✏️ 編輯</button>
@@ -939,7 +969,7 @@
                 顯示預覽 polygon
             </label>
             <button id="btnClearPolygonize" class="secondary" onclick="clearPolygonizePreview()" disabled>清除預覽</button>
-            <button id="btnApplyPolygonize" class="secondary apply-btn" onclick="applyPolygonizePreview()" disabled>套用成區域</button>
+            <button id="btnApplyPolygonize" class="secondary apply-btn annotation-only" onclick="applyPolygonizePreview()" disabled>套用成區域</button>
             <span id="polygonizeStatus" class="preview-status">未載入</span>
         </div>
 
@@ -1001,8 +1031,18 @@
             <div class="instructions">
                 <h3>📖 使用說明</h3>
                 
+                <div class="dev-only">
+                    <ul>
+                        <li><strong>載入綠色分界線</strong>：載入目前偵測/編輯用的分界線線網。</li>
+                        <li><strong>分界線編輯</strong>：進入修線模式；紅點是未閉合端點，橘點是選取線段控制點。</li>
+                        <li><strong>合併 8px 鄰近節點</strong>：先吸附很近的跨線段節點，修路口附近的碎點。</li>
+                        <li><strong>簡化線段</strong>：移除過密節點，保留端點與主要轉折。</li>
+                        <li><strong>一鍵 Polygonize 編輯後線網</strong>：儲存目前修線結果並產生預覽；先看形狀，不要只看區域數。</li>
+                    </ul>
+                </div>
+
                 <!-- 手機版操作指南 -->
-                <div class="mobile-instructions">
+                <div class="mobile-instructions annotation-only">
                     <h4>📱 手機操作指南（v2.3.2）</h4>
                     <ul>
                         <li>👆 <strong>單指拖曳</strong>：平移地圖（瀏覽模式）</li>
@@ -1013,7 +1053,7 @@
                     </ul>
                 </div>
                 
-                <ul>
+                <ul class="annotation-only">
                     <li><strong>👁️ 瀏覽模式</strong>：查看和選中區域，拖拽平移地圖</li>
                     <li><strong>➕ 新增模式</strong>：
                         <ul>
@@ -1064,7 +1104,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const devMode = urlParams.get('dev') === '1' || urlParams.get('dev') === 'true';
         const isLocalDevServer = ['localhost', '127.0.0.1'].includes(window.location.hostname) ||
-            /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./.test(window.location.hostname); // Tailscale CGNAT range
+            /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./.test(window.location.hostname) || // Tailscale CGNAT range
+            window.location.hostname.endsWith('.ts.net'); // Tailscale Serve HTTPS host
         if (devMode) {
             document.body.classList.add('dev-mode');
         }
@@ -5777,9 +5818,22 @@
          * 每個項目包含 { value, label, url } 。
          */
         function getPolygonizeCandidates(mapId) {
-            return [
+            const candidates = [
                 { value: `smoke-${mapId}-seeded`, label: '舊版 seeded smoke 結果', url: `/maps/generated/${mapId}-areas-polygonize-preview-smoke-${mapId}-seeded.json` }
             ];
+
+            // GPT-5.6 調查時產生的楠梓 seeded-watershed 測試結果：36/89。
+            // 保留在 dev 預覽清單供對照，但不可套用成正式區域。
+            if (mapId === 'nanzih') {
+                candidates.push({
+                    value: 'ws-test',
+                    label: 'GPT-5.6 ws-test 結果（36/89 診斷用）',
+                    url: '/maps/generated/nanzih-areas-polygonize-preview-ws-test.json',
+                    unsafeApply: true
+                });
+            }
+
+            return candidates;
         }
 
         /** 更新下拉選單選項 */

@@ -1,0 +1,63 @@
+{
+  "map_id": "chiaotou",
+  "input": "/home/chinl-ubuntu/.openclaw/workspace/congregation-management-system/public/maps/chiaotou-90-148.png",
+  "source_dimensions": {
+    "width": 4827,
+    "height": 4534
+  },
+  "preview_scale": 0.15,
+  "thresholds": {
+    "cyan_hsv": [
+      [
+        75,
+        30,
+        100
+      ],
+      [
+        100,
+        180,
+        255
+      ]
+    ],
+    "purple_hsv": [
+      [
+        120,
+        25,
+        30
+      ],
+      [
+        170,
+        255,
+        255
+      ]
+    ]
+  },
+  "morphology": {
+    "close_kernel": 3,
+    "open_kernel": 3,
+    "min_object_area": 100,
+    "dilate_iterations": 1,
+    "erode_iterations": 1
+  },
+  "pixel_counts": {
+    "raw_mask": 532219,
+    "clean_mask": 531824,
+    "skeleton": 42487
+  },
+  "output_files": {
+    "mask": "public/maps/generated/chiaotou-boundary-mask-v2.png",
+    "clean": "public/maps/generated/chiaotou-boundary-clean-v2.png",
+    "skeleton": "public/maps/generated/chiaotou-boundary-skeleton-v2.png",
+    "overlay": "public/maps/generated/chiaotou-boundary-overlay-v2.png",
+    "preview_html": "public/maps/generated/chiaotou-boundary-preview-v2.html",
+    "report": "public/maps/generated/chiaotou-boundary-report-v2.json"
+  },
+  "compact_lines": {
+    "path": "public/maps/generated/chiaotou-boundary-lines-simplified-v3.json",
+    "line_count": 326,
+    "point_count": 1166,
+    "simplify_tolerance": 2.0,
+    "file_size": 14481,
+    "canvas_preview": "public/maps/generated/chiaotou-boundary-lines-canvas-preview-v3.html"
+  }
+}

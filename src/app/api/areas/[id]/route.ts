@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase-server'
+import { prisma } from '../../../../lib/db'
 import { requireApiUser, rolesAtLeast } from '../../../../lib/api-auth'
 
 export async function GET(
@@ -10,54 +10,30 @@ export async function GET(
   if ('response' in auth) return auth.response
 
   try {
-    const { data: area, error } = await supabase
-      .from('areas')
-      .select('*')
-      .eq('id', params.id)
-      .single()
+    const area = await prisma.area.findUnique({
+      where: { id: params.id },
+      include: {
+        scheduleAreas: {
+          include: {
+            schedule: { select: { id: true, date: true, timeSlot: true, leader: { select: { id: true, name: true } } } },
+          },
+          orderBy: { schedule: { date: 'desc' } },
+          take: 10,
+        },
+        reports: {
+          include: { member: { select: { id: true, name: true } } },
+          orderBy: { submittedAt: 'desc' },
+          take: 10,
+        },
+        _count: { select: { scheduleAreas: true, reports: true } },
+      },
+    })
 
-    if (error || !area) {
+    if (!area) {
       return NextResponse.json({ error: '區域不存在' }, { status: 404 })
     }
 
-    // Get schedules
-    const { data: schedules } = await supabase
-      .from('schedules')
-      .select('*, members(id, name)')
-      .eq('areaid', params.id)
-      .order('date', { ascending: false })
-      .limit(10)
-
-    // Get reports
-    const { data: reports } = await supabase
-      .from('reports')
-      .select('*, members(id, name)')
-      .eq('areaid', params.id)
-      .order('submittedat', { ascending: false })
-      .limit(10)
-
-    // Get counts
-    const { count: schedulesCount } = await supabase
-      .from('schedules')
-      .select('id', { count: 'exact', head: true })
-      .eq('areaid', params.id)
-
-    const { count: reportsCount } = await supabase
-      .from('reports')
-      .select('id', { count: 'exact', head: true })
-      .eq('areaid', params.id)
-
-    const result = {
-      ...area,
-      schedules: schedules || [],
-      reports: reports || [],
-      _count: {
-        schedules: schedulesCount || 0,
-        reports: reportsCount || 0
-      }
-    }
-
-    return NextResponse.json(result)
+    return NextResponse.json(area)
   } catch (error) {
     console.error('GET /api/areas/[id] error:', error)
     return NextResponse.json({ error: '無法取得區域資料' }, { status: 500 })
@@ -79,28 +55,19 @@ export async function PUT(
       return NextResponse.json({ error: '區域名稱為必填' }, { status: 400 })
     }
 
-    const { data: existing } = await supabase
-      .from('areas')
-      .select('id')
-      .eq('id', params.id)
-      .single()
-
+    const existing = await prisma.area.findUnique({ where: { id: params.id } })
     if (!existing) {
       return NextResponse.json({ error: '區域不存在' }, { status: 404 })
     }
 
-    const { data: area, error } = await supabase
-      .from('areas')
-      .update({
+    const area = await prisma.area.update({
+      where: { id: params.id },
+      data: {
         name: name.trim(),
         description: description?.trim() || null,
-        assignedto: assignedTo?.trim() || null,
-      })
-      .eq('id', params.id)
-      .select()
-      .single()
-
-    if (error) throw error
+        assignedTo: assignedTo?.trim() || null,
+      },
+    })
 
     return NextResponse.json(area)
   } catch (error) {
@@ -117,22 +84,12 @@ export async function DELETE(
   if ('response' in auth) return auth.response
 
   try {
-    const { data: existing } = await supabase
-      .from('areas')
-      .select('id')
-      .eq('id', params.id)
-      .single()
-
+    const existing = await prisma.area.findUnique({ where: { id: params.id } })
     if (!existing) {
       return NextResponse.json({ error: '區域不存在' }, { status: 404 })
     }
 
-    const { error } = await supabase
-      .from('areas')
-      .delete()
-      .eq('id', params.id)
-
-    if (error) throw error
+    await prisma.area.delete({ where: { id: params.id } })
 
     return NextResponse.json({ message: '區域已刪除' })
   } catch (error) {

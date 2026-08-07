@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic'
 import DashboardLayout from '../../components/layout/DashboardLayout'
-import MapHeatmap from '../../components/dashboard/MapHeatmap'
 import { formatDistanceToNow } from 'date-fns'
 import { zhTW } from 'date-fns/locale'
 
@@ -38,7 +37,7 @@ export default async function DashboardPage() {
         {/* Header */}
         <div className="mb-6 md:mb-8">
           <h1 className="text-xl md:text-2xl font-bold text-mc-text">儀表板</h1>
-          <p className="text-mc-text/50 text-sm mt-1">會眾服務管理總覽</p>
+          <p className="text-mc-text/50 text-sm mt-1">地圖分配總覽</p>
         </div>
 
         {/* Stats grid */}
@@ -59,22 +58,26 @@ export default async function DashboardPage() {
               <p className="text-mc-text/50 text-sm">暫無閒置區域</p>
             ) : (
               recentAreas.map((area: any) => {
+                const lastActivity = area.lastActivityAt ?? area.lastactivityat
+                if (!lastActivity) return null
+                const date = new Date(lastActivity)
+                if (isNaN(date.getTime())) return null
                 const daysInactive = Math.floor(
-                  (Date.now() - new Date(area.lastactivityat).getTime()) / (1000 * 60 * 60 * 24)
+                  (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)
                 )
                 return (
                   <div key={area.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
                     <div>
                       <div className="text-sm text-mc-text">{area.name}</div>
-                      {area.assignedto && (
-                        <div className="text-xs text-mc-text/50">負責人：{area.assignedto}</div>
+                      {area.assignedTo && (
+                        <div className="text-xs text-mc-text/50">負責人：{area.assignedTo}</div>
                       )}
                     </div>
                     <div className="text-sm text-mc-warning shrink-0 ml-4">
                       {daysInactive > 30 ? (
                         <span className="text-red-400">已閒置 {daysInactive} 天</span>
                       ) : (
-                        formatDistanceToNow(new Date(area.lastactivityat), {
+                        formatDistanceToNow(date, {
                           addSuffix: true,
                           locale: zhTW,
                         })
@@ -87,10 +90,6 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Map Heatmap */}
-        <div className="mt-6 md:mt-8">
-          <MapHeatmap />
-        </div>
       </div>
     </DashboardLayout>
   )

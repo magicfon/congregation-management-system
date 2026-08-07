@@ -1,8 +1,6 @@
 'use client'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
-
 
 import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
@@ -12,22 +10,9 @@ interface Member {
   name: string
   email: string
   phone: string | null
-  role: string
   active: boolean
   createdAt: string
   _count: { schedules: number; reports: number }
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: '管理員',
-  elder: '長老',
-  publisher: '傳道員',
-}
-
-const ROLE_COLORS: Record<string, string> = {
-  admin: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
-  elder: 'text-mc-warning bg-mc-warning/10 border-mc-warning/20',
-  publisher: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
 }
 
 function MemberModal({
@@ -43,7 +28,6 @@ function MemberModal({
   const [email, setEmail] = useState(member?.email ?? '')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState(member?.phone ?? '')
-  const [role, setRole] = useState(member?.role ?? 'publisher')
   const [active, setActive] = useState(member?.active ?? true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -55,7 +39,7 @@ function MemberModal({
     try {
       const url = member ? `/api/members/${member.id}` : '/api/members'
       const method = member ? 'PUT' : 'POST'
-      const body: Record<string, unknown> = { name, email, phone, role, active }
+      const body: Record<string, unknown> = { name, email, phone, active }
       if (!member || password) body.password = password
       const res = await fetch(url, {
         method,
@@ -129,29 +113,14 @@ function MemberModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-mc-text/70 mb-1.5">電話</label>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="0912-345-678"
-                className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-mc-text/70 mb-1.5">角色 *</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                required
-                className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
-              >
-                <option value="publisher">傳道員</option>
-                <option value="elder">長老</option>
-                <option value="admin">管理員</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-mc-text/70 mb-1.5">電話</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="0912-345-678"
+              className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
+            />
           </div>
 
           {member && (
@@ -184,7 +153,6 @@ export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filterRole, setFilterRole] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [modalMember, setModalMember] = useState<Member | null | undefined>(undefined)
 
@@ -192,13 +160,12 @@ export default function MembersPage() {
     setLoading(true)
     const params = new URLSearchParams()
     if (search) params.set('search', search)
-    if (filterRole) params.set('role', filterRole)
     if (showInactive) params.set('active', 'false')
     const res = await fetch(`/api/members?${params}`)
     const data = await res.json()
     setMembers(Array.isArray(data) ? data : [])
     setLoading(false)
-  }, [search, filterRole, showInactive])
+  }, [search, showInactive])
 
   useEffect(() => {
     const t = setTimeout(fetchMembers, 300)
@@ -213,7 +180,6 @@ export default function MembersPage() {
         name: member.name,
         email: member.email,
         phone: member.phone,
-        role: member.role,
         active: !member.active,
       }),
     })
@@ -227,7 +193,7 @@ export default function MembersPage() {
         <div className="flex items-center justify-between mb-6 md:mb-8">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-mc-text">成員管理</h1>
-            <p className="text-mc-text/50 text-sm mt-1">管理會眾成員帳號</p>
+            <p className="text-mc-text/50 text-sm mt-1">管理成員帳號</p>
           </div>
           <button
             onClick={() => setModalMember(null)}
@@ -254,30 +220,15 @@ export default function MembersPage() {
               className="w-full pl-10 pr-4 py-3 md:py-2.5 rounded-lg bg-mc-card border border-white/5 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/40 transition-colors text-sm min-h-[44px]"
             />
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {[['', '全部'], ['publisher', '傳道員'], ['elder', '長老'], ['admin', '管理員']].map(([val, label]) => (
-              <button
-                key={val}
-                onClick={() => setFilterRole(val)}
-                className={`px-3 py-2 rounded-lg text-sm border transition-colors min-h-[44px] ${
-                  filterRole === val
-                    ? 'bg-mc-highlight text-white border-blue-500/30'
-                    : 'border-white/10 text-mc-text/60 hover:text-mc-text hover:bg-mc-accent'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-mc-text/50 hover:text-mc-text transition-colors min-h-[44px] px-1">
-              <input
-                type="checkbox"
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-                className="w-4 h-4 accent-blue-500"
-              />
-              已停用
-            </label>
-          </div>
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-mc-text/50 hover:text-mc-text transition-colors min-h-[44px] px-1">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="w-4 h-4 accent-blue-500"
+            />
+            已停用
+          </label>
         </div>
 
         {/* Mobile card list */}
@@ -291,15 +242,12 @@ export default function MembersPage() {
               <div key={m.id} className={`bg-mc-card border border-white/5 rounded-xl p-4 ${!m.active ? 'opacity-60' : ''}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${ROLE_COLORS[m.role]}`}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 text-blue-400 bg-blue-500/10 border border-blue-500/20">
                       {m.name.slice(0, 1)}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium text-mc-text">{m.name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${ROLE_COLORS[m.role] ?? 'text-mc-text/50 bg-white/5 border-white/10'}`}>
-                          {ROLE_LABELS[m.role] ?? m.role}
-                        </span>
                         {!m.active && <span className="text-xs text-mc-text/30">已停用</span>}
                       </div>
                       <div className="text-xs text-mc-text/50 mt-0.5 truncate">{m.email}</div>
@@ -356,22 +304,21 @@ export default function MembersPage() {
                 <tr className="border-b border-white/5 bg-mc-accent/50">
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">姓名</th>
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">聯絡方式</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">角色</th>
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider hidden lg:table-cell">活動記錄</th>
                   <th className="text-right px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {loading ? (
-                  <tr><td colSpan={5} className="text-center py-16 text-mc-text/30 text-sm">載入中…</td></tr>
+                  <tr><td colSpan={4} className="text-center py-16 text-mc-text/30 text-sm">載入中…</td></tr>
                 ) : members.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</td></tr>
+                  <tr><td colSpan={4} className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</td></tr>
                 ) : (
                   members.map((m) => (
                     <tr key={m.id} className={`hover:bg-mc-accent/30 transition-colors ${!m.active ? 'opacity-50' : ''}`}>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2.5">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${ROLE_COLORS[m.role]}`}>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 text-blue-400 bg-blue-500/10 border border-blue-500/20">
                             {m.name.slice(0, 1)}
                           </div>
                           <div>
@@ -383,11 +330,6 @@ export default function MembersPage() {
                       <td className="px-5 py-4">
                         <div className="text-xs text-mc-text/50">{m.email}</div>
                         {m.phone && <div className="text-xs text-mc-text/40">{m.phone}</div>}
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className={`text-xs px-2.5 py-1 rounded-full border ${ROLE_COLORS[m.role] ?? 'text-mc-text/50 bg-white/5 border-white/10'}`}>
-                          {ROLE_LABELS[m.role] ?? m.role}
-                        </span>
                       </td>
                       <td className="px-5 py-4 hidden lg:table-cell">
                         <span className="text-xs text-mc-text/50">

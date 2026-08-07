@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase-server'
+import { prisma } from '../../../../lib/db'
 import { requireApiUser } from '../../../../lib/api-auth'
-
-const SAFE_MEMBER_COLUMNS = 'id, name, email, phone, role, active, lineuid, createdat, updatedat'
 
 export async function GET(
   _request: NextRequest,
@@ -12,54 +10,28 @@ export async function GET(
   if ('response' in auth) return auth.response
 
   try {
-    const { data: member, error } = await supabase
-      .from('members')
-      .select(SAFE_MEMBER_COLUMNS)
-      .eq('id', params.id)
-      .single()
+    const member = await prisma.member.findUnique({
+      where: { id: params.id },
+      include: {
+        schedules: {
+          include: { scheduleAreas: { include: { area: { select: { id: true, name: true } } } } },
+          orderBy: { date: 'desc' },
+          take: 10,
+        },
+        reports: {
+          include: { area: { select: { id: true, name: true } } },
+          orderBy: { submittedAt: 'desc' },
+          take: 10,
+        },
+        _count: { select: { schedules: true, reports: true } },
+      },
+    })
 
-    if (error || !member) {
+    if (!member) {
       return NextResponse.json({ error: '成員不存在' }, { status: 404 })
     }
 
-    // Get schedules
-    const { data: schedules } = await supabase
-      .from('schedules')
-      .select('*, members(id, name)')
-      .eq('memberid', params.id)
-      .order('date', { ascending: false })
-      .limit(10)
-
-    // Get reports
-    const { data: reports } = await supabase
-      .from('reports')
-      .select('*, members(id, name)')
-      .eq('memberid', params.id)
-      .order('submittedat', { ascending: false })
-      .limit(10)
-
-    // Get counts
-    const { count: schedulesCount } = await supabase
-      .from('schedules')
-      .select('id', { count: 'exact', head: true })
-      .eq('memberid', params.id)
-
-    const { count: reportsCount } = await supabase
-      .from('reports')
-      .select('id', { count: 'exact', head: true })
-      .eq('memberid', params.id)
-
-    const result = {
-      ...member,
-      schedules: schedules || [],
-      reports: reports || [],
-      _count: {
-        schedules: schedulesCount || 0,
-        reports: reportsCount || 0
-      }
-    }
-
-    return NextResponse.json(result)
+    return NextResponse.json(member)
   } catch (error) {
     console.error('GET /api/members/[id] error:', error)
     return NextResponse.json({ error: '無法取得成員資料' }, { status: 500 })
@@ -75,36 +47,30 @@ export async function PUT(
 
   try {
     const body = await request.json()
-    const { name, email, phone, role, active } = body
+    const { name, email, phone, active } = body
 
     if (!name?.trim()) {
       return NextResponse.json({ error: '姓名為必填' }, { status: 400 })
     }
 
-    const { data: existing } = await supabase
-      .from('members')
-      .select('id, email, role, active')
-      .eq('id', params.id)
-      .single()
+    const existing = await prisma.member.findUnique({
+      where: { id: params.id },
+      select: { id: true, email: true, active: true },
+    })
 
     if (!existing) {
       return NextResponse.json({ error: '成員不存在' }, { status: 404 })
     }
 
-    const { data: member, error } = await supabase
-      .from('members')
-      .update({
+    const member = await prisma.member.update({
+      where: { id: params.id },
+      data: {
         name: name.trim(),
         email: email?.trim() || existing.email,
         phone: phone?.trim() || null,
-        role: role || existing.role,
         active: active !== undefined ? active : existing.active,
-      })
-      .eq('id', params.id)
-      .select(SAFE_MEMBER_COLUMNS)
-      .single()
-
-    if (error) throw error
+      },
+    })
 
     return NextResponse.json(member)
   } catch (error) {
@@ -121,22 +87,12 @@ export async function DELETE(
   if ('response' in auth) return auth.response
 
   try {
-    const { data: existing } = await supabase
-      .from('members')
-      .select('id')
-      .eq('id', params.id)
-      .single()
-
+    const existing = await prisma.member.findUnique({ where: { id: params.id } })
     if (!existing) {
       return NextResponse.json({ error: '成員不存在' }, { status: 404 })
     }
 
-    const { error } = await supabase
-      .from('members')
-      .delete()
-      .eq('id', params.id)
-
-    if (error) throw error
+    await prisma.member.delete({ where: { id: params.id } })
 
     return NextResponse.json({ message: '成員已刪除' })
   } catch (error) {

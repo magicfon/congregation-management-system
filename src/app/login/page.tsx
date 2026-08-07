@@ -83,8 +83,8 @@ function LoginForm() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-mc-text tracking-wide">會眾管理系統</h1>
-          <p className="text-sm text-mc-text/50 mt-1">Congregation Management System</p>
+          <h1 className="text-2xl font-bold text-mc-text tracking-wide">地圖分配系統</h1>
+          <p className="text-sm text-mc-text/50 mt-1">Territory Assignment System</p>
         </div>
 
         <div className="bg-mc-card border border-white/5 rounded-2xl p-8 shadow-2xl shadow-black/50">
@@ -186,7 +186,7 @@ function LoginForm() {
         </div>
 
         <p className="text-center text-xs text-mc-text/30 mt-6">
-          Mission Control &mdash; 內部管理系統
+          Territory Assignment &mdash; 內部管理系統
         </p>
       </div>
     </div>

@@ -1,0 +1,117 @@
+{
+  "mapId": "nanzih",
+  "input": "public/maps/nanzih-1-89.png",
+  "referenceAreas": "public/maps/nanzih-areas-cv2.json",
+  "imageSize": [
+    7884,
+    5512
+  ],
+  "params": {
+    "wallDilate": 31,
+    "borderThickness": 12,
+    "minComponentArea": 1000,
+    "simplifyEpsilon": 6.0,
+    "maxSearchRadius": 80
+  },
+  "counts": {
+    "rawMaskPixels": 1550208,
+    "cleanMaskPixels": 1527188,
+    "wallPixels": 4499728,
+    "freeComponents": 63,
+    "freeComponentsAboveMinArea": 50,
+    "referenceCenters": 89,
+    "areasOutput": 30,
+    "expectedCount": 89,
+    "unmatchedReferenceIds": 0,
+    "componentsWithMultipleReferenceIds": 6
+  },
+  "unmatchedReferenceIds": [],
+  "componentsWithMultipleReferenceIds": {
+    "15": [
+      1,
+      7
+    ],
+    "22": [
+      3,
+      71,
+      72,
+      73,
+      86
+    ],
+    "1": [
+      4,
+      9,
+      15,
+      16,
+      17,
+      21,
+      24,
+      26,
+      27,
+      30,
+      36,
+      43,
+      50,
+      60,
+      65,
+      66,
+      68,
+      76,
+      79,
+      80,
+      83
+    ],
+    "8": [
+      32,
+      84
+    ],
+    "52": [
+      39,
+      40
+    ],
+    "2": [
+      42,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      61,
+      62,
+      63,
+      64,
+      67,
+      69,
+      70,
+      74,
+      75,
+      77,
+      78,
+      81,
+      82,
+      85,
+      87,
+      88,
+      89
+    ]
+  },
+  "outputFiles": {
+    "areasPreview": "public/maps/generated/nanzih-areas-polygonize-preview-v1.json",
+    "report": "public/maps/generated/nanzih-polygonize-report-v1.json",
+    "htmlPreview": "public/maps/generated/nanzih-polygonize-preview-v1.html"
+  },
+  "warnings": [
+    "Output area count 30 != expected 89",
+    "Some reference IDs landed in the same connected component; boundaries are probably not fully closed there."
+  ]
+}

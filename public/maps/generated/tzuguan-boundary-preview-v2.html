@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boundary Debug Preview — tzuguan</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 1.5rem; background: #f5f5f5; }
+  h1 { font-size: 1.2rem; }
+  h2 { font-size: 1rem; margin-top: 1.5rem; }
+  ul { padding-left: 1.2rem; }
+  li { margin-bottom: 0.4rem; }
+  img { max-width: 100%; border: 1px solid #ccc; margin: 0.5rem 0; }
+  .note { color: #666; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<h1>Boundary Debug Preview — tzuguan</h1>
+<p class="note">
+  Source: 4828×4038 &nbsp;|&nbsp; Preview scale: 0.15 &nbsp;|&nbsp;
+  Preview size: 724×605
+</p>
+
+<h2>Output Layers</h2>
+<ul>
+<li><a href="tzuguan-boundary-mask-v2.png">Boundary mask</a> — <small>Grayscale mask of detected boundary pixels</small></li>
+<li><a href="tzuguan-boundary-clean-v2.png">Cleaned mask</a> — <small>Mask after morphology + small-object removal</small></li>
+<li><a href="tzuguan-boundary-skeleton-v2.png">Skeleton</a> — <small>1-pixel-wide skeleton of cleaned boundaries</small></li>
+<li><a href="tzuguan-boundary-overlay-v2.png">Overlay</a> — <small>Boundaries drawn over original (red=clean, magenta=skeleton, 724×605)</small></li>
+
+</ul>
+
+<h2>Overlay Preview</h2>
+<img src="tzuguan-boundary-overlay-v2.png" alt="Boundary overlay" />
+
+<h2>Skeleton Preview</h2>
+<img src="tzuguan-boundary-skeleton-v2.png" alt="Skeleton" />
+
+<h2>Raw Mask</h2>
+<img src="tzuguan-boundary-mask-v2.png" alt="Raw boundary mask" />
+
+<h2>Cleaned Mask</h2>
+<img src="tzuguan-boundary-clean-v2.png" alt="Cleaned boundary mask" />
+
+</body>
+</html>

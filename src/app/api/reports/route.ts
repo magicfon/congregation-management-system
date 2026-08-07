@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '../../../lib/supabase-server'
+import { prisma } from '../../../lib/db'
 import { requireApiUser, rolesAtLeast } from '../../../lib/api-auth'
 
 export async function GET(request: NextRequest) {
@@ -12,25 +12,18 @@ export async function GET(request: NextRequest) {
     const areaId = searchParams.get('areaId')
     const memberId = searchParams.get('memberId')
 
-    let query = supabase
-      .from('reports')
-      .select('*, areas(id, name), members(id, name)')
-
-    if (status) {
-      query = query.eq('status', status)
-    }
-
-    if (areaId) {
-      query = query.eq('areaid', areaId)
-    }
-
-    if (memberId) {
-      query = query.eq('memberid', memberId)
-    }
-
-    const { data: reports, error } = await query.order('submittedat', { ascending: false })
-
-    if (error) throw error
+    const reports = await prisma.report.findMany({
+      where: {
+        ...(status ? { status } : {}),
+        ...(areaId ? { areaId } : {}),
+        ...(memberId ? { memberId } : {}),
+      },
+      include: {
+        area: { select: { id: true, name: true } },
+        member: { select: { id: true, name: true } },
+      },
+      orderBy: { submittedAt: 'desc' },
+    })
 
     return NextResponse.json(reports)
   } catch (error) {
@@ -51,19 +44,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '區域、成員和內容為必填' }, { status: 400 })
     }
 
-    const { data: report, error } = await supabase
-      .from('reports')
-      .insert({
-        areaid: areaId.trim(),
-        memberid: memberId.trim(),
+    const report = await prisma.report.create({
+      data: {
+        areaId: areaId.trim(),
+        memberId: memberId.trim(),
         content: content.trim(),
         status: status || 'pending',
-        submittedat: new Date().toISOString(),
-      })
-      .select()
-      .single()
-
-    if (error) throw error
+      },
+    })
 
     return NextResponse.json(report, { status: 201 })
   } catch (error) {

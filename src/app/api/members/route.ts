@@ -1,54 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hash } from 'bcryptjs'
-import { supabase } from '../../../lib/supabase-server'
+import { prisma } from '../../../lib/db'
 import { requireApiUser } from '../../../lib/api-auth'
 
-const SAFE_MEMBER_COLUMNS = 'id, name, email, phone, role, active, lineuid, createdat, updatedat'
-
 export async function GET(request: NextRequest) {
-  const auth = await requireApiUser(['admin'])
+  const auth = await requireApiUser()
   if ('response' in auth) return auth.response
 
   try {
     const { searchParams } = new URL(request.url)
-    const role = searchParams.get('role')
     const active = searchParams.get('active')
 
-    let query = supabase
-      .from('members')
-      .select(SAFE_MEMBER_COLUMNS)
+    const members = await prisma.member.findMany({
+      where: {
+        ...(active !== null ? { active: active === 'true' } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: { select: { schedules: true, reports: true } },
+      },
+    })
 
-    if (role) {
-      query = query.eq('role', role)
-    }
-
-    if (active !== null) {
-      query = query.eq('active', active === 'true')
-    }
-
-    const { data: members, error } = await query.order('createdat', { ascending: false })
-
-    if (error) throw error
-
-    // Get counts for each member
-    const membersWithCounts = await Promise.all(
-      (members || []).map(async (member) => {
-        const [schedulesResult, reportsResult] = await Promise.all([
-          supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('memberid', member.id),
-          supabase.from('reports').select('id', { count: 'exact', head: true }).eq('memberid', member.id)
-        ])
-
-        return {
-          ...member,
-          _count: {
-            schedules: schedulesResult.count || 0,
-            reports: reportsResult.count || 0
-          }
-        }
-      })
-    )
-
-    return NextResponse.json(membersWithCounts)
+    return NextResponse.json(members)
   } catch (error) {
     console.error('GET /api/members error:', error)
     return NextResponse.json({ error: '無法取得成員列表' }, { status: 500 })
@@ -61,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { name, email, password, phone, role } = body
+    const { name, email, password, phone } = body
 
     if (!name?.trim() || !email?.trim() || !password?.trim()) {
       return NextResponse.json({ error: '姓名、Email 和密碼為必填' }, { status: 400 })
@@ -69,20 +42,16 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await hash(password.trim(), 10)
 
-    const { data: member, error } = await supabase
-      .from('members')
-      .insert({
+    const member = await prisma.member.create({
+      data: {
         name: name.trim(),
         email: email.trim(),
         password: passwordHash,
         phone: phone?.trim() || null,
-        role: role || 'publisher',
+        role: 'publisher',
         active: true,
-      })
-      .select(SAFE_MEMBER_COLUMNS)
-      .single()
-
-    if (error) throw error
+      },
+    })
 
     return NextResponse.json(member, { status: 201 })
   } catch (error) {
