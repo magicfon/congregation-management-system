@@ -1,4 +1,8 @@
 {
-  "framework": "nextjs",
-  "regions": ["hnd1"]
+  "crons": [
+    {
+      "path": "/api/cron/sync-sheet",
+      "schedule": "0 4 * * *"
+    }
+  ]
 }

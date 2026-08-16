@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/db'
 import { requireApiUser } from '../../../../lib/api-auth'
+import { pushAreaCD, updateSnapshot, DEFAULT_SHEET_ID } from '../../../../lib/google-sheets'
+
+/**
+ * DB → Sheet 即時推送（失敗不阻擋 DB 操作，靠 cron 補救）
+ * 回收/清除：C 清空、D 保留（下次分發覆蓋）
+ */
+async function pushToSheet(area: { sheetNo: number | null }, collected: boolean) {
+  if (!area.sheetNo) return
+  try {
+    if (collected) {
+      // 清 C、保留 D：先讀不必要——D 不動，只寫 C
+      const { updateValues } = await import('../../../../lib/google-sheets')
+      await updateValues(DEFAULT_SHEET_ID, `區域狀態!C${area.sheetNo + 1}:C${area.sheetNo + 1}`, [['']])
+      await updateSnapshot([{ sheetNo: area.sheetNo, member: '', date: null, keepDate: true }])
+    }
+  } catch (e) {
+    console.error('pushToSheet(collect) failed (cron 會補救):', e)
+  }
+}
 
 // POST /api/areas/assign — assign a member to an area
 export async function POST(request: NextRequest) {
@@ -27,6 +46,7 @@ export async function POST(request: NextRequest) {
         },
         include: { assignedMember: true }
       })
+      void pushToSheet(updated, true)
       return NextResponse.json(updated)
     }
 
@@ -36,18 +56,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '成員不存在' }, { status: 404 })
     }
 
+    const now = new Date()
     const updated = await prisma.area.update({
       where: { id: areaId },
       data: {
         assignedMemberId: memberId,
         assignedTo: member.name,
         assignNote: note || null,
-        dispatchedAt: new Date(),
+        dispatchedAt: now,
         completedAt: null, // reset completion when re-dispatching
-        lastActivityAt: new Date(),
+        lastActivityAt: now,
       },
       include: { assignedMember: true }
     })
+
+    // DB → Sheet 即時推送 C/D（fire-and-forget）
+    if (updated.sheetNo) {
+      try {
+        await pushAreaCD(DEFAULT_SHEET_ID, updated.sheetNo, member.name, now)
+        await updateSnapshot([{ sheetNo: updated.sheetNo, member: member.name, date: now }])
+      } catch (e) {
+        console.error('assign pushToSheet failed (cron 會補救):', e)
+      }
+    }
 
     return NextResponse.json(updated)
   } catch (error) {
