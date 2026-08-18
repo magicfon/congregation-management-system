@@ -36,6 +36,16 @@ const navItems = [
     ),
   },
   {
+    href: '/active-assignments',
+    label: '使用中地圖',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
     href: '/assignments',
     label: '人員分配',
     icon: (
