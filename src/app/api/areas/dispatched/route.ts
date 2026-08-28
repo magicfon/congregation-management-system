@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
         mapId: true,
         mapAreaId: true,
         blockCode: true,
+        sheetNo: true,
         assignedMemberId: true,
         assignedTo: true,
         assignNote: true,
