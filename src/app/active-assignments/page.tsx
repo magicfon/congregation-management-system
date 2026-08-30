@@ -29,38 +29,44 @@ type DistrictFilter = '全部' | '楠梓' | '橋頭' | '梓官'
 
 const DISTRICTS: DistrictFilter[] = ['全部', '楠梓', '橋頭', '梓官']
 const MAP_LABEL: Record<string, DistrictFilter> = { nanzih: '楠梓', chiaotou: '橋頭', tzuguan: '梓官' }
-
-const LEVEL_LABEL: Record<Level, string> = {
-  ok: '30 天內',
-  warn: '超過 30 天',
-  danger: '超過 60 天',
-  unknown: '無分發日',
+const DISTRICT_DOT: Record<DistrictFilter, string> = {
+  全部: 'bg-mc-highlight',
+  楠梓: 'bg-sky-400',
+  橋頭: 'bg-emerald-400',
+  梓官: 'bg-violet-400',
 }
 
-const LEVEL_STYLE: Record<Level, { row: string; badge: string; dot: string; text: string }> = {
+const LEVEL_LABEL: Record<Level, string> = {
+  ok: '30天內',
+  warn: '30天以上',
+  danger: '60天以上',
+  unknown: '無日期',
+}
+
+const LEVEL_STYLE: Record<Level, { badge: string; dot: string; text: string; ring: string }> = {
   ok: {
-    row: 'border-white/10 bg-white/[0.025] hover:bg-white/[0.05]',
     badge: 'bg-emerald-400/10 border-emerald-400/30 text-emerald-300',
     dot: 'bg-emerald-400',
-    text: 'text-mc-text-secondary',
+    text: 'text-emerald-300',
+    ring: 'border-white/10',
   },
   warn: {
-    row: 'border-yellow-400/25 bg-yellow-400/[0.06] hover:bg-yellow-400/[0.1]',
     badge: 'bg-yellow-400/10 border-yellow-400/40 text-yellow-300',
     dot: 'bg-yellow-400',
     text: 'text-yellow-300',
+    ring: 'border-yellow-400/35',
   },
   danger: {
-    row: 'border-red-500/35 bg-red-500/[0.07] hover:bg-red-500/[0.11]',
     badge: 'bg-red-500/10 border-red-500/40 text-red-400',
     dot: 'bg-red-500',
     text: 'text-red-400',
+    ring: 'border-red-500/45',
   },
   unknown: {
-    row: 'border-indigo-400/25 bg-indigo-400/[0.05] hover:bg-indigo-400/[0.09]',
     badge: 'bg-indigo-400/10 border-indigo-400/35 text-indigo-300',
     dot: 'bg-indigo-400',
     text: 'text-indigo-300',
+    ring: 'border-indigo-400/35',
   },
 }
 
@@ -81,7 +87,9 @@ function avatarGradient(name: string): string {
 
 function daysSince(iso: string | null): number | null {
   if (!iso) return null
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return null
+  return Math.max(0, Math.floor((Date.now() - t) / 86400000))
 }
 
 function levelOf(days: number | null): Level {
@@ -89,12 +97,6 @@ function levelOf(days: number | null): Level {
   if (days >= 60) return 'danger'
   if (days >= 30) return 'warn'
   return 'ok'
-}
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
 function districtOf(a: AreaRow): DistrictFilter {
@@ -116,14 +118,36 @@ function publicMapLabel(a: AreaRow): string {
   return `${districtOf(a)}${no ? ` ${no}號` : ''}`
 }
 
-function internalLabel(a: AreaRow): string {
-  return a.blockCode || a.name
+function shortMapLabel(a: AreaRow): string {
+  const no = mapNoOf(a)
+  return no ? `${districtOf(a)}${no}` : districtOf(a)
 }
 
 function sortAreas(a: AreaRow, b: AreaRow): number {
   const da = daysSince(a.dispatchedAt) ?? 9999
   const db = daysSince(b.dispatchedAt) ?? 9999
   return db - da || (mapNoOf(a) ?? 0) - (mapNoOf(b) ?? 0)
+}
+
+function groupStats(areas: AreaRow[]) {
+  const stats = { ok: 0, warn: 0, danger: 0, unknown: 0, attention: 0, worstDays: null as number | null, worstLevel: 'ok' as Level }
+  for (const a of areas) {
+    const days = daysSince(a.dispatchedAt)
+    const lv = levelOf(days)
+    stats[lv]++
+    if (lv !== 'ok') stats.attention++
+    if (days === null) {
+      if (stats.worstDays === null) stats.worstLevel = 'unknown'
+    } else if (stats.worstDays === null || days > stats.worstDays) {
+      stats.worstDays = days
+      stats.worstLevel = lv
+    }
+  }
+  if (stats.danger > 0) stats.worstLevel = 'danger'
+  else if (stats.warn > 0) stats.worstLevel = 'warn'
+  else if (stats.unknown > 0) stats.worstLevel = 'unknown'
+  else stats.worstLevel = 'ok'
+  return stats
 }
 
 function makeLineText(groups: MemberGroup[]): string {
@@ -141,16 +165,8 @@ function makeLineText(groups: MemberGroup[]): string {
 
   for (const g of groups) {
     const areas = [...g.areas].sort(sortAreas)
-    const worst = daysSince(areas[0]?.dispatchedAt ?? null)
-    const head = worst === null ? `${g.memberName}（${areas.length} 張）` : `${g.memberName}（${areas.length} 張，最久 ${worst} 天）`
-    lines.push(head)
-    for (const a of areas) {
-      const d = daysSince(a.dispatchedAt)
-      const prefix = levelOf(d) === 'danger' ? '⚠️ ' : levelOf(d) === 'warn' ? '🔶 ' : ''
-      const date = a.dispatchedAt ? `，分發 ${fmtDate(a.dispatchedAt)}` : '，無分發日'
-      const note = a.assignNote ? `，備註：${a.assignNote}` : ''
-      lines.push(`- ${prefix}${publicMapLabel(a)}：${d === null ? '未記錄天數' : `已 ${d} 天`}${date}${note}`)
-    }
+    lines.push(`${g.memberName}（${areas.length} 張）`)
+    lines.push(`- ${areas.map(publicMapLabel).join('、')}`)
     lines.push('')
   }
 
@@ -165,6 +181,7 @@ export default function ActiveAssignmentsPage() {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [district, setDistrict] = useState<DistrictFilter>('全部')
   const [q, setQ] = useState('')
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [lineOpen, setLineOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -213,7 +230,7 @@ export default function ActiveAssignmentsPage() {
             if (filter !== 'all' && filter !== 'attention' && lv !== filter) return false
             if (district !== '全部' && districtOf(a) !== district) return false
             if (needle) {
-              const fields = [publicMapLabel(a), internalLabel(a), String(mapNoOf(a) ?? ''), g.memberName, a.assignNote || '']
+              const fields = [publicMapLabel(a), shortMapLabel(a), String(mapNoOf(a) ?? ''), g.memberName, a.assignNote || '']
               if (!fields.some((f) => f.includes(needle))) return false
             }
             return true
@@ -222,10 +239,21 @@ export default function ActiveAssignmentsPage() {
         return { ...g, areas, count: areas.length }
       })
       .filter((g) => g.areas.length > 0)
-    out.sort((a, b) => sortAreas(a.areas[0], b.areas[0]))
+    out.sort((a, b) => b.areas.length - a.areas.length || sortAreas(a.areas[0], b.areas[0]))
     return out
   }, [groups, filter, district, q])
 
+  useEffect(() => {
+    if (view.length === 0) {
+      setSelectedMemberId(null)
+      return
+    }
+    if (!selectedMemberId || !view.some((g) => g.memberId === selectedMemberId)) {
+      setSelectedMemberId(view[0].memberId)
+    }
+  }, [selectedMemberId, view])
+
+  const selectedGroup = view.find((g) => g.memberId === selectedMemberId) || view[0]
   const lineText = useMemo(() => makeLineText(view), [view])
   const shown = view.reduce((n, g) => n + g.areas.length, 0)
 
@@ -237,17 +265,17 @@ export default function ActiveAssignmentsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-mc-text">使用中地圖</h1>
           <p className="text-sm text-mc-text-secondary mt-1">
-            待催收工作台：快速確認誰手上還有地圖未完成或未回報
+            人員總覽優先：先看誰手上有幾張，再點人員查看簡要地圖號
           </p>
         </div>
         <button
           type="button"
           onClick={() => void load()}
-          className="px-3 py-1.5 text-sm rounded-lg bg-mc-card border border-white/10 text-mc-text hover:border-mc-accent/50 transition-colors flex items-center gap-1.5"
+          className="px-3 py-1.5 text-sm rounded-lg bg-mc-card border border-white/10 text-mc-text hover:border-mc-accent/50 transition-colors flex items-center gap-1.5 w-fit"
         >
           <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -258,98 +286,107 @@ export default function ActiveAssignmentsPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <SummaryCard active={filter === 'all'} label="全部" value={total} dot="bg-mc-highlight" onClick={() => setFilter('all')} />
+        <SummaryCard active={filter === 'all'} label="使用中總張數" value={total} dot="bg-mc-highlight" onClick={() => setFilter('all')} />
         <SummaryCard active={filter === 'attention'} label="需注意" value={stats.attention} dot="bg-orange-400" onClick={() => setFilter('attention')} />
-        <SummaryCard active={filter === 'warn'} label="30 天以上" value={stats.warn} dot="bg-yellow-400" onClick={() => setFilter('warn')} />
-        <SummaryCard active={filter === 'danger'} label="60 天以上" value={stats.danger} dot="bg-red-500" onClick={() => setFilter('danger')} />
+        <SummaryCard active={filter === 'warn'} label="30天以上" value={stats.warn} dot="bg-yellow-400" onClick={() => setFilter('warn')} />
+        <SummaryCard active={filter === 'danger'} label="60天以上" value={stats.danger} dot="bg-red-500" onClick={() => setFilter('danger')} />
         <SummaryCard active={filter === 'unknown'} label="無分發日" value={stats.unknown} dot="bg-indigo-400" onClick={() => setFilter('unknown')} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 items-start">
-        <aside className="mc-card rounded-xl p-4 space-y-4 lg:sticky lg:top-4">
-          <div>
-            <div className="text-sm font-semibold text-mc-text mb-2">篩選</div>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="搜尋人員、地圖號、備註"
-              className="w-full px-3 py-2 text-sm rounded-lg bg-mc-bg border border-white/10 text-mc-text placeholder:text-mc-text-secondary/50 focus:outline-none focus:border-mc-accent"
-            />
-          </div>
-
-          <div>
-            <div className="text-xs text-mc-text-secondary mb-2">地區</div>
-            <div className="grid grid-cols-2 gap-2">
-              {DISTRICTS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDistrict(d)}
-                  className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
-                    district === d
-                      ? 'bg-mc-accent text-white border-mc-accent'
-                      : 'bg-white/5 text-mc-text-secondary border-white/10 hover:text-mc-text'
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-
+      <div className="mc-card rounded-xl p-4 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="搜尋人員或地圖號"
+            className="w-full px-3 py-2 text-sm rounded-lg bg-mc-bg border border-white/10 text-mc-text placeholder:text-mc-text-secondary/50 focus:outline-none focus:border-mc-accent"
+          />
           <button
             type="button"
             onClick={() => setLineOpen((v) => !v)}
-            className="w-full px-3 py-2 rounded-lg bg-mc-highlight/15 text-mc-highlight border border-mc-highlight/35 hover:bg-mc-highlight/25 transition-colors text-sm font-medium"
+            className="px-4 py-2 rounded-lg bg-mc-highlight/15 text-mc-highlight border border-mc-highlight/35 hover:bg-mc-highlight/25 transition-colors text-sm font-medium"
           >
-            {lineOpen ? '收合 LINE 預覽' : '產生 LINE 提醒文字'}
+            {lineOpen ? '收合 LINE 預覽' : '產生 LINE 提醒'}
           </button>
-
-          <div className="text-xs text-mc-text-secondary leading-relaxed">
-            提醒文字只顯示「楠梓 80號」這種格式，不顯示 A-80 / B-100 / C-149 中分區代碼。
-          </div>
-        </aside>
-
-        <main className="space-y-4">
-          {error && <div className="mc-card rounded-xl p-4 text-mc-error text-sm border-red-500/30">載入失敗：{error}</div>}
-
-          {loading && (
-            <div className="space-y-3">
-              {[0, 1, 2].map((i) => <div key={i} className="mc-card rounded-xl h-32 animate-pulse" />)}
-            </div>
-          )}
-
-          {!loading && lineOpen && (
-            <div className="mc-card rounded-xl overflow-hidden border border-mc-highlight/25">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                <div>
-                  <div className="font-semibold text-mc-text">LINE 提醒預覽</div>
-                  <div className="text-xs text-mc-text-secondary">目前篩選結果：{shown} 張</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void copyLineText()}
-                  className="px-3 py-1.5 rounded-lg bg-mc-accent text-white text-sm hover:bg-mc-highlight transition-colors"
-                >
-                  {copied ? '已複製 ✓' : '複製'}
-                </button>
-              </div>
-              <pre className="p-4 text-sm text-mc-text-secondary whitespace-pre-wrap leading-relaxed max-h-80 overflow-auto bg-black/20">
-                {lineText || '沒有可提醒的項目'}
-              </pre>
-            </div>
-          )}
-
-          {!loading && view.map((g) => <MemberCard key={g.memberId} group={g} />)}
-
-          {!loading && view.length === 0 && !error && (
-            <div className="mc-card rounded-xl p-10 text-center">
-              <div className="text-4xl mb-2">🎉</div>
-              <div className="text-mc-text-secondary">目前篩選條件下沒有待處理地圖</div>
-            </div>
-          )}
-        </main>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {DISTRICTS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDistrict(d)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition-colors flex items-center gap-2 ${
+                district === d
+                  ? 'bg-mc-accent text-white border-mc-accent'
+                  : 'bg-white/5 text-mc-text-secondary border-white/10 hover:text-mc-text'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${DISTRICT_DOT[d]}`} />
+              {d}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {error && <div className="mc-card rounded-xl p-4 text-mc-error text-sm border-red-500/30">載入失敗：{error}</div>}
+
+      {loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
+          <div className="mc-card rounded-xl h-96 animate-pulse" />
+          <div className="mc-card rounded-xl h-96 animate-pulse" />
+        </div>
+      )}
+
+      {!loading && lineOpen && (
+        <div className="mc-card rounded-xl overflow-hidden border border-mc-highlight/25">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <div>
+              <div className="font-semibold text-mc-text">LINE 提醒預覽</div>
+              <div className="text-xs text-mc-text-secondary">目前篩選結果：{view.length} 人 / {shown} 張；不顯示 A/B/C 中分區</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void copyLineText()}
+              className="px-3 py-1.5 rounded-lg bg-mc-accent text-white text-sm hover:bg-mc-highlight transition-colors"
+            >
+              {copied ? '已複製 ✓' : '複製'}
+            </button>
+          </div>
+          <pre className="p-4 text-sm text-mc-text-secondary whitespace-pre-wrap leading-relaxed max-h-72 overflow-auto bg-black/20">
+            {lineText || '沒有可提醒的項目'}
+          </pre>
+        </div>
+      )}
+
+      {!loading && view.length > 0 && (
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
+          <section className="space-y-3">
+            <div className="flex items-center justify-between text-sm text-mc-text-secondary px-1">
+              <span>人員清單</span>
+              <span>{view.length} 人 / {shown} 張</span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {view.map((g) => (
+                <MemberOverviewCard
+                  key={g.memberId}
+                  group={g}
+                  active={selectedGroup?.memberId === g.memberId}
+                  onClick={() => setSelectedMemberId(g.memberId)}
+                />
+              ))}
+            </div>
+          </section>
+
+          <SelectedMemberPanel group={selectedGroup} />
+        </div>
+      )}
+
+      {!loading && view.length === 0 && !error && (
+        <div className="mc-card rounded-xl p-10 text-center">
+          <div className="text-4xl mb-2">🎉</div>
+          <div className="text-mc-text-secondary">目前篩選條件下沒有使用中的地圖</div>
+        </div>
+      )}
     </div>
   )
 }
@@ -370,94 +407,130 @@ function SummaryCard({ active, label, value, dot, onClick }: { active: boolean; 
   )
 }
 
-function MemberCard({ group }: { group: MemberGroup }) {
-  const levels = group.areas.map((a) => levelOf(daysSince(a.dispatchedAt)))
-  const count = (lv: Level) => levels.filter((x) => x === lv).length
-  const worstDays = daysSince(group.areas[0]?.dispatchedAt ?? null)
-  const worstLevel = levelOf(worstDays)
+function MemberOverviewCard({ group, active, onClick }: { group: MemberGroup; active: boolean; onClick: () => void }) {
+  const stats = groupStats(group.areas)
+  const topAreas = group.areas.slice(0, 8)
+  const extra = Math.max(0, group.areas.length - topAreas.length)
+  const districts = DISTRICTS.slice(1).map((d) => ({ d, count: group.areas.filter((a) => districtOf(a) === d).length })).filter((x) => x.count > 0)
 
   return (
-    <section className="mc-card rounded-xl overflow-hidden">
-      <div className="p-4 md:p-5 border-b border-white/10 flex items-center gap-3">
-        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGradient(group.memberName)} flex items-center justify-center text-white font-bold shrink-0`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`mc-card rounded-xl p-4 text-left border transition-all hover:bg-white/[0.04] ${active ? 'border-mc-accent ring-2 ring-mc-accent/30' : LEVEL_STYLE[stats.worstLevel].ring}`}
+    >
+      <div className="flex items-start gap-3">
+        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGradient(group.memberName)} flex items-center justify-center text-white font-bold shrink-0 text-lg`}>
           {group.memberName.slice(0, 1)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="font-semibold text-mc-text text-lg truncate">{group.memberName}</h2>
-            <span className="px-2 py-0.5 rounded-full text-xs bg-mc-accent/15 text-mc-highlight border border-mc-accent/35">{group.areas.length} 張</span>
-            {worstDays !== null && (
-              <span className={`px-2 py-0.5 rounded-full text-xs border ${LEVEL_STYLE[worstLevel].badge}`}>最久 {worstDays} 天</span>
-            )}
-          </div>
-          <div className="text-xs text-mc-text-secondary mt-1">
-            30天內 {count('ok')}｜30+ {count('warn')}｜60+ {count('danger')}｜無日期 {count('unknown')}
-          </div>
-        </div>
-      </div>
-
-      <div className="divide-y divide-white/5">
-        {group.areas.map((a) => {
-          const days = daysSince(a.dispatchedAt)
-          const lv = levelOf(days)
-          return <AreaItem key={a.id} area={a} days={days} level={lv} />
-        })}
-      </div>
-    </section>
-  )
-}
-
-function AreaItem({ area, days, level }: { area: AreaRow; days: number | null; level: Level }) {
-  const mapNo = mapNoOf(area)
-  const hasImage = mapNo !== null && mapNo !== 2
-  return (
-    <div className={`p-3 md:p-4 border-l-4 ${LEVEL_STYLE[level].row} transition-colors`}>
-      <div className="flex gap-3 items-start">
-        {hasImage && (
-          <a href={`/maps/areas/${mapNo}.jpg`} target="_blank" rel="noreferrer" className="hidden sm:block shrink-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`/maps/areas/thumbs/${mapNo}-list.webp`}
-              alt={`${publicMapLabel(area)} 地圖`}
-              className="w-20 h-20 object-contain rounded-lg bg-black/25 border border-white/10"
-              loading="lazy"
-            />
-          </a>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${LEVEL_STYLE[level].dot}`} />
-            <span className="font-semibold text-mc-text">{publicMapLabel(area)}</span>
-            <span className="text-xs text-mc-text-secondary">內部分區：{internalLabel(area)}</span>
-          </div>
-          <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-            <Info label="分發日" value={fmtDate(area.dispatchedAt)} />
-            <Info label="經過" value={days === null ? '無日期' : `${days} 天`} valueClass={LEVEL_STYLE[level].text} />
-            <Info label="狀態" value={LEVEL_LABEL[level]} valueClass={LEVEL_STYLE[level].text} />
-            {hasImage ? (
-              <a href={`/maps/areas/${mapNo}.jpg`} target="_blank" rel="noreferrer" className="text-mc-highlight hover:underline self-end">
-                開啟地圖
-              </a>
-            ) : (
-              <Info label="地圖" value="無圖檔" />
-            )}
-          </div>
-          {area.assignNote && (
-            <div className="mt-2 text-xs text-yellow-200/90 bg-yellow-400/10 border border-yellow-400/25 rounded-lg px-2 py-1">
-              備註：{area.assignNote}
+            <div className="text-right shrink-0">
+              <div className="text-3xl font-bold text-mc-text leading-none">{group.areas.length}</div>
+              <div className="text-xs text-mc-text-secondary mt-0.5">張</div>
             </div>
-          )}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {stats.danger > 0 && <MiniBadge level="danger" text={`60+ ${stats.danger}`} />}
+            {stats.warn > 0 && <MiniBadge level="warn" text={`30+ ${stats.warn}`} />}
+            {stats.unknown > 0 && <MiniBadge level="unknown" text={`無日期 ${stats.unknown}`} />}
+            {stats.attention === 0 && <MiniBadge level="ok" text="正常" />}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {districts.map(({ d, count }) => (
+              <span key={d} className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs text-mc-text-secondary border border-white/10">
+                <span className={`w-1.5 h-1.5 rounded-full ${DISTRICT_DOT[d]}`} />
+                {d} {count}
+              </span>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {topAreas.map((a) => (
+              <span key={a.id} className="rounded-md bg-black/20 border border-white/10 px-2 py-0.5 text-xs text-mc-text-secondary">
+                {shortMapLabel(a)}
+              </span>
+            ))}
+            {extra > 0 && <span className="rounded-md bg-mc-accent/10 border border-mc-accent/30 px-2 py-0.5 text-xs text-mc-highlight">+{extra}</span>}
+          </div>
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 
-function Info({ label, value, valueClass = 'text-mc-text' }: { label: string; value: string; valueClass?: string }) {
+function MiniBadge({ level, text }: { level: Level; text: string }) {
+  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border ${LEVEL_STYLE[level].badge}`}><span className={`w-1.5 h-1.5 rounded-full ${LEVEL_STYLE[level].dot}`} />{text}</span>
+}
+
+function SelectedMemberPanel({ group }: { group?: MemberGroup }) {
+  if (!group) return null
+  const stats = groupStats(group.areas)
+  const areasByDistrict = DISTRICTS.slice(1).map((d) => ({ d, areas: group.areas.filter((a) => districtOf(a) === d) })).filter((x) => x.areas.length > 0)
+
   return (
-    <div>
-      <div className="text-mc-text-secondary/70">{label}</div>
-      <div className={`font-medium ${valueClass}`}>{value}</div>
+    <aside className="mc-card rounded-xl p-4 xl:sticky xl:top-4 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGradient(group.memberName)} flex items-center justify-center text-white font-bold shrink-0`}>
+          {group.memberName.slice(0, 1)}
+        </div>
+        <div>
+          <div className="text-xs text-mc-text-secondary">目前選取</div>
+          <div className="font-semibold text-mc-text text-lg">{group.memberName}</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <PanelMetric label="使用中" value={`${group.areas.length} 張`} />
+        <PanelMetric label="需注意" value={`${stats.attention} 張`} valueClass={stats.attention > 0 ? 'text-yellow-300' : 'text-mc-text'} />
+      </div>
+
+      <div className="text-xs text-mc-text-secondary leading-relaxed">
+        這裡只列簡要地圖號；需要看圖時再點地圖號開啟圖檔，避免畫面一次塞太多細節。
+      </div>
+
+      <div className="space-y-3">
+        {areasByDistrict.map(({ d, areas }) => (
+          <div key={d}>
+            <div className="flex items-center gap-2 text-sm font-medium text-mc-text mb-2">
+              <span className={`w-2 h-2 rounded-full ${DISTRICT_DOT[d]}`} />
+              {d}（{areas.length}）
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {areas.map((a) => {
+                const no = mapNoOf(a)
+                const lv = levelOf(daysSince(a.dispatchedAt))
+                return no && no !== 2 ? (
+                  <a
+                    key={a.id}
+                    href={`/maps/areas/${no}.jpg`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`rounded-lg px-2.5 py-1 text-sm border ${LEVEL_STYLE[lv].badge} hover:bg-white/10 transition-colors`}
+                    title={publicMapLabel(a)}
+                  >
+                    {no}號
+                  </a>
+                ) : (
+                  <span key={a.id} className={`rounded-lg px-2.5 py-1 text-sm border ${LEVEL_STYLE[lv].badge}`}>{publicMapLabel(a)}</span>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </aside>
+  )
+}
+
+function PanelMetric({ label, value, valueClass = 'text-mc-text' }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <div className="rounded-lg bg-white/5 border border-white/10 p-3">
+      <div className="text-xs text-mc-text-secondary">{label}</div>
+      <div className={`font-bold text-lg ${valueClass}`}>{value}</div>
     </div>
   )
 }
