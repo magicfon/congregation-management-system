@@ -457,9 +457,7 @@ function MemberOverviewCard({ group, active, onClick }: { group: MemberGroup; ac
 
           <div className="flex flex-wrap gap-1.5 mt-3">
             {topAreas.map((a) => (
-              <span key={a.id} className="rounded-md bg-black/20 border border-white/10 px-2 py-0.5 text-xs text-mc-text-secondary">
-                {shortMapLabel(a)}
-              </span>
+              <MapAgeChip key={a.id} area={a} compact />
             ))}
             {extra > 0 && <span className="rounded-md bg-mc-accent/10 border border-mc-accent/30 px-2 py-0.5 text-xs text-mc-highlight">+{extra}</span>}
           </div>
@@ -471,6 +469,27 @@ function MemberOverviewCard({ group, active, onClick }: { group: MemberGroup; ac
 
 function MiniBadge({ level, text }: { level: Level; text: string }) {
   return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border ${LEVEL_STYLE[level].badge}`}><span className={`w-1.5 h-1.5 rounded-full ${LEVEL_STYLE[level].dot}`} />{text}</span>
+}
+
+function ageText(area: AreaRow): string {
+  const days = daysSince(area.dispatchedAt)
+  if (days === null) return '無日期'
+  if (days === 0) return '今天'
+  return `${days}天`
+}
+
+function MapAgeChip({ area, compact = false }: { area: AreaRow; compact?: boolean }) {
+  const lv = levelOf(daysSince(area.dispatchedAt))
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-lg border ${LEVEL_STYLE[lv].badge} ${compact ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'}`}
+      title={`${publicMapLabel(area)}，已領取 ${ageText(area)}`}
+    >
+      <span className="font-semibold">{compact ? shortMapLabel(area) : `${mapNoOf(area) ?? publicMapLabel(area)}號`}</span>
+      <span className="opacity-75">/</span>
+      <span className="font-bold">{ageText(area)}</span>
+    </span>
+  )
 }
 
 function SelectedMemberPanel({ group }: { group?: MemberGroup }) {
@@ -496,7 +515,7 @@ function SelectedMemberPanel({ group }: { group?: MemberGroup }) {
       </div>
 
       <div className="text-xs text-mc-text-secondary leading-relaxed">
-        這裡只列簡要地圖號；需要看圖時再點地圖號開啟圖檔，避免畫面一次塞太多細節。
+        這裡用「地圖號 / 已領取天數」顯示；需要看圖時再點地圖號開啟圖檔。
       </div>
 
       <div className="space-y-3">
@@ -516,13 +535,13 @@ function SelectedMemberPanel({ group }: { group?: MemberGroup }) {
                     href={`/maps/areas/${no}.jpg`}
                     target="_blank"
                     rel="noreferrer"
-                    className={`rounded-lg px-2.5 py-1 text-sm border ${LEVEL_STYLE[lv].badge} hover:bg-white/10 transition-colors`}
-                    title={publicMapLabel(a)}
+                    className="hover:scale-[1.03] transition-transform"
+                    title={`${publicMapLabel(a)}，已領取 ${ageText(a)}`}
                   >
-                    {no}號
+                    <MapAgeChip area={a} />
                   </a>
                 ) : (
-                  <span key={a.id} className={`rounded-lg px-2.5 py-1 text-sm border ${LEVEL_STYLE[lv].badge}`}>{publicMapLabel(a)}</span>
+                  <MapAgeChip key={a.id} area={a} />
                 )
               })}
             </div>
