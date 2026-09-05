@@ -440,9 +440,9 @@ function MemberOverviewCard({ group, active, onClick }: { group: MemberGroup; ac
           </div>
 
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {stats.danger > 0 && <MiniBadge level="danger" text={`60+ ${stats.danger}`} />}
-            {stats.warn > 0 && <MiniBadge level="warn" text={`30+ ${stats.warn}`} />}
-            {stats.unknown > 0 && <MiniBadge level="unknown" text={`無日期 ${stats.unknown}`} />}
+            {stats.danger > 0 && <MiniBadge level="danger" text="超過60天" />}
+            {stats.warn > 0 && <MiniBadge level="warn" text="超過30天" />}
+            {stats.unknown > 0 && <MiniBadge level="unknown" text="無分發日" />}
             {stats.attention === 0 && <MiniBadge level="ok" text="正常" />}
           </div>
 
