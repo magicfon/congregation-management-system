@@ -239,7 +239,14 @@ export default function ActiveAssignmentsPage() {
         return { ...g, areas, count: areas.length }
       })
       .filter((g) => g.areas.length > 0)
-    out.sort((a, b) => b.areas.length - a.areas.length || sortAreas(a.areas[0], b.areas[0]))
+    out.sort((a, b) => {
+      const as = groupStats(a.areas)
+      const bs = groupStats(b.areas)
+      // 最久未回報天數最高的人排最前面；無分發日不壓過有實際天數的項目
+      const aw = as.worstDays ?? -1
+      const bw = bs.worstDays ?? -1
+      return bw - aw || b.areas.length - a.areas.length || sortAreas(a.areas[0], b.areas[0])
+    })
     return out
   }, [groups, filter, district, q])
 
