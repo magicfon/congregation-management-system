@@ -5,7 +5,9 @@ import { getToken } from 'next-auth/jwt'
 const PROTECTED_PAGE_PREFIXES = [
   '/dashboard',
   '/map',
+  '/map-images',
   '/assignments',
+  '/active-assignments',
   '/members',
   '/reports',
   '/schedules',
