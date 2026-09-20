@@ -23,7 +23,7 @@ async function pushToSheet(area: { sheetNo: number | null }, collected: boolean)
 
 // POST /api/areas/assign — assign a member to an area
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUser()
+  const auth = await requireApiUser(['admin'])
   if ('response' in auth) return auth.response
 
   try {

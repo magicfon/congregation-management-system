@@ -9,6 +9,7 @@ import {
   DEFAULT_SHEET_ID,
 } from '../../../../lib/google-sheets'
 import { randomUUID } from 'crypto'
+import { syncReportCompletions } from '../../../../lib/report-completion-sync'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     if ('response' in auth) return auth.response
   }
 
-  const result = { imported: 0, sheetEdits: 0, conflicts: 0, pushedBack: 0, errors: [] as string[] }
+  const result = { completionDatesUpdated: 0, imported: 0, sheetEdits: 0, conflicts: 0, pushedBack: 0, errors: [] as string[] }
 
   try {
     // ============ 1. Form 回報匯入 ============
@@ -115,6 +116,13 @@ export async function POST(request: NextRequest) {
 
     // ============ 2+3. 快照比對 + 推送補救 ============
     const statusRows = await readValues(DEFAULT_SHEET_ID, '區域狀態!A2:E214')
+    try {
+      result.completionDatesUpdated = (await syncReportCompletions(prisma, statusRows)).updated
+    } catch (error) {
+      // A bad E-cell must not interrupt existing C/D assignment synchronization.
+      console.error('Report completion date sync failed:', error)
+      result.errors.push('最後回報日期同步失敗；保留原日期，請檢查 E 欄與 213 區完整性')
+    }
     const snapshot = await readSnapshot()
     const freshAreas = await prisma.area.findMany({ include: { assignedMember: true } })
     const freshBySheetNo = new Map(freshAreas.filter(a => a.sheetNo != null).map(a => [a.sheetNo!, a] as const))

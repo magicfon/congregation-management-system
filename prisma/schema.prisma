@@ -24,6 +24,7 @@ model Area {
   assignNote       String? // 分配目的/備註，沒有就是 null
   dispatchedAt     DateTime? // 分發日期
   completedAt      DateTime? // 完成日期（完成時間 > 分發時間 → 已收回，可重新分配）
+  lastReportedCompletedAt DateTime? // Sheet E 欄最後回報完成日，不受分發／收回影響
   lastActivityAt   DateTime @default(now())
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

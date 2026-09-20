@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/db'
 import { requireApiUser } from '../../../../lib/api-auth'
+import { allocationOrder, idleCalendarDays } from '../../../../lib/allocation'
+import { taipeiDate } from '../../../../lib/google-sheets'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,21 +12,18 @@ export async function GET() {
 
   try {
     const areas = await prisma.area.findMany({
-      select: { id: true, name: true, lastActivityAt: true, assignedTo: true },
-      orderBy: { lastActivityAt: 'asc' },
+      select: { id: true, name: true, lastReportedCompletedAt: true, assignedTo: true, mapId: true, blockCode: true, sheetNo: true, mapAreaId: true },
     })
 
-    const now = Date.now()
-    const oneDayMs = 1000 * 60 * 60 * 24
+    const today = taipeiDate(new Date())
 
-    const idleStats = areas.map(area => {
-      const lastActivity = area.lastActivityAt ? new Date(area.lastActivityAt).getTime() : 0
-      const idleDays = Math.floor((now - lastActivity) / oneDayMs)
+    const idleStats = areas.sort(allocationOrder).map(area => {
+      const idleDays = idleCalendarDays(taipeiDate(area.lastReportedCompletedAt) || null, today)
 
-      let status: 'green' | 'yellow' | 'orange' | 'red'
-      if (idleDays < 7) status = 'green'
-      else if (idleDays < 30) status = 'yellow'
-      else if (idleDays < 90) status = 'orange'
+      let status: 'green' | 'yellow' | 'red' | 'unknown'
+      if (idleDays === null) status = 'unknown'
+      else if (idleDays < 90) status = 'green'
+      else if (idleDays < 180) status = 'yellow'
       else status = 'red'
 
       return {
@@ -33,7 +32,7 @@ export async function GET() {
         idleDays,
         status,
         assignedTo: area.assignedTo || null,
-        lastActivityAt: area.lastActivityAt,
+        lastCompletedAt: area.lastReportedCompletedAt,
       }
     })
 

@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run db:line-profile && prisma generate && next build",
+    "build": "npm run db:line-profile && npm run db:area-completion && prisma generate && next build",
+    "db:area-completion": "prisma db execute --file prisma/area-report-completion.sql --schema prisma/schema.prisma",
     "db:line-profile": "prisma db execute --file prisma/line-display-name.sql --schema prisma/schema.prisma",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
     "check:regression": "node scripts/regression-checks.cjs",
-    "check:line-pairing": "node scripts/check-line-pairing.cjs"
+    "check:line-pairing": "node scripts/check-line-pairing.cjs",
+    "check:map-allocation": "node scripts/check-map-allocation.cjs"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",
