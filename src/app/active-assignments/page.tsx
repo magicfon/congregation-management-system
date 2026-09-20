@@ -37,13 +37,6 @@ const DISTRICT_DOT: Record<DistrictFilter, string> = {
   梓官: 'bg-violet-400',
 }
 
-const LEVEL_LABEL: Record<Level, string> = {
-  ok: '30天內',
-  warn: '30天以上',
-  danger: '60天以上',
-  unknown: '無日期',
-}
-
 const LEVEL_STYLE: Record<Level, { badge: string; dot: string; text: string; ring: string }> = {
   ok: {
     badge: 'bg-emerald-400/10 border-emerald-400/30 text-emerald-300',
@@ -125,8 +118,8 @@ function shortMapLabel(a: AreaRow): string {
 }
 
 function sortAreas(a: AreaRow, b: AreaRow): number {
-  const da = daysSince(a.dispatchedAt) ?? 9999
-  const db = daysSince(b.dispatchedAt) ?? 9999
+  const da = daysSince(a.dispatchedAt) ?? -1
+  const db = daysSince(b.dispatchedAt) ?? -1
   return db - da || (mapNoOf(a) ?? 0) - (mapNoOf(b) ?? 0)
 }
 
@@ -160,7 +153,7 @@ function makeLineText(groups: MemberGroup[]): string {
   const lines = [
     '【使用中地圖提醒】',
     `目前有 ${activeAreas.length} 張地圖尚未回報 / 收回，${groups.length} 人持有。`,
-    `需注意：30天以上 ${warn} 張、60天以上 ${danger} 張、無分發日 ${unknown} 張。`,
+    `需注意：30–59天 ${warn} 張、60天以上 ${danger} 張、無分發日 ${unknown} 張。`,
     '',
   ]
 
@@ -243,7 +236,7 @@ export default function ActiveAssignmentsPage() {
     out.sort((a, b) => {
       const as = groupStats(a.areas)
       const bs = groupStats(b.areas)
-      // 最久未回報天數最高的人排最前面；無分發日不壓過有實際天數的項目
+      // 領取天數最高的人排最前面；無分發日不壓過有實際天數的項目
       const aw = as.worstDays ?? -1
       const bw = bs.worstDays ?? -1
       return bw - aw || b.areas.length - a.areas.length || sortAreas(a.areas[0], b.areas[0])
@@ -252,16 +245,11 @@ export default function ActiveAssignmentsPage() {
   }, [groups, filter, district, q])
 
   useEffect(() => {
-    if (view.length === 0) {
+    if (selectedMemberId && !view.some((g) => g.memberId === selectedMemberId)) {
       setSelectedMemberId(null)
-      return
-    }
-    if (!selectedMemberId || !view.some((g) => g.memberId === selectedMemberId)) {
-      setSelectedMemberId(view[0].memberId)
     }
   }, [selectedMemberId, view])
 
-  const selectedGroup = view.find((g) => g.memberId === selectedMemberId) || view[0]
   const lineText = useMemo(() => makeLineText(view), [view])
   const shown = view.reduce((n, g) => n + g.areas.length, 0)
 
@@ -278,7 +266,7 @@ export default function ActiveAssignmentsPage() {
         <div>
           <h1 className="text-2xl font-bold text-mc-text">使用中地圖</h1>
           <p className="text-sm text-mc-text-secondary mt-1">
-            人員總覽優先：先看誰手上有幾張，再點人員查看簡要地圖號
+            點選人員查看每張地圖已領取多久；天數從分發日起算。
           </p>
         </div>
         <button
@@ -297,7 +285,7 @@ export default function ActiveAssignmentsPage() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <SummaryCard active={filter === 'all'} label="使用中總張數" value={total} dot="bg-mc-highlight" onClick={() => setFilter('all')} />
         <SummaryCard active={filter === 'attention'} label="需注意" value={stats.attention} dot="bg-orange-400" onClick={() => setFilter('attention')} />
-        <SummaryCard active={filter === 'warn'} label="30天以上" value={stats.warn} dot="bg-yellow-400" onClick={() => setFilter('warn')} />
+        <SummaryCard active={filter === 'warn'} label="30–59天" value={stats.warn} dot="bg-yellow-400" onClick={() => setFilter('warn')} />
         <SummaryCard active={filter === 'danger'} label="60天以上" value={stats.danger} dot="bg-red-500" onClick={() => setFilter('danger')} />
         <SummaryCard active={filter === 'unknown'} label="無分發日" value={stats.unknown} dot="bg-indigo-400" onClick={() => setFilter('unknown')} />
       </div>
@@ -368,26 +356,22 @@ export default function ActiveAssignmentsPage() {
       )}
 
       {!loading && view.length > 0 && (
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
-          <section className="space-y-3">
-            <div className="flex items-center justify-between text-sm text-mc-text-secondary px-1">
-              <span>人員清單</span>
-              <span>{view.length} 人 / {shown} 張</span>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {view.map((g) => (
-                <MemberOverviewCard
-                  key={g.memberId}
-                  group={g}
-                  active={selectedGroup?.memberId === g.memberId}
-                  onClick={() => setSelectedMemberId(g.memberId)}
-                />
-              ))}
-            </div>
-          </section>
-
-          <SelectedMemberPanel group={selectedGroup} />
-        </div>
+        <section className="space-y-3">
+          <div className="flex items-center justify-between text-sm text-mc-text-secondary px-1">
+            <span>人員清單・目前篩選結果</span>
+            <span>{view.length} 人 / {shown} 張</span>
+          </div>
+          <div className="space-y-3">
+            {view.map((g) => (
+              <MemberOverviewCard
+                key={g.memberId}
+                group={g}
+                active={selectedMemberId === g.memberId}
+                onClick={() => setSelectedMemberId((current) => current === g.memberId ? null : g.memberId)}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
       {!loading && view.length === 0 && !error && (
@@ -419,147 +403,97 @@ function SummaryCard({ active, label, value, dot, onClick }: { active: boolean; 
 
 function MemberOverviewCard({ group, active, onClick }: { group: MemberGroup; active: boolean; onClick: () => void }) {
   const stats = groupStats(group.areas)
-  const topAreas = group.areas.slice(0, 8)
-  const extra = Math.max(0, group.areas.length - topAreas.length)
+  const panelId = `member-maps-${group.memberId}`
+  const buttonId = `member-toggle-${group.memberId}`
   const districts = DISTRICTS.slice(1).map((d) => ({ d, count: group.areas.filter((a) => districtOf(a) === d).length })).filter((x) => x.count > 0)
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`mc-card rounded-xl p-4 text-left border transition-all hover:bg-white/[0.04] ${active ? 'border-mc-accent ring-2 ring-mc-accent/30' : LEVEL_STYLE[stats.worstLevel].ring}`}
-    >
-      <div className="flex items-start gap-3">
-        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGradient(group.memberName)} flex items-center justify-center text-white font-bold shrink-0 text-lg`}>
-          {group.memberName.slice(0, 1)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-semibold text-mc-text text-lg truncate">{group.memberName}</h2>
-            <div className="text-right shrink-0">
-              <div className="text-3xl font-bold text-mc-text leading-none">{group.areas.length}</div>
-              <div className="text-xs text-mc-text-secondary mt-0.5">張</div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {stats.danger > 0 && <MiniBadge level="danger" text="超過60天" />}
-            {stats.warn > 0 && <MiniBadge level="warn" text="超過30天" />}
-            {stats.unknown > 0 && <MiniBadge level="unknown" text="無分發日" />}
-            {stats.attention === 0 && <MiniBadge level="ok" text="正常" />}
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {districts.map(({ d, count }) => (
-              <span key={d} className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-xs text-mc-text-secondary border border-white/10">
-                <span className={`w-1.5 h-1.5 rounded-full ${DISTRICT_DOT[d]}`} />
-                {d} {count}
+    <section className={`mc-card rounded-xl overflow-hidden border ${active ? 'border-mc-accent' : LEVEL_STYLE[stats.worstLevel].ring}`}>
+      <h2>
+        <button
+          id={buttonId}
+          type="button"
+          aria-expanded={active}
+          aria-controls={panelId}
+          onClick={onClick}
+          className="w-full p-4 text-left hover:bg-white/[0.04] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-mc-highlight"
+        >
+          <span className="flex items-start gap-3">
+            <span className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(group.memberName)} flex items-center justify-center text-white font-bold shrink-0`} aria-hidden="true">
+              {group.memberName.slice(0, 1)}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-mc-text text-lg break-words">{group.memberName}</span>
+                <span className="text-mc-text shrink-0"><strong className="text-2xl tabular-nums">{group.areas.length}</strong> 張</span>
               </span>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {topAreas.map((a) => (
-              <MapAgeChip key={a.id} area={a} compact />
-            ))}
-            {extra > 0 && <span className="rounded-md bg-mc-accent/10 border border-mc-accent/30 px-2 py-0.5 text-xs text-mc-highlight">+{extra}</span>}
-          </div>
-        </div>
+              <span className="flex flex-wrap gap-2 mt-2 text-xs text-mc-text-secondary">
+                {districts.map(({ d, count }) => <span key={d}>{d} {count} 張</span>)}
+              </span>
+              <span className="flex flex-wrap gap-2 mt-2">
+                {stats.danger > 0 && <MiniBadge level="danger" text={`60天以上 · ${stats.danger} 張`} />}
+                {stats.warn > 0 && <MiniBadge level="warn" text={`30–59天 · ${stats.warn} 張`} />}
+                {stats.unknown > 0 && <MiniBadge level="unknown" text={`分發日未記錄 · ${stats.unknown} 張`} />}
+                {stats.attention === 0 && <MiniBadge level="ok" text="領取未滿30天" />}
+              </span>
+              <span className="flex items-center justify-between gap-2 mt-3 text-xs text-mc-text-secondary">
+                <span>{stats.worstDays === null ? '尚無可計算的領取天數' : `最久已領取 ${stats.worstDays} 天`}</span>
+                <span className="text-mc-highlight">{active ? '收合明細 ▴' : '展開地圖 ▾'}</span>
+              </span>
+            </span>
+          </span>
+        </button>
+      </h2>
+      <div id={panelId} role="region" aria-labelledby={buttonId} hidden={!active}>
+        {active && <MemberMapDetails group={group} />}
       </div>
-    </button>
+    </section>
   )
 }
 
 function MiniBadge({ level, text }: { level: Level; text: string }) {
-  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border ${LEVEL_STYLE[level].badge}`}><span className={`w-1.5 h-1.5 rounded-full ${LEVEL_STYLE[level].dot}`} />{text}</span>
+  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border ${LEVEL_STYLE[level].badge}`}><span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${LEVEL_STYLE[level].dot}`} />{text}</span>
 }
 
-function ageText(area: AreaRow): string {
-  const days = daysSince(area.dispatchedAt)
-  if (days === null) return '無日期'
-  if (days === 0) return '今天'
-  return `${days}天`
-}
-
-function MapAgeChip({ area, compact = false }: { area: AreaRow; compact?: boolean }) {
-  const lv = levelOf(daysSince(area.dispatchedAt))
+function MemberMapDetails({ group }: { group: MemberGroup }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-lg border ${LEVEL_STYLE[lv].badge} ${compact ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'}`}
-      title={`${publicMapLabel(area)}，已領取 ${ageText(area)}`}
-    >
-      <span className="font-semibold">{compact ? shortMapLabel(area) : `${mapNoOf(area) ?? publicMapLabel(area)}號`}</span>
-      <span className="opacity-75">/</span>
-      <span className="font-bold">{ageText(area)}</span>
-    </span>
-  )
-}
-
-function SelectedMemberPanel({ group }: { group?: MemberGroup }) {
-  if (!group) return null
-  const stats = groupStats(group.areas)
-  const areasByDistrict = DISTRICTS.slice(1).map((d) => ({ d, areas: group.areas.filter((a) => districtOf(a) === d) })).filter((x) => x.areas.length > 0)
-
-  return (
-    <aside className="mc-card rounded-xl p-4 xl:sticky xl:top-4 space-y-4">
-      <div className="flex items-center gap-3">
-        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${avatarGradient(group.memberName)} flex items-center justify-center text-white font-bold shrink-0`}>
-          {group.memberName.slice(0, 1)}
-        </div>
-        <div>
-          <div className="text-xs text-mc-text-secondary">目前選取</div>
-          <div className="font-semibold text-mc-text text-lg">{group.memberName}</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <PanelMetric label="使用中" value={`${group.areas.length} 張`} />
-        <PanelMetric label="需注意" value={`${stats.attention} 張`} valueClass={stats.attention > 0 ? 'text-yellow-300' : 'text-mc-text'} />
-      </div>
-
-      <div className="text-xs text-mc-text-secondary leading-relaxed">
-        這裡用「地圖號 / 已領取天數」顯示；需要看圖時再點地圖號開啟圖檔。
-      </div>
-
-      <div className="space-y-3">
-        {areasByDistrict.map(({ d, areas }) => (
-          <div key={d}>
-            <div className="flex items-center gap-2 text-sm font-medium text-mc-text mb-2">
-              <span className={`w-2 h-2 rounded-full ${DISTRICT_DOT[d]}`} />
-              {d}（{areas.length}）
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {areas.map((a) => {
-                const no = mapNoOf(a)
-                const lv = levelOf(daysSince(a.dispatchedAt))
-                return no && no !== 2 ? (
-                  <a
-                    key={a.id}
-                    href={`/maps/areas/${no}.jpg`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:scale-[1.03] transition-transform"
-                    title={`${publicMapLabel(a)}，已領取 ${ageText(a)}`}
-                  >
-                    <MapAgeChip area={a} />
-                  </a>
-                ) : (
-                  <MapAgeChip key={a.id} area={a} />
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </aside>
-  )
-}
-
-function PanelMetric({ label, value, valueClass = 'text-mc-text' }: { label: string; value: string; valueClass?: string }) {
-  return (
-    <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-      <div className="text-xs text-mc-text-secondary">{label}</div>
-      <div className={`font-bold text-lg ${valueClass}`}>{value}</div>
+    <div className="border-t border-white/10 bg-black/10 px-4 pb-2">
+      <p className="py-3 text-xs text-mc-text-secondary">目前篩選的地圖，依領取最久排序；點地圖名稱可開啟圖檔。</p>
+      <table className="w-full text-sm">
+        <caption className="sr-only">{group.memberName}的地圖與已領取天數</caption>
+        <thead>
+          <tr className="text-mc-text-secondary border-b border-white/10">
+            <th scope="col" className="py-2 text-left font-medium">地圖</th>
+            <th scope="col" className="py-2 text-right font-medium">已領取</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/5">
+          {[...group.areas].sort(sortAreas).map((area) => {
+            const no = mapNoOf(area)
+            const days = daysSince(area.dispatchedAt)
+            const level = levelOf(days)
+            return (
+              <tr key={area.id}>
+                <th scope="row" className="py-3 pr-3 text-left font-medium text-mc-text">
+                  {no && no !== 2 ? (
+                    <a href={`/maps/areas/${no}.jpg`} target="_blank" rel="noreferrer" className="inline-block py-1 underline decoration-white/20 underline-offset-4 hover:text-mc-highlight focus-visible:outline-mc-highlight" aria-label={`開啟${publicMapLabel(area)}圖檔（新分頁）`}>
+                      {publicMapLabel(area)} <span aria-hidden="true" className="text-mc-text-secondary">↗</span>
+                    </a>
+                  ) : publicMapLabel(area)}
+                </th>
+                <td className={`py-3 text-right ${LEVEL_STYLE[level].text}`}>
+                  {days === null ? <span className="text-xs">分發日未記錄</span> : (
+                    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                      {(level === 'warn' || level === 'danger') && <span aria-hidden="true" className={`h-2 w-2 rounded-full ${LEVEL_STYLE[level].dot}`} />}
+                      <span><strong className="text-xl tabular-nums">{days}</strong> 天</span>
+                    </span>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
