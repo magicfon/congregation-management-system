@@ -41,3 +41,4 @@ next-env.d.ts
 prisma/dev.db
 .worktrees/
 .venv-boundaries/
+tmp/
