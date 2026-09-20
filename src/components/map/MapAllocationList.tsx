@@ -52,16 +52,6 @@ export default function MapAllocationList() {
     return !needle || [allocationLabel(area), area.blockCode, area.assignedTo].some((value) => value?.toLowerCase().includes(needle))
   }), [areas, district, onlyAvailable, query])
 
-  const groups = useMemo(() => {
-    const result = new Map<string, AllocationArea[]>()
-    for (const area of visible) {
-      const key = `${area.mapId}:${area.blockCode}`
-      if (!result.has(key)) result.set(key, [])
-      result.get(key)!.push(area)
-    }
-    return [...result.values()]
-  }, [visible])
-
   const selectedAreas = visible.filter((area) => selected.has(area.id) && !area.isDispatched)
   useEffect(() => {
     const allowed = new Set(visible.filter((area) => !area.isDispatched).map((area) => area.id))
@@ -116,10 +106,9 @@ export default function MapAllocationList() {
   }
 
   const available = areas.filter((area) => !area.isDispatched).length
-  const columns = isAdmin ? 5 : 4
   const disabled = loading || busy
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="text-mc-text/70">共 {areas.length} 張 · 可分發 {available} 張 · 使用中 {areas.length - available} 張</span>
         <div className="flex gap-2">
@@ -127,17 +116,17 @@ export default function MapAllocationList() {
           {isAdmin && <button type="button" disabled={disabled} onClick={() => void refreshDates()} className="rounded-lg border border-blue-400/30 px-3 py-1.5 text-xs text-blue-300 disabled:opacity-40">更新回報日期</button>}
         </div>
       </div>
-      <div className="flex flex-wrap gap-2 items-center rounded-xl border border-white/10 bg-mc-card p-3">
+      <div className="flex flex-wrap gap-2 items-center rounded-xl border border-white/10 bg-mc-card p-2">
         <label className="sr-only" htmlFor="allocation-district">地區</label>
         <select id="allocation-district" value={district} disabled={disabled} onChange={(e) => setDistrict(e.target.value)} className="rounded-lg bg-mc-accent p-2 text-sm">
           <option value="all">全部地區</option>
           {Object.entries(DISTRICT_NAMES).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
-        <input aria-label="搜尋地圖、區塊或持有人" placeholder="搜尋地圖、區塊或持有人" value={query} disabled={disabled} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-white/10 bg-mc-bg px-3 py-2 text-sm" />
+        <input aria-label="搜尋地圖或持有人" placeholder="搜尋地圖或持有人" value={query} disabled={disabled} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-white/10 bg-mc-bg px-3 py-2 text-sm" />
         <label className="flex items-center gap-2 text-xs text-mc-text/70"><input type="checkbox" checked={onlyAvailable} disabled={disabled} onChange={(e) => setOnlyAvailable(e.target.checked)} />只看可分發</label>
       </div>
       <div className="flex flex-wrap justify-between gap-1 text-xs text-mc-text/50">
-        <span>按地區、區塊、編號排列 · <span className="text-yellow-300">90–179 天</span> · <span className="text-red-400">180 天以上</span></span>
+        <span>依區域順序排列 · <span className="text-yellow-300">90–179 天</span> · <span className="text-red-400">180 天以上</span></span>
         <span>{syncedAt ? `回報日期更新：${new Date(syncedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })}` : '回報日期待首次同步'}</span>
       </div>
       {error && <p role="alert" className="rounded-lg border border-red-400/30 p-3 text-sm text-red-300">{error}</p>}
@@ -153,7 +142,7 @@ export default function MapAllocationList() {
               {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
             </select>
             <button type="button" onClick={() => void dispatch()} disabled={disabled || !memberId || !!error} className="rounded-lg bg-mc-highlight px-3 py-2 text-sm text-white disabled:opacity-40">{busy ? '處理中…' : '一次分發'}</button>
-            <button type="button" disabled={disabled} onClick={() => setSelected(new Set())} className="px-2 py-2 text-xs text-mc-text/60">取消選取</button>
+            <button type="button" disabled={disabled} onClick={() => setSelected(new Set())} className="px-2 py-1 text-xs text-mc-text/60">取消選取</button>
           </div>
           <input aria-label="分配備註" maxLength={1000} placeholder="分配備註（選填）" value={note} disabled={disabled} onChange={(e) => setNote(e.target.value)} className="w-full rounded-lg border border-white/10 bg-mc-bg px-3 py-1.5 text-xs" />
         </div>
@@ -161,41 +150,31 @@ export default function MapAllocationList() {
 
       {loading ? <p role="status" className="py-10 text-center text-sm text-mc-text/60">載入地圖清單…</p> : (
         <div className="overflow-x-auto rounded-xl border border-white/10 bg-mc-card">
-          <table className="w-full text-left text-xs sm:text-sm">
+          <table className="w-full text-left text-xs sm:text-sm leading-5">
             <caption className="sr-only">所有地圖依區域排序的最後回報完成日期、距今天數與分配狀態</caption>
             <thead className="text-xs text-mc-text/60">
               <tr>
                 {isAdmin && <th scope="col" className="w-8"><span className="sr-only">選取</span></th>}
-                <th scope="col" className="px-2 py-2">地圖</th>
-                <th scope="col" className="hidden sm:table-cell px-2 py-2">上次回報完成</th>
-                <th scope="col" className="px-2 py-2 text-right">距今</th>
-                <th scope="col" className="px-2 py-2">分配狀態</th>
+                <th scope="col" className="px-2 py-1">地圖</th>
+                <th scope="col" className="hidden sm:table-cell px-2 py-1">上次回報完成</th>
+                <th scope="col" className="px-2 py-1 text-right">距今</th>
+                <th scope="col" className="px-2 py-1">分配狀態</th>
               </tr>
             </thead>
-            {groups.map((group) => {
-              const first = group[0]
-              const eligible = group.filter((area) => !area.isDispatched).map((area) => area.id)
-              return <tbody key={`${first.mapId}:${first.blockCode}`} className="border-t border-white/10">
-                <tr className="bg-white/5"><th colSpan={columns} scope="rowgroup" className="px-2 py-1.5">
-                  <div className="flex justify-between items-center gap-2 text-xs">
-                    <span>{DISTRICT_NAMES[first.mapId || ''] || '其他'} · {first.blockCode || '未分組'} <span className="font-normal text-mc-text/50">（{group.length} 張）</span></span>
-                    {isAdmin && eligible.length > 0 && <button type="button" disabled={disabled || !!error} onClick={() => toggle(eligible)} className="py-1 font-normal text-blue-300 disabled:opacity-40">{eligible.every((id) => selected.has(id)) ? '取消區塊選取' : `選取可分發 ${eligible.length} 張`}</button>}
-                  </div>
-                </th></tr>
-                {group.map((area) => <tr key={area.id} className={`border-t border-white/5 ${selected.has(area.id) ? 'bg-blue-500/10' : 'hover:bg-white/[0.03]'}`}>
+            <tbody className="border-t border-white/10">
+                {visible.map((area) => <tr key={area.id} className={`border-t border-white/5 ${selected.has(area.id) ? 'bg-blue-500/10' : 'hover:bg-white/[0.03]'}`}>
                   {isAdmin && <td className="pl-2"><input type="checkbox" aria-label={`選取${allocationLabel(area)}`} checked={selected.has(area.id)} disabled={disabled || area.isDispatched || !!error} onChange={() => toggle([area.id])} className="h-4 w-4 accent-blue-500 disabled:opacity-25" /></td>}
-                  <th scope="row" className="px-2 py-2 font-medium">
+                  <th scope="row" className="px-2 py-1 font-medium">
                     {area.sheetNo && area.sheetNo !== 2 ? <a href={`/maps/areas/${area.sheetNo}.jpg`} target="_blank" rel="noreferrer" className="underline decoration-white/20 underline-offset-4" aria-label={`開啟${allocationLabel(area)}圖檔（新分頁）`}>{allocationLabel(area)}</a> : allocationLabel(area)}
                     <span className="sm:hidden block text-[11px] font-normal text-mc-text/50">{area.lastCompletedDate || (syncedAt ? '無回報紀錄' : '待同步')}</span>
                   </th>
-                  <td className="hidden sm:table-cell px-2 py-2 text-mc-text/60">{area.lastCompletedDate || (syncedAt ? '無回報紀錄' : '待同步')}</td>
-                  <td className={`px-2 py-2 text-right whitespace-nowrap tabular-nums ${area.idleDays === null ? 'text-mc-text/40' : area.idleDays >= 180 ? 'text-red-400' : area.idleDays >= 90 ? 'text-yellow-300' : 'text-mc-text'}`}>
+                  <td className="hidden sm:table-cell px-2 py-1 text-mc-text/60">{area.lastCompletedDate || (syncedAt ? '無回報紀錄' : '待同步')}</td>
+                  <td className={`px-2 py-1 text-right whitespace-nowrap tabular-nums ${area.idleDays === null ? 'text-mc-text/40' : area.idleDays >= 180 ? 'text-red-400' : area.idleDays >= 90 ? 'text-yellow-300' : 'text-mc-text'}`}>
                     {area.idleDays === null ? '—' : <><strong>{area.idleDays}</strong> 天</>}
                   </td>
-                  <td className="px-2 py-2 max-w-28 break-words">{area.isDispatched ? <><span className="text-mc-text/50">使用中</span><span className="block text-xs">{area.assignedTo || '未知持有人'}</span></> : <span className="text-emerald-300">可分發</span>}</td>
+                  <td className="px-2 py-1 max-w-28 break-words">{area.isDispatched ? <><span className="text-mc-text/50">使用中</span><span className="ml-1 text-xs">{area.assignedTo || '未知持有人'}</span></> : <span className="text-emerald-300">可分發</span>}</td>
                 </tr>)}
-              </tbody>
-            })}
+            </tbody>
           </table>
           {!visible.length && <p className="py-10 text-center text-sm text-mc-text/50">{error ? '清單尚未載入' : '目前篩選條件沒有地圖'}</p>}
         </div>
