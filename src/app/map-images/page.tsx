@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
+import DashboardLayout from '../../components/layout/DashboardLayout'
 import 'leaflet/dist/leaflet.css'
 import type * as LeafletNS from 'leaflet'
 
@@ -205,7 +206,8 @@ export default function MapImagesPage() {
   }, [entries, district, q])
 
   return (
-    <div className="space-y-6">
+    <DashboardLayout>
+    <div className="p-4 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-mc-text">地圖圖檔</h1>
@@ -350,6 +352,7 @@ export default function MapImagesPage() {
       {viewer && <AreaViewer entry={viewer} onClose={() => setViewer(null)} />}
       {bigViewer && <DeepZoomViewer spec={bigViewer} onClose={() => setBigViewer(null)} />}
     </div>
+    </DashboardLayout>
   )
 }
 

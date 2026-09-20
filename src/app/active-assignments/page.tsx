@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import DashboardLayout from '../../components/layout/DashboardLayout'
 
 interface AreaRow {
   id: string
@@ -271,7 +272,8 @@ export default function ActiveAssignmentsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <DashboardLayout>
+    <div className="p-4 md:p-8 space-y-5">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-mc-text">使用中地圖</h1>
@@ -395,6 +397,7 @@ export default function ActiveAssignmentsPage() {
         </div>
       )}
     </div>
+    </DashboardLayout>
   )
 }
 
