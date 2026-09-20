@@ -44,3 +44,7 @@
 
 - `npx tsc --noEmit -p tsconfig.json` 過了才 commit
 - 部署後煙霧測試：未登入逛 `/dashboard` 應 307 導向 `/login`；`/login` 回 200
+
+## 多 Agent 協作規則（Hermes Ubuntu ↔ Aero16 Codex）
+
+GitHub `main` 是唯一真相來源。**動手前 `git pull --rebase origin main`；commit 完立刻 push。** 沒 push 的修改等於沒交接。兩邊都讀這份 AGENTS.md，規則一致。
