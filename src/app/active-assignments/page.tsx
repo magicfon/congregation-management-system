@@ -261,7 +261,7 @@ export default function ActiveAssignmentsPage() {
 
   return (
     <DashboardLayout>
-    <div className="w-full max-w-5xl mx-auto p-4 md:p-8 space-y-5">
+    <div className="w-full max-w-5xl mx-auto p-4 md:p-8 space-y-3">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-mc-text">使用中地圖</h1>
@@ -282,7 +282,7 @@ export default function ActiveAssignmentsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
         <SummaryCard active={filter === 'all'} label="使用中總張數" value={total} dot="bg-mc-highlight" onClick={() => setFilter('all')} />
         <SummaryCard active={filter === 'attention'} label="需注意" value={stats.attention} dot="bg-orange-400" onClick={() => setFilter('attention')} />
         <SummaryCard active={filter === 'warn'} label="30–59天" value={stats.warn} dot="bg-yellow-400" onClick={() => setFilter('warn')} />
@@ -290,7 +290,7 @@ export default function ActiveAssignmentsPage() {
         <SummaryCard active={filter === 'unknown'} label="無分發日" value={stats.unknown} dot="bg-indigo-400" onClick={() => setFilter('unknown')} />
       </div>
 
-      <div className="mc-card rounded-xl p-4 space-y-3">
+      <div className="mc-card rounded-xl p-3 space-y-2">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
           <input
             value={q}
@@ -356,12 +356,12 @@ export default function ActiveAssignmentsPage() {
       )}
 
       {!loading && view.length > 0 && (
-        <section className="space-y-3">
+        <section className="space-y-2">
           <div className="flex items-center justify-between text-sm text-mc-text-secondary px-1">
             <span>人員清單・目前篩選結果</span>
             <span>{view.length} 人 / {shown} 張</span>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {view.map((g) => (
               <MemberOverviewCard
                 key={g.memberId}
@@ -390,13 +390,13 @@ function SummaryCard({ active, label, value, dot, onClick }: { active: boolean; 
     <button
       type="button"
       onClick={onClick}
-      className={`mc-card rounded-xl p-4 text-left transition-all ${active ? 'ring-2 ring-mc-accent scale-[1.01]' : 'hover:bg-white/[0.04]'}`}
+      className={`mc-card rounded-xl px-3 py-2 text-left transition-all ${active ? 'ring-2 ring-mc-accent scale-[1.01]' : 'hover:bg-white/[0.04]'}`}
     >
       <div className="flex items-center gap-2 text-xs text-mc-text-secondary">
         <span className={`w-2 h-2 rounded-full ${dot}`} />
         {label}
       </div>
-      <div className="text-3xl font-bold text-mc-text mt-1">{value}</div>
+      <div className="text-2xl font-bold text-mc-text leading-tight">{value}</div>
     </button>
   )
 }
@@ -416,29 +416,25 @@ function MemberOverviewCard({ group, active, onClick }: { group: MemberGroup; ac
           aria-expanded={active}
           aria-controls={panelId}
           onClick={onClick}
-          className="w-full p-4 text-left hover:bg-white/[0.04] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-mc-highlight"
+          className="w-full px-3 py-2.5 text-left hover:bg-white/[0.04] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-mc-highlight"
         >
-          <span className="flex items-start gap-3">
-            <span className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(group.memberName)} flex items-center justify-center text-white font-bold shrink-0`} aria-hidden="true">
+          <span className="flex items-start gap-2.5">
+            <span className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarGradient(group.memberName)} flex items-center justify-center text-white font-bold shrink-0`} aria-hidden="true">
               {group.memberName.slice(0, 1)}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="flex items-center justify-between gap-3">
-                <span className="font-semibold text-mc-text text-lg break-words">{group.memberName}</span>
-                <span className="text-mc-text shrink-0"><strong className="text-2xl tabular-nums">{group.areas.length}</strong> 張</span>
+              <span className="flex items-center gap-x-3 gap-y-1 flex-wrap">
+                <span className="font-semibold text-mc-text break-words">{group.memberName}</span>
+                <span className="text-sm text-mc-text whitespace-nowrap"><strong className="tabular-nums">{group.areas.length}</strong> 張</span>
+                <span className="text-xs text-mc-text-secondary">{stats.worstDays === null ? '分發日未記錄' : `最久已領取 ${stats.worstDays} 天`}</span>
+                <span className="ml-auto text-xs text-mc-highlight whitespace-nowrap">{active ? '收合 ▴' : '展開 ▾'}</span>
               </span>
-              <span className="flex flex-wrap gap-2 mt-2 text-xs text-mc-text-secondary">
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-mc-text-secondary">
                 {districts.map(({ d, count }) => <span key={d}>{d} {count} 張</span>)}
-              </span>
-              <span className="flex flex-wrap gap-2 mt-2">
                 {stats.danger > 0 && <MiniBadge level="danger" text={`60天以上 · ${stats.danger} 張`} />}
                 {stats.warn > 0 && <MiniBadge level="warn" text={`30–59天 · ${stats.warn} 張`} />}
                 {stats.unknown > 0 && <MiniBadge level="unknown" text={`分發日未記錄 · ${stats.unknown} 張`} />}
                 {stats.attention === 0 && <MiniBadge level="ok" text="領取未滿30天" />}
-              </span>
-              <span className="flex items-center justify-between gap-2 mt-3 text-xs text-mc-text-secondary">
-                <span>{stats.worstDays === null ? '尚無可計算的領取天數' : `最久已領取 ${stats.worstDays} 天`}</span>
-                <span className="text-mc-highlight">{active ? '收合明細 ▴' : '展開地圖 ▾'}</span>
               </span>
             </span>
           </span>
@@ -457,8 +453,8 @@ function MiniBadge({ level, text }: { level: Level; text: string }) {
 
 function MemberMapDetails({ group }: { group: MemberGroup }) {
   return (
-    <div className="border-t border-white/10 bg-black/10 px-4 pb-2">
-      <p className="py-3 text-xs text-mc-text-secondary">目前篩選的地圖，依領取最久排序；點地圖名稱可開啟圖檔。</p>
+    <div className="border-t border-white/10 bg-black/10 px-3 pb-1">
+      <p className="py-2 text-xs text-mc-text-secondary">目前篩選的地圖，依領取最久排序；點地圖名稱可開啟圖檔。</p>
       <table className="w-full text-sm">
         <caption className="sr-only">{group.memberName}的地圖與已領取天數</caption>
         <thead>
@@ -474,18 +470,18 @@ function MemberMapDetails({ group }: { group: MemberGroup }) {
             const level = levelOf(days)
             return (
               <tr key={area.id}>
-                <th scope="row" className="py-3 pr-3 text-left font-medium text-mc-text">
+                <th scope="row" className="py-1.5 pr-3 text-left font-medium text-mc-text">
                   {no && no !== 2 ? (
                     <a href={`/maps/areas/${no}.jpg`} target="_blank" rel="noreferrer" className="inline-block py-1 underline decoration-white/20 underline-offset-4 hover:text-mc-highlight focus-visible:outline-mc-highlight" aria-label={`開啟${publicMapLabel(area)}圖檔（新分頁）`}>
                       {publicMapLabel(area)} <span aria-hidden="true" className="text-mc-text-secondary">↗</span>
                     </a>
                   ) : publicMapLabel(area)}
                 </th>
-                <td className={`py-3 text-right ${LEVEL_STYLE[level].text}`}>
+                <td className={`py-1.5 text-right ${LEVEL_STYLE[level].text}`}>
                   {days === null ? <span className="text-xs">分發日未記錄</span> : (
                     <span className="inline-flex items-center gap-2 whitespace-nowrap">
                       {(level === 'warn' || level === 'danger') && <span aria-hidden="true" className={`h-2 w-2 rounded-full ${LEVEL_STYLE[level].dot}`} />}
-                      <span><strong className="text-xl tabular-nums">{days}</strong> 天</span>
+                      <span><strong className="text-base tabular-nums">{days}</strong> 天</span>
                     </span>
                   )}
                 </td>
