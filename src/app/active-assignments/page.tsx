@@ -261,7 +261,7 @@ export default function ActiveAssignmentsPage() {
 
   return (
     <DashboardLayout>
-    <div className="p-4 md:p-8 space-y-5">
+    <div className="w-full max-w-5xl mx-auto p-4 md:p-8 space-y-5">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-mc-text">使用中地圖</h1>
