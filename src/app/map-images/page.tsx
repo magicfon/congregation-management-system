@@ -212,6 +212,7 @@ export default function MapImagesPage() {
         <div>
           <h1 className="text-2xl font-bold text-mc-text">地圖圖檔</h1>
           <p className="text-sm text-mc-text-secondary mt-1">查看與下載地圖（全圖縮放 / 各區域小圖）</p>
+          <a href="/map/boundary-editor" className="inline-block text-sm text-sky-400 mt-2">分區修正（管理員）</a>
         </div>
       </div>
 

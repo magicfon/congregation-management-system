@@ -37,6 +37,16 @@ model Area {
   @@map("areas")
 }
 
+model MapBoundaryDraft {
+  mapId     String   @id
+  document  Json
+  version   Int      @default(1)
+  updatedBy String
+  updatedAt DateTime @default(now())
+
+  @@map("map_boundary_drafts")
+}
+
 model Member {
   id        String   @id @default(cuid())
   name      String

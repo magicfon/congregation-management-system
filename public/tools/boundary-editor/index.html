@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>地圖分區修正</title>
+<link rel="stylesheet" href="editor.css">
+<header>
+  <div class="row"><h1>地圖分區修正</h1><span id="saveState" role="status">載入中…</span></div>
+  <div class="row">
+    <select id="map" aria-label="地圖"><option value="nanzih">楠梓 1–89</option><option value="chiaotou">橋頭 90–148</option><option value="tzuguan">梓官 149–213</option></select>
+    <button id="save" class="primary" disabled>儲存到雲端</button><button id="loadCloud">載入雲端</button>
+    <button id="export">匯出 JSON</button><label class="button">匯入 JSON<input id="import" type="file" accept=".json,application/json" hidden></label>
+    <button id="restore" hidden>恢復本機備份</button>
+  </div>
+  <div class="row tools" role="group" aria-label="編輯模式">
+    <button data-mode="select" aria-pressed="true">選取／移動地圖</button><button data-mode="cut" aria-pressed="false">補線切割</button><button data-mode="vertex" aria-pressed="false">調整頂點</button>
+    <button id="finish" disabled>完成補線</button><button id="cancel" disabled>取消補線</button>
+    <button id="undo" disabled>復原</button><button id="redo" disabled>重做</button>
+  </div>
+  <div class="row">
+    <button id="minus" aria-label="縮小">−</button><button id="plus" aria-label="放大">＋</button><button id="fit">全圖</button><button id="focus" disabled>放大選取區</button>
+    <label><input id="overlay" type="checkbox" checked>色塊</label><label><input id="anchors" type="checkbox" checked>編號位置</label>
+    <span id="summary"></span>
+  </div>
+  <p id="hint">點選色塊開始修正；拖曳空白處平移，滾輪縮放。</p>
+  <p id="message" role="alert"></p>
+</header>
+<main>
+  <svg id="mapCanvas" aria-label="可編輯分區地圖" tabindex="0"><image id="background"/><g id="regions"></g><g id="labels"></g><g id="vertices"></g><g id="cutLine"></g></svg>
+  <p id="selection" aria-live="polite">尚未選取區塊</p>
+</main>
+<footer>雲端儲存在 Neon，僅管理員可存取。所有修正仍為草稿。<a id="login" href="/login?callbackUrl=/map/boundary-editor" target="_top">登入／開啟雲端版</a></footer>
+<script src="vendor/polygon-clipping.js"></script><script src="geometry.js"></script><script src="editor.js"></script>
+</html>
