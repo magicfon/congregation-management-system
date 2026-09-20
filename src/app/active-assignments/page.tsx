@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 
 interface AreaRow {
@@ -178,9 +178,22 @@ export default function ActiveAssignmentsPage() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [lineOpen, setLineOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [collecting, setCollecting] = useState(false)
+  const collectingRef = useRef(false)
+  const [collectError, setCollectError] = useState<string | null>(null)
+  const [collectMessage, setCollectMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/me').then((res) => res.ok ? res.json() : null)
+      .then((user) => setIsAdmin(user?.isAdmin === true))
+      .catch(() => setIsAdmin(false))
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
+    setSelected(new Set())
     setError(null)
     try {
       const res = await fetch('/api/areas/dispatched')
@@ -250,6 +263,58 @@ export default function ActiveAssignmentsPage() {
     }
   }, [selectedMemberId, view])
 
+  const visibleIds = useMemo(() => new Set(view.flatMap((g) => g.areas.map((a) => a.id))), [view])
+  const selectedAreas = view.flatMap((g) => g.areas.filter((a) => selected.has(a.id)))
+
+  useEffect(() => {
+    setSelected((previous) => {
+      const next = new Set([...previous].filter((id) => visibleIds.has(id)))
+      return next.size === previous.size ? previous : next
+    })
+  }, [visibleIds])
+
+  function toggleAreas(ids: string[]) {
+    if (collectingRef.current) return
+    setSelected((previous) => {
+      const next = new Set(previous)
+      const allSelected = ids.every((id) => next.has(id))
+      for (const id of ids) {
+        if (allSelected) next.delete(id)
+        else next.add(id)
+      }
+      return next
+    })
+    setCollectMessage(null)
+    setCollectError(null)
+  }
+
+  async function collectSelected() {
+    if (!isAdmin || collectingRef.current || loading || error || selectedAreas.length === 0) return
+    const areas = [...selectedAreas]
+    if (!window.confirm(`確認收回以下 ${areas.length} 張地圖？\n\n${areas.map((a) => `${a.assignedTo || '未知'}：${publicMapLabel(a)}`).join('\n')}`)) return
+    collectingRef.current = true
+    setCollecting(true)
+    setCollectError(null)
+    setCollectMessage(null)
+    try {
+      const res = await fetch('/api/areas/collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ areaIds: areas.map((a) => a.id) }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || '收回失敗，請重試')
+      setSelected(new Set())
+      setCollectMessage(`已收回 ${result.collected} 張地圖`)
+      await load()
+    } catch (e) {
+      setCollectError(e instanceof Error ? e.message : '收回失敗，請重試')
+    } finally {
+      collectingRef.current = false
+      setCollecting(false)
+    }
+  }
+
   const lineText = useMemo(() => makeLineText(view), [view])
   const shown = view.reduce((n, g) => n + g.areas.length, 0)
 
@@ -271,6 +336,7 @@ export default function ActiveAssignmentsPage() {
         </div>
         <button
           type="button"
+          disabled={loading || collecting}
           onClick={() => void load()}
           className="px-3 py-1.5 text-sm rounded-lg bg-mc-card border border-white/10 text-mc-text hover:border-mc-accent/50 transition-colors flex items-center gap-1.5 w-fit"
         >
@@ -355,6 +421,18 @@ export default function ActiveAssignmentsPage() {
         </div>
       )}
 
+      {collectError && <p role="alert" className="text-sm text-mc-error">{collectError}</p>}
+      {collectMessage && <p role="status" className="text-sm text-emerald-300">{collectMessage}</p>}
+      {isAdmin && selectedAreas.length > 0 && !loading && !error && (
+        <div className="sticky top-14 md:top-0 z-10 flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-mc-card px-3 py-2">
+          <span className="text-sm text-mc-text">已選 {selectedAreas.length} 張</span>
+          <div className="flex gap-2">
+            <button type="button" disabled={collecting} onClick={() => setSelected(new Set())} className="px-3 py-2 text-sm text-mc-text-secondary disabled:opacity-50">取消選取</button>
+            <button type="button" disabled={collecting} onClick={() => void collectSelected()} className="rounded-lg bg-mc-error px-3 py-2 text-sm text-white disabled:opacity-50">{collecting ? '收回中…' : '收回已選地圖'}</button>
+          </div>
+        </div>
+      )}
+
       {!loading && view.length > 0 && (
         <section className="space-y-2">
           <div className="flex items-center justify-between text-sm text-mc-text-secondary px-1">
@@ -366,6 +444,7 @@ export default function ActiveAssignmentsPage() {
               <MemberOverviewCard
                 key={g.memberId}
                 group={g}
+                selection={isAdmin && !error ? { selected, disabled: collecting, toggleAreas } : undefined}
                 active={selectedMemberId === g.memberId}
                 onClick={() => setSelectedMemberId((current) => current === g.memberId ? null : g.memberId)}
               />
@@ -401,7 +480,9 @@ function SummaryCard({ active, label, value, dot, onClick }: { active: boolean; 
   )
 }
 
-function MemberOverviewCard({ group, active, onClick }: { group: MemberGroup; active: boolean; onClick: () => void }) {
+type MapSelection = { selected: Set<string>; disabled: boolean; toggleAreas: (ids: string[]) => void }
+
+function MemberOverviewCard({ group, active, onClick, selection }: { group: MemberGroup; active: boolean; onClick: () => void; selection?: MapSelection }) {
   const stats = groupStats(group.areas)
   const panelId = `member-maps-${group.memberId}`
   const buttonId = `member-toggle-${group.memberId}`
@@ -441,7 +522,7 @@ function MemberOverviewCard({ group, active, onClick }: { group: MemberGroup; ac
         </button>
       </h2>
       <div id={panelId} role="region" aria-labelledby={buttonId} hidden={!active}>
-        {active && <MemberMapDetails group={group} />}
+        {active && <MemberMapDetails group={group} selection={selection} />}
       </div>
     </section>
   )
@@ -451,14 +532,23 @@ function MiniBadge({ level, text }: { level: Level; text: string }) {
   return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border ${LEVEL_STYLE[level].badge}`}><span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${LEVEL_STYLE[level].dot}`} />{text}</span>
 }
 
-function MemberMapDetails({ group }: { group: MemberGroup }) {
+function MemberMapDetails({ group, selection }: { group: MemberGroup; selection?: MapSelection }) {
   return (
     <div className="border-t border-white/10 bg-black/10 px-3 pb-1">
       <p className="py-2 text-xs text-mc-text-secondary">目前篩選的地圖，依領取最久排序；點地圖名稱可開啟圖檔。</p>
+      {selection && (
+        <div className="flex items-center gap-3 pb-2 text-xs text-mc-text-secondary">
+          <button type="button" disabled={selection.disabled} onClick={() => selection.toggleAreas(group.areas.map((a) => a.id))} className="py-1 text-mc-highlight disabled:opacity-50">
+            {group.areas.every((a) => selection.selected.has(a.id)) ? '取消全選' : '全選此人目前顯示的地圖'}
+          </button>
+          <span>已選 {group.areas.filter((a) => selection.selected.has(a.id)).length} 張</span>
+        </div>
+      )}
       <table className="w-full text-sm">
         <caption className="sr-only">{group.memberName}的地圖與已領取天數</caption>
         <thead>
           <tr className="text-mc-text-secondary border-b border-white/10">
+            {selection && <th scope="col" className="w-10"><span className="sr-only">選取收回</span></th>}
             <th scope="col" className="py-2 text-left font-medium">地圖</th>
             <th scope="col" className="py-2 text-right font-medium">已領取</th>
           </tr>
@@ -470,12 +560,16 @@ function MemberMapDetails({ group }: { group: MemberGroup }) {
             const level = levelOf(days)
             return (
               <tr key={area.id}>
+                {selection && <td className="pr-2">
+                  <input type="checkbox" checked={selection.selected.has(area.id)} disabled={selection.disabled} onChange={() => selection.toggleAreas([area.id])} aria-label={`選取${publicMapLabel(area)}收回`} className="h-4 w-4 accent-red-500" />
+                </td>}
                 <th scope="row" className="py-1.5 pr-3 text-left font-medium text-mc-text">
                   {no && no !== 2 ? (
                     <a href={`/maps/areas/${no}.jpg`} target="_blank" rel="noreferrer" className="inline-block py-1 underline decoration-white/20 underline-offset-4 hover:text-mc-highlight focus-visible:outline-mc-highlight" aria-label={`開啟${publicMapLabel(area)}圖檔（新分頁）`}>
                       {publicMapLabel(area)} <span aria-hidden="true" className="text-mc-text-secondary">↗</span>
                     </a>
                   ) : publicMapLabel(area)}
+                  {area.assignNote && <p className="text-xs font-normal text-mc-text-secondary break-words">{area.assignNote}</p>}
                 </th>
                 <td className={`py-1.5 text-right ${LEVEL_STYLE[level].text}`}>
                   {days === null ? <span className="text-xs">分發日未記錄</span> : (
