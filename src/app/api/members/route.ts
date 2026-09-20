@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hash } from 'bcryptjs'
 import { prisma } from '../../../lib/db'
 import { requireApiUser } from '../../../lib/api-auth'
+import { memberFields, memberLineFields } from '../../../lib/member-fields'
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser()
@@ -10,13 +11,17 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const active = searchParams.get('active')
+    const search = searchParams.get('search')?.trim()
+    const isAdmin = auth.user.role === 'admin'
 
     const members = await prisma.member.findMany({
       where: {
+        ...(search ? { OR: ['name', 'email', 'phone', ...(isAdmin ? ['lineuid', 'lineDisplayName'] : [])].map((field) => ({ [field]: { contains: search, mode: 'insensitive' as const } })) } : {}),
         ...(active !== null ? { active: active === 'true' } : {}),
       },
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        ...(isAdmin ? memberLineFields : memberFields),
         _count: { select: { schedules: true, reports: true } },
       },
     })
@@ -43,6 +48,7 @@ export async function POST(request: NextRequest) {
     const passwordHash = await hash(password.trim(), 10)
 
     const member = await prisma.member.create({
+      select: memberLineFields,
       data: {
         name: name.trim(),
         email: email.trim(),

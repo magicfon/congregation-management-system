@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { memberLineFields } from '../../../../lib/member-fields'
 import { prisma } from '../../../../lib/db'
 import { requireApiUser } from '../../../../lib/api-auth'
 
@@ -12,7 +13,8 @@ export async function GET(
   try {
     const member = await prisma.member.findUnique({
       where: { id: params.id },
-      include: {
+      select: {
+        ...memberLineFields,
         schedules: {
           include: { scheduleAreas: { include: { area: { select: { id: true, name: true } } } } },
           orderBy: { date: 'desc' },
@@ -63,6 +65,7 @@ export async function PUT(
     }
 
     const member = await prisma.member.update({
+      select: memberLineFields,
       where: { id: params.id },
       data: {
         name: name.trim(),

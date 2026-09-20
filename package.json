@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "npm run db:line-profile && prisma generate && next build",
+    "db:line-profile": "prisma db execute --file prisma/line-display-name.sql --schema prisma/schema.prisma",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
-    "check:regression": "node scripts/regression-checks.cjs"
+    "check:regression": "node scripts/regression-checks.cjs",
+    "check:line-pairing": "node scripts/check-line-pairing.cjs"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",

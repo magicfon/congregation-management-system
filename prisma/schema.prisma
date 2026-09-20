@@ -45,6 +45,7 @@ model Member {
   role      String   @default("publisher") // admin, publisher, elder
   active    Boolean  @default(true)
   lineuid   String?  @unique
+  lineDisplayName String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

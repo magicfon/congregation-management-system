@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import LineProvider from 'next-auth/providers/line'
 import { compare, hash } from 'bcryptjs'
 import { prisma } from './db'
+import { randomUUID } from 'crypto'
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -67,41 +68,24 @@ export const authOptions: NextAuthOptions = {
       const lineUid = account.providerAccountId
       if (!lineUid) return false
 
-      const lineEmail = (profile as any)?.email
-      const lineName = (profile as any)?.displayName
-        || (profile as any)?.name
-        || `LINE用戶-${lineUid.slice(0, 8)}`
-
-      // Check if member exists by lineuid or email
-      let member = await prisma.member.findFirst({
-        where: { lineuid: lineUid },
-      })
-
-      if (!member && lineEmail) {
-        member = await prisma.member.findUnique({
-          where: { email: lineEmail },
-        })
-      }
-
-      if (!member) {
-        // Auto-create a new publisher account
-        member = await prisma.member.create({
-          data: {
-            name: lineName,
-            email: lineEmail || `line-${lineUid}@line.local`,
-            password: await hash(
-              `line-oauth-${lineUid}-${Date.now()}`, 10
-            ),
-            role: 'publisher',
-            active: true,
-            lineuid: lineUid,
-          },
-        })
-      } else if (!member.lineuid) {
-        // Link LINE UID to existing member
+      const data = profile as { displayName?: string; name?: string } | undefined
+      const lineName = data?.displayName || data?.name || null
+      const member = await prisma.member.findUnique({ where: { lineuid: lineUid } })
+      if (member) {
+        if (!member.active) return false
         await prisma.member.update({
           where: { id: member.id },
-          data: { lineuid: lineUid },
+          data: { lineDisplayName: lineName },
+        })
+      } else {
+        await prisma.member.create({
+          data: {
+            name: lineName || `LINE用戶-${lineUid.slice(0, 8)}`,
+            email: `line-${randomUUID()}@line.local`,
+            password: await hash(randomUUID(), 10),
+            role: 'publisher', active: true,
+            lineuid: lineUid, lineDisplayName: lineName,
+          },
         })
       }
 
@@ -110,31 +94,30 @@ export const authOptions: NextAuthOptions = {
 
     // Populate JWT token with member data
     async jwt({ token, user, account }) {
-      // LINE OAuth: look up member by LINE UID
       if (account?.provider === 'line' && account.providerAccountId) {
-        const member = await prisma.member.findFirst({
-          where: {
-            OR: [
-              { lineuid: account.providerAccountId },
-              { email: (token.email ?? '') as string },
-            ]
-          },
-        })
+        token.lineUid = account.providerAccountId
+        const member = await prisma.member.findUnique({ where: { lineuid: account.providerAccountId } })
+        token.id = member?.id
+      } else if (user) {
+        token.id = user.id
+        delete token.lineUid
+      }
 
-        if (member) {
-          token.id = member.id
-          token.role = member.role
-          token.email = member.email
-          token.name = member.name
-        }
+      // Older LINE sessions used the provider UID as subject.
+      const uid = typeof token.lineUid === 'string' ? token.lineUid
+        : typeof token.sub === 'string' && /^U[0-9a-f]{32}$/i.test(token.sub) ? token.sub : null
+      const member = typeof token.id === 'string'
+        ? await prisma.member.findUnique({ where: { id: token.id } }) : null
+      if (!member?.active || (uid && member.lineuid !== uid)) {
+        delete token.id
+        delete token.role
+        token.name = null
+        token.email = null
         return token
       }
-
-      // Credentials provider: user object already has member data
-      if (user) {
-        token.role = (user as typeof user & { role: string }).role
-        token.id = (user as typeof user & { id: string }).id
-      }
+      token.role = member.role
+      token.name = member.name
+      token.email = member.email
       return token
     },
 
@@ -143,6 +126,8 @@ export const authOptions: NextAuthOptions = {
         const u = session.user as typeof session.user & { role: string; id: string }
         u.role = token.role as string
         u.id = token.id as string
+        u.name = token.name
+        u.email = token.email
       }
       return session
     },
