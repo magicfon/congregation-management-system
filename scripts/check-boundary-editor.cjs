@@ -34,6 +34,21 @@ async function main(){
   const concave=fixture([[[[20,20],[80,20],[80,80],[60,80],[60,40],[40,40],[40,80],[20,80],[20,20]]]])
   assert.equal(G.split(concave,'one',[[10,60],[90,60]],'concave').candidates.length,3)
   const moved=G.move(base,'one',0,0,0,[22,22])
+  for(const index of [0,1,3]) {
+    const deleted=G.removeVertex(base,'one',0,0,index)
+    const r=deleted.candidates[0].polygons[0][0]
+    assert.equal(r.length,4);assert.deepEqual(r[0],r.at(-1))
+    assert.equal(G.area(deleted.candidates[0].polygons),1800)
+    assert.throws(()=>G.removeVertex(deleted,'one',0,0,0),/至少保留 3/)
+    G.validate(deleted,base)
+  }
+  assert.equal(JSON.stringify(base),original)
+  assert.throws(()=>G.removeVertex(base,'one',0,0,4),/點選/)
+  const deletedHole=G.removeVertex(hole,'one',0,1,0)
+  assert.equal(deletedHole.candidates[0].polygons[0][1].length,4)
+  const withNeighbour=G.clone(hole)
+  withNeighbour.candidates.push({candidateId:'inner-neighbor',polygons:[[ring(31,41,2,2)]]})
+  assert.throws(()=>G.removeVertex(withNeighbour,'one',0,1,0),/重疊/)
   assert.deepEqual(moved.candidates[0].polygons[0][0][0],[22,22])
   assert.deepEqual(moved.candidates[0].polygons[0][0].at(-1),[22,22])
   assert.throws(()=>G.move(base,'one',0,0,1,[10,70]),/交叉/)

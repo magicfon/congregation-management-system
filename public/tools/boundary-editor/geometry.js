@@ -89,7 +89,23 @@
     const next=clone(doc),c=next.candidates.find(c=>c.candidateId===id),poly=c.polygons[polyIndex],r=poly[ringIndex];
     if(!point.every(Number.isFinite) || point[0]<0||point[1]<0||point[0]>=doc.imageSize[0]||point[1]>=doc.imageSize[1])throw new Error('頂點不可超出圖片。');
     r[index]=point; if(index===0)r[r.length-1]=point.slice();
-    if(!simple(r))throw new Error('頂點移動造成交叉或無效區塊，已保留原位置。');
+    validateEdit(doc,next,id,polyIndex,ringIndex);
+    record(next,{type:'move-vertex',candidateId:id,polyIndex,ringIndex,index,point});
+    return refresh(next);
+  }
+  function removeVertex(doc,id,polyIndex,ringIndex,index) {
+    const next=clone(doc),c=next.candidates.find(c=>c.candidateId===id);
+    const r=c?.polygons[polyIndex]?.[ringIndex];
+    if(!r || !Number.isInteger(index) || index<0 || index>=r.length-1)throw new Error('請先點選要刪除的頂點。');
+    if(r.length<=4)throw new Error('每個封閉邊界至少保留 3 個頂點。');
+    r.pop();r.splice(index,1);r.push(r[0].slice());
+    validateEdit(doc,next,id,polyIndex,ringIndex);
+    record(next,{type:'delete-vertex',candidateId:id,polyIndex,ringIndex,index});
+    return refresh(next);
+  }
+  function validateEdit(doc,next,id,polyIndex,ringIndex) {
+    const c=next.candidates.find(c=>c.candidateId===id),poly=c.polygons[polyIndex],r=poly[ringIndex];
+    if(!simple(r))throw new Error('頂點修改造成交叉或無效區塊，已保留原邊界。');
     for(let j=0;j<poly.length;j++) {
       if(j===ringIndex)continue;
       const other=poly[j];
@@ -101,8 +117,6 @@
     const before=doc.candidates.find(x=>x.candidateId===id);
     const others=doc.candidates.filter(x=>x.candidateId!==id).flatMap(x=>x.polygons);
     if(others.length && area(clip.intersection(c.polygons,others))>area(clip.intersection(before.polygons,others))+0.01)throw new Error('移動後與相鄰區塊重疊，請縮小移動範圍。');
-    record(next,{type:'move-vertex',candidateId:id,polyIndex,ringIndex,index,point});
-    return refresh(next);
   }
-  return {clone,area,inside,validate,refresh,split,move};
+  return {clone,area,inside,validate,refresh,split,move,removeVertex};
 });
