@@ -75,7 +75,7 @@
     busy=true;controls();message('');
     try {
       const response=await fetch(`/maps/reconstruction-v1/${id}.json`);if(!response.ok)throw new Error('無法載入原始候選。');
-      base=await response.json();doc=G.clone(base);selected=null;undo=[];redo=[];cut=[];dirty=false;version=0;cloudReady=false;
+      base=await response.json();doc=G.refresh(G.clone(base));selected=null;undo=[];redo=[];cut=[];dirty=false;version=0;cloudReady=false;
       $('background').setAttribute('href','/maps/'+base.sourceImage);$('background').setAttribute('width',base.imageSize[0]);$('background').setAttribute('height',base.imageSize[1]);
       try {const result=await cloudRequest(id);cloudReady=true;if(result.draft){applyDocument(result.draft.document);version=result.draft.version;message(`已載入雲端版本 ${version}（${new Date(result.draft.updatedAt).toLocaleString()}）。`);}}
       catch(error){message(error.message);}
