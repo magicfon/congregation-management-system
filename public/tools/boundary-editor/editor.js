@@ -67,6 +67,13 @@
     const response=await fetch(api(id),{cache:'no-store',...options});
     const contentType=response.headers.get('content-type')||'';
     const data=contentType.includes('application/json')?await response.json():{};
+    // Authentication and service availability are separate: a failed request
+    // must not automatically tell an already signed-in user to sign in again.
+    const offline=!contentType.includes('application/json')&&response.status===404;
+    $('login').hidden=response.status!==401&&!offline;
+    if(response.status===401){$('login').textContent='登入管理員帳號';$('login').href='/login?callbackUrl=/map/boundary-editor';cloudReady=false;}
+    if(response.status===403)cloudReady=false;
+    if(offline){$('login').textContent='開啟雲端版';$('login').href='https://congregation-management-system.vercel.app/map/boundary-editor';}
     if(!response.ok)throw new Error(data.error || (response.status===401?'請先登入管理員帳號。':response.status===403?'僅管理員可存取雲端草稿。':'目前是離線預覽或雲端尚未部署。請使用雲端版，修正可先匯出 JSON。'));
     return data;
   }

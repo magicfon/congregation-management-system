@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "npm run db:line-profile && npm run db:area-completion && npm run db:boundary-drafts && prisma generate && next build",
     "db:boundary-drafts": "prisma db execute --file prisma/map-boundary-drafts.sql --schema prisma/schema.prisma",
-    "check:boundary-editor": "node scripts/check-boundary-editor.cjs",
+    "check:boundary-editor": "node scripts/check-boundary-editor.cjs && node scripts/check-boundary-login.cjs",
     "db:area-completion": "prisma db execute --file prisma/area-report-completion.sql --schema prisma/schema.prisma",
     "db:line-profile": "prisma db execute --file prisma/line-display-name.sql --schema prisma/schema.prisma",
     "postinstall": "prisma generate",
