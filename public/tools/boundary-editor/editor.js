@@ -85,11 +85,12 @@
       const response=await fetch(`/maps/reconstruction-v1/${id}.json`);if(!response.ok)throw new Error('無法載入原始候選。');
       base=await response.json();doc=G.refresh(G.clone(base));selected=null;vertex=null;undo=[];redo=[];cut=[];dirty=false;version=0;cloudReady=false;
       $('background').setAttribute('href','/maps/'+base.sourceImage);$('background').setAttribute('width',base.imageSize[0]);$('background').setAttribute('height',base.imageSize[1]);
-      try {const result=await cloudRequest(id);cloudReady=true;if(result.draft){applyDocument(result.draft.document);version=result.draft.version;message(`已載入雲端版本 ${version}（${new Date(result.draft.updatedAt).toLocaleString()}）。`);}}
-      catch(error){message(error.message);}
-      const saved=readBackup(id);$('restore').hidden=!saved?.dirty;
+      try {const result=await cloudRequest(id);if(result.draft){applyDocument(result.draft.document);version=result.draft.version;message(`已載入雲端版本 ${version}（${new Date(result.draft.updatedAt).toLocaleString()}）。`);}cloudReady=true;}
+      catch(error){cloudReady=false;message('雲端載入失敗，目前顯示原始候選，並非你的雲端修正。'+error.message);}
+      const saved=readBackup(id);$('restore').hidden=!saved?.document;
       savedGeometry=JSON.stringify(doc.candidates);
       if(saved?.dirty)message($('message').textContent+' 此裝置另有未存備份，可按「恢復本機備份」。');
+      else if(saved?.document&&!cloudReady)message($('message').textContent+' 可按「恢復本機備份」取回此裝置上次儲存的修正。');
       fit();render();
     }catch(error){message(error.message);if(doc)$('map').value=doc.mapId;}
     finally {busy=false;controls();}
@@ -135,14 +136,23 @@
   document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;if(e.key==='Delete'&&mode==='vertex'&&vertex){e.preventDefault();deleteVertex();}if(e.key==='Escape'){cut=[];gesture=null;render();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();});
   $('save').onclick=async()=>{
     busy=true;controls();message('');const snapshot=G.clone(doc);
-    try {const result=await cloudRequest(doc.mapId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:version,document:snapshot})});version=result.saved.version;dirty=false;savedGeometry=JSON.stringify(doc.candidates);backup();$('restore').hidden=true;message(`已儲存到雲端版本 ${version}，其他裝置可載入。`);}
+    try {
+      const result=await cloudRequest(doc.mapId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:version,document:snapshot})});
+      version=result.saved.version;
+      const check=await cloudRequest(doc.mapId);
+      if(!check.draft || check.draft.version!==version)throw new Error('雲端讀回版本不一致，請先匯出本機備份，再載入雲端核對。');
+      G.validate(check.draft.document,base);
+      const signature=d=>JSON.stringify(d.candidates.map(c=>[c.candidateId,c.polygons]).sort((a,b)=>a[0].localeCompare(b[0])));
+      if(signature(check.draft.document)!==signature(snapshot))throw new Error('雲端讀回的邊界與送出內容不同，已保留本機修正，請勿以原圖覆蓋。');
+      dirty=false;savedGeometry=JSON.stringify(doc.candidates);backup();$('restore').hidden=false;message(`已儲存到雲端版本 ${version}，並確認可重新載入。`);
+    }
     catch(error){backup();message(error.message);}
     finally{busy=false;controls();}
   };
   $('loadCloud').onclick=async()=>{
     if((dirty||cut.length)&&!confirm('載入雲端會取代目前畫面。本機修正將保留為備份；建議先匯出 JSON。繼續？'))return;
     if(dirty&&!backup())return;busy=true;controls();
-    try {const result=await cloudRequest(doc.mapId);applyDocument(result.draft?.document||base);version=result.draft?.version||0;dirty=false;savedGeometry=JSON.stringify(doc.candidates);cloudReady=true;$('restore').hidden=!readBackup(doc.mapId)?.dirty;message(`已載入雲端版本 ${version}。`);}
+    try {const result=await cloudRequest(doc.mapId);applyDocument(result.draft?.document||base);version=result.draft?.version||0;dirty=false;savedGeometry=JSON.stringify(doc.candidates);cloudReady=true;$('restore').hidden=!readBackup(doc.mapId)?.document;message(`已載入雲端版本 ${version}。`);}
     catch(error){message(error.message);}finally{busy=false;controls();}
   };
   $('restore').onclick=()=>{

@@ -10,6 +10,8 @@ const fixture = polys => G.refresh({schemaVersion:1,mapId:'test',sourceSha256:'t
 function load(file,mocks){const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}}).outputText,{exports,require:id=>Object.hasOwn(mocks,id)?mocks[id]:require(id),console,Buffer,URL,process},{filename:file});return exports;}
 async function main(){
   for(const base of Object.values(originals)) G.validate(base,base)
+  const jsonb=x=>Array.isArray(x)?x.map(jsonb):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,jsonb(x[k])])):x
+  for(const base of Object.values(originals)) G.validate(jsonb(base),base)
   const base=fixture([[ring(20,20,60,60)]]), original=JSON.stringify(base)
   const split=G.split(base,'one',[[50,10],[50,90]],'first')
   assert.equal(split.candidates.length,2)

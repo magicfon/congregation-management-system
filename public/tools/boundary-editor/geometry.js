@@ -25,7 +25,9 @@
   function validate(d,base) {
     const fail=()=>{throw new Error('JSON 格式、原圖版本或座標不符，未載入。');};
     if(!d || d.schemaVersion!==1 || d.mapId!==base.mapId || d.sourceSha256!==base.sourceSha256 || JSON.stringify(d.imageSize)!==JSON.stringify(base.imageSize) || d.coordinateSystem?.type!=='image-pixel' || d.coordinateSystem?.order!=='xy' || d.coordinateSystem?.origin!=='top-left' || d.coordinateSystem?.yDirection!=='down') fail();
-    if(!Array.isArray(d.candidates) || !d.candidates.length || d.candidates.length>2000 || !Array.isArray(d.labelAnchors) || JSON.stringify(d.labelAnchors)!==JSON.stringify(base.labelAnchors)) fail();
+    if(!Array.isArray(d.candidates) || !d.candidates.length || d.candidates.length>2000 || !Array.isArray(d.labelAnchors) || d.labelAnchors.length!==base.labelAnchors.length) fail();
+    // PostgreSQL JSONB may reorder object keys. Compare anchor values, not serialization order.
+    if(d.labelAnchors.some((a,i)=>!a || a.number!==base.labelAnchors[i].number || a.component!==base.labelAnchors[i].component || !Array.isArray(a.point) || a.point.length!==2 || !eq(a.point,base.labelAnchors[i].point))) fail();
     let count=0; const ids=new Set();
     const originalRings=new Set(base.candidates.flatMap(c=>c.polygons.flatMap(p=>p.map(r=>JSON.stringify(r)))));
     for(const c of d.candidates) {
