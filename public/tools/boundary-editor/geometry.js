@@ -25,7 +25,7 @@
   function validate(d,base) {
     const fail=()=>{throw new Error('JSON 格式、原圖版本或座標不符，未載入。');};
     if(!d || d.schemaVersion!==1 || d.mapId!==base.mapId || d.sourceSha256!==base.sourceSha256 || JSON.stringify(d.imageSize)!==JSON.stringify(base.imageSize) || d.coordinateSystem?.type!=='image-pixel' || d.coordinateSystem?.order!=='xy' || d.coordinateSystem?.origin!=='top-left' || d.coordinateSystem?.yDirection!=='down') fail();
-    if(!Array.isArray(d.candidates) || !d.candidates.length || d.candidates.length>2000 || !Array.isArray(d.labelAnchors) || d.labelAnchors.length!==base.labelAnchors.length) fail();
+    if(!Array.isArray(d.candidates) || d.candidates.length>2000 || !Array.isArray(d.labelAnchors) || d.labelAnchors.length!==base.labelAnchors.length) fail();
     // PostgreSQL JSONB may reorder object keys. Compare anchor values, not serialization order.
     if(d.labelAnchors.some((a,i)=>!a || a.number!==base.labelAnchors[i].number || a.component!==base.labelAnchors[i].component || !Array.isArray(a.point) || a.point.length!==2 || !eq(a.point,base.labelAnchors[i].point))) fail();
     let count=0; const ids=new Set();
@@ -95,6 +95,13 @@
     record(next,{type:'move-vertex',candidateId:id,polyIndex,ringIndex,index,point});
     return refresh(next);
   }
+  function removeCandidate(doc,id) {
+    if(!doc.candidates.some(c=>c.candidateId===id))throw new Error('請先選取要刪除的區塊。');
+    const next=clone(doc);
+    next.candidates=next.candidates.filter(c=>c.candidateId!==id);
+    record(next,{type:'delete-candidate',candidateId:id});
+    return refresh(next);
+  }
   function removeVertex(doc,id,polyIndex,ringIndex,index) {
     const next=clone(doc),c=next.candidates.find(c=>c.candidateId===id);
     const r=c?.polygons[polyIndex]?.[ringIndex];
@@ -120,5 +127,5 @@
     const others=doc.candidates.filter(x=>x.candidateId!==id).flatMap(x=>x.polygons);
     if(others.length && area(clip.intersection(c.polygons,others))>area(clip.intersection(before.polygons,others))+0.01)throw new Error('移動後與相鄰區塊重疊，請縮小移動範圍。');
   }
-  return {clone,area,inside,validate,refresh,split,move,removeVertex};
+  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate};
 });

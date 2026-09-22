@@ -26,6 +26,7 @@
   }
   function readBackup(id) {try {return JSON.parse(localStorage.getItem(key(id))||'null');}catch{return null;}}
   function controls() {
+    $('deleteBlock').disabled=editingBlocked()||!!gesture||!selected||cut.length>0;
     $('deleteVertex').disabled=editingBlocked()||!!gesture||mode!=='vertex'||!vertex||vertex.id!==selected;
     $('save').disabled=editingBlocked()||!dirty||cut.length>0;
     $('map').disabled=busy; $('loadCloud').disabled=busy||!doc; $('restore').disabled=busy; $('restore').hidden=!pendingRecovery; $('skipRestore').hidden=!pendingRecovery||!cloudReady; $('skipRestore').disabled=busy; $('loadCloud').hidden=!needsReload;
@@ -110,6 +111,10 @@
   $('cancel').onclick=()=>{cut=[];render();};
   function deleteVertex(){if(editingBlocked()||gesture||mode!=='vertex'||!vertex||vertex.id!==selected)return;try{const v=vertex;const next=G.removeVertex(doc,selected,v.pi,v.ri,v.vi);vertex=null;commit(next);message('頂點已刪除，前後頂點已連接；可復原，尚未儲存。');}catch(error){message(error.message);}}
   $('deleteVertex').onclick=deleteVertex;
+  $('deleteBlock').onclick=()=>{
+    if(editingBlocked()||gesture||!selected||cut.length)return;
+    try{const next=G.removeCandidate(doc,selected);selected=null;vertex=null;mode='select';commit(next);message('區塊已刪除，可按「復原」恢復；尚未儲存。');}catch(error){message(error.message);}
+  };
   function history(back) {if(editingBlocked())return;const from=back?undo:redo,to=back?redo:undo;if(!from.length)return;to.push(G.clone(doc));doc=from.pop();dirty=JSON.stringify(doc.candidates)!==savedGeometry;selected=null;vertex=null;cut=[];backup();render();}
   $('undo').onclick=()=>history(true);$('redo').onclick=()=>history(false);
   $('overlay').onchange=render;$('anchors').onchange=render;

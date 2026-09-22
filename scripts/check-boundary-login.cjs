@@ -59,6 +59,15 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false) {
   const fallback=await check(503,null,{document:base,dirty:false,baseVersion:4})
   assert.equal(fallback.get('restore').hidden,false,'已儲存的本機備份也必須可恢復')
   assert.match(fallback.get('message').textContent,/目前顯示原始候選/)
+  const emptyEditor=await check(200)
+  const empty=G.clone(base);empty.candidates=[]
+  await emptyEditor.get('import').onchange({target:{files:[{size:1000,text:async()=>JSON.stringify(empty)}],value:''}})
+  await emptyEditor.get('save').onclick()
+  assert.equal(emptyEditor.get('saveState').textContent,'已儲存','刪除全部候選仍須可儲存並讀回')
+  emptyEditor.get('undo').onclick()
+  assert.equal(emptyEditor.get('save').disabled,false,'復原刪除後應可再次儲存')
+  emptyEditor.get('redo').onclick()
+  assert.equal(emptyEditor.get('save').disabled,true,'重做回已儲存內容')
   for(const corrupt of [false,true]) {
     const editor=await check(200,null,null,corrupt)
     const modified=G.clone(base);modified.candidates[0].candidateId='nanzih-test-correction'

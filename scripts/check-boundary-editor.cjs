@@ -19,6 +19,17 @@ async function main(){
   assert.equal(G.area(split.candidates.flatMap(c=>c.polygons)),3480) // 2px x 60px wall
   assert.equal(JSON.stringify(base),original)
   G.validate(split,base)
+  const removed=G.removeCandidate(split,split.candidates[0].candidateId)
+  assert.equal(removed.candidates.length,1)
+  assert.deepEqual(removed.candidates[0],split.candidates[1])
+  assert.equal(split.candidates.length,2,'刪除不得改動復原用的原始資料')
+  assert.deepEqual(removed.summary.unmatchedLabelNumbers,[1])
+  const empty=G.removeCandidate(removed,removed.candidates[0].candidateId)
+  G.validate(jsonb(empty),base)
+  assert.equal(empty.summary.candidateCount,0)
+  assert.deepEqual(empty.summary.unmatchedLabelNumbers,[1,2])
+  assert.throws(()=>G.removeCandidate(split,'missing'),/選取/)
+
   const badHole=G.clone(base);badHole.candidates[0].polygons[0].push(ring(10,30,20,20));assert.throws(()=>G.validate(badHole,base),/內洞/)
   const crossed=G.clone(base);crossed.candidates[0].polygons[0][0]=[[20,20],[80,80],[80,20],[20,80],[20,20]];assert.throws(()=>G.validate(crossed,base),/交叉/)
   assert.throws(()=>G.split(base,'one',[[30,30],[35,35]],'no'),/尚未切開/)

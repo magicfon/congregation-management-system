@@ -3,3 +3,5 @@
 .handle.active-vertex{fill:#facc15;stroke:#a16207;stroke-width:3}
 
 details summary{font-size:13px;cursor:pointer;color:#cbd5e1}details[open] .row{margin-top:6px;margin-bottom:0}
+
+button.danger{color:#fca5a5;border-color:#9f4545}
