@@ -3,7 +3,8 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const vm = require('node:vm')
 const G = require('../public/tools/boundary-editor/geometry.js')
-const base = require('../public/maps/reconstruction-v1/nanzih.json')
+const sourceBase = require('../public/maps/reconstruction-v1/nanzih.json')
+const base = G.independentBlocks(sourceBase)
 const jsonb=x=>Array.isArray(x)?x.map(jsonb):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,jsonb(x[k])])):x
 async function check(status, draft=null, backup=null, corruptAfterSave=false) {
   const elements = new Map()
@@ -17,7 +18,7 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false) {
     location:{port:'',search:''},URLSearchParams,confirm:()=>true,
     localStorage:{getItem:()=>backup&&JSON.stringify(backup),setItem:(_key,value)=>{backup=JSON.parse(value)}},ResizeObserver:class{observe(){}},
     fetch:async (url,options)=>{
-      if(url.includes('/reconstruction-v1/'))return {ok:true,json:async()=>G.clone(base)}
+      if(url.includes('/reconstruction-v1/'))return {ok:true,json:async()=>G.clone(sourceBase)}
       if(options?.method==='PUT'){
         const payload=JSON.parse(options.body)
         draft={document:jsonb(corruptAfterSave?base:payload.document),version:payload.expectedVersion+1,updatedAt:new Date().toISOString()}
@@ -32,10 +33,10 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false) {
 (async()=>{
   const admin=await check(200)
   assert.equal(admin.get('login').hidden,true,'管理員已通過雲端 API，但登入連結仍顯示')
-  assert.match(admin.get('saveState').textContent,/尚無修改/)
+  assert.match(admin.get('saveState').textContent,/尚未儲存/)
   assert.equal(admin.get('restore').hidden,true)
   assert.equal(admin.get('loadCloud').hidden,true)
-  assert.equal(admin.get('save').disabled,true)
+  assert.equal(admin.get('save').disabled,false,'舊草稿轉換後需能儲存')
   const modifiedBackup=G.clone(base);modifiedBackup.candidates[0].candidateId='recovery-test'
   const recovery=await check(200,{document:base,version:4},{document:modifiedBackup,dirty:true,baseVersion:3})
   assert.equal(recovery.get('restore').hidden,false)

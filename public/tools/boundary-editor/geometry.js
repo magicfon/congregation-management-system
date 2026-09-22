@@ -95,24 +95,21 @@
     record(next,{type:'move-vertex',candidateId:id,polyIndex,ringIndex,index,point});
     return refresh(next);
   }
-  function innerBlocks(doc) {
-    return doc.candidates.flatMap(c=>c.polygons.flatMap((poly,pi)=>poly.slice(1).map((ring,index)=>({
-      candidateId:`inner:${c.candidateId}:${pi}:${index+1}`,parentId:c.candidateId,pi,ri:index+1,
-      polygons:[[ring]],numberCandidates:c.numberCandidates,issues:['inner-block'],
-    }))));
-  }
-  function removeInnerBlock(doc,block) {
-    const next=clone(doc),parent=next.candidates.find(c=>c.candidateId===block.parentId);
-    const ring=parent.polygons[block.pi][block.ri];
-    const others=next.candidates.flatMap(c=>c.candidateId===parent.candidateId?c.polygons.filter((_,pi)=>pi!==block.pi):c.polygons);
-    if(others.length&&area(clip.intersection([[ring]],others))>.01)throw new Error('內部已有其他區塊，直接併回會造成重疊，未刪除。');
-    parent.polygons[block.pi].splice(block.ri,1);
-    record(next,{type:'fill-inner-block',candidateId:parent.candidateId,polyIndex:block.pi,ringIndex:block.ri});
-    return refresh(next);
+  function independentBlocks(doc) {
+    const next=clone(doc);
+    if(next.boundaryModel==='independent-blocks-v1')return refresh(next);
+    const ids=new Set(next.candidates.map(c=>c.candidateId)),children=[];
+    for(const c of next.candidates)c.polygons=c.polygons.map((poly,pi)=>{
+      poly.slice(1).forEach((ring,ri)=>{
+        const prefix=c.candidateId.slice(0,100)+'-inner-'+pi+'-'+ri;let id=prefix,n=0;
+        while(ids.has(id))id=prefix+'-'+(++n);ids.add(id);
+        children.push({candidateId:id,polygons:[[ring]],status:'needs-review',numberCandidates:[],issues:[],pixelArea:0});
+      });
+      return [poly[0]];
+    });
+    next.candidates.push(...children);next.boundaryModel='independent-blocks-v1';return refresh(next);
   }
   function removeCandidate(doc,id) {
-    const inner=innerBlocks(doc).find(c=>c.candidateId===id);
-    if(inner)return removeInnerBlock(doc,inner);
     if(!doc.candidates.some(c=>c.candidateId===id))throw new Error('請先選取要刪除的區塊。');
     const next=clone(doc);
     next.candidates=next.candidates.filter(c=>c.candidateId!==id);
@@ -130,6 +127,9 @@
     return refresh(next);
   }
   function batchVertices(doc,id,selection,operation,tolerance=3) {
+    return batchVertexEdit(doc,id,selection,operation,tolerance).document;
+  }
+  function batchVertexEdit(doc,id,selection,operation,tolerance=3) {
     const next=clone(doc),candidate=next.candidates.find(c=>c.candidateId===id);
     if(!candidate || !selection.length)throw new Error('請先框選頂點。');
     if(!['delete','smooth'].includes(operation) || ![1,3,6].includes(tolerance))throw new Error('操作或平滑強度無效。');
@@ -139,7 +139,7 @@
       if(![pi,ri,vi].every(Number.isInteger)||!ring||vi<0||vi>=ring.length-1)throw new Error('頂點選取已失效，請重新框選。');
       const key=pi+':'+ri;if(!groups.has(key))groups.set(key,{pi,ri,indices:new Set()});groups.get(key).indices.add(vi);
     }
-    let removed=0;
+    let removed=0;const nextSelection=[];
     for(const {pi,ri,indices} of groups.values()){
       const points=candidate.polygons[pi][ri].slice(0,-1),n=points.length;
       let result;
@@ -158,7 +158,9 @@
             if(index>=0){keep.add(index%n);stack.push([lo,index],[index,hi]);}
           }
         }
-        result=smoothed.filter((_,i)=>keep.has(i));
+        const keptIndices=smoothed.map((_,i)=>i).filter(i=>keep.has(i));
+        result=keptIndices.map(i=>smoothed[i]);
+        keptIndices.forEach((oldIndex,vi)=>{if(indices.has(oldIndex))nextSelection.push({pi,ri,vi});});
       }
       if(result.length<3)throw new Error('每個封閉邊界至少保留 3 個頂點，未套用任何修改。');
       removed+=n-result.length;candidate.polygons[pi][ri]=[...result,result[0].slice()];
@@ -169,7 +171,7 @@
     if(overlap(candidate)>overlap(before)+.01)throw new Error('修改後區塊部件互相重疊，未套用任何修改。');
     if(JSON.stringify(before.polygons)===JSON.stringify(candidate.polygons))throw new Error('目前強度沒有可平滑或縮減的頂點。');
     record(next,{type:operation+'-vertices',candidateId:id,selection,tolerance,removed});
-    return refresh(next);
+    return {document:refresh(next),selection:nextSelection};
   }
   function segmentDistance(p,a,b){
     const dx=b[0]-a[0],dy=b[1]-a[1],length=dx*dx+dy*dy;
@@ -186,10 +188,7 @@
     }
     if(poly.slice(1).some(h=>!insideRing(h[0],poly[0])))throw new Error('內洞必須留在外圍邊界內。');
     for(let i=1;i<poly.length;i++)for(let j=i+1;j<poly.length;j++)if(insideRing(poly[i][0],poly[j])||insideRing(poly[j][0],poly[i]))throw new Error('內洞不可重疊。');
-    // Preserve existing gaps; a vertex move must not create an overlap with neighbours.
-    const before=doc.candidates.find(x=>x.candidateId===id);
-    const others=doc.candidates.filter(x=>x.candidateId!==id).flatMap(x=>x.polygons);
-    if(others.length && area(clip.intersection(c.polygons,others))>area(clip.intersection(before.polygons,others))+0.01)throw new Error('移動後與相鄰區塊重疊，請縮小移動範圍。');
+
   }
-  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,innerBlocks};
+  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,batchVertexEdit,independentBlocks};
 });

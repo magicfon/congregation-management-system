@@ -9,7 +9,7 @@ const ring = (x,y,w,h) => [[x,y],[x+w,y],[x+w,y+h],[x,y+h],[x,y]]
 const fixture = polys => G.refresh({schemaVersion:1,mapId:'test',sourceSha256:'test',imageSize:[100,100],coordinateSystem:{type:'image-pixel',order:'xy',origin:'top-left',yDirection:'down'},labelAnchors:[{number:1,point:[30,30]},{number:2,point:[70,30]}],summary:{},candidates:[{candidateId:'one',polygons:polys}]})
 function load(file,mocks){const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}}).outputText,{exports,require:id=>Object.hasOwn(mocks,id)?mocks[id]:require(id),console,Buffer,URL,process},{filename:file});return exports;}
 async function main(){
-  for(const base of Object.values(originals)) G.validate(base,base)
+  for(const base of Object.values(originals)) {G.validate(base,base);G.validate(G.independentBlocks(base),base)}
   const jsonb=x=>Array.isArray(x)?x.map(jsonb):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,jsonb(x[k])])):x
   for(const base of Object.values(originals)) G.validate(jsonb(base),base)
   const base=fixture([[ring(20,20,60,60)]]), original=JSON.stringify(base)
@@ -39,23 +39,18 @@ async function main(){
   assert.equal(withHole.candidates.length,2)
   assert(!G.inside([35,45],withHole.candidates.flatMap(c=>c.polygons)))
   assert.equal(G.area(withHole.candidates.flatMap(c=>c.polygons)),3380)
-  const inner=G.innerBlocks(hole)[0],holeOriginal=JSON.stringify(hole)
-  const filled=G.removeCandidate(hole,inner.candidateId)
-  assert.equal(filled.candidates.length,1)
-  assert.equal(filled.candidates[0].polygons[0].length,1)
-  assert.equal(G.area(filled.candidates[0].polygons),3600)
-  assert.equal(G.innerBlocks(filled).length,0)
-  assert.equal(JSON.stringify(hole),holeOriginal)
-  G.validate(filled,hole)
-  const occupied=G.refresh({...G.clone(hole),candidates:[...G.clone(hole.candidates),{candidateId:'island',polygons:[[ring(31,41,2,2)]]}]})
-  assert.throws(()=>G.removeCandidate(occupied,G.innerBlocks(occupied)[0].candidateId),/重疊/)
-  let real58=G.clone(originals.nanzih)
-  const c58=real58.candidates.find(c=>c.numberCandidates.includes(58)),parent58=c58.candidateId
-  assert.equal(G.innerBlocks(real58).filter(c=>c.parentId===parent58).length,8)
-  for(let i=0;i<8;i++)real58=G.removeCandidate(real58,G.innerBlocks(real58).find(c=>c.parentId===parent58).candidateId)
-  assert.equal(real58.candidates.find(c=>c.candidateId===parent58).polygons[0].length,1)
-  for(const originalCandidate of originals.nanzih.candidates.filter(c=>c.candidateId!==parent58))assert.deepEqual(real58.candidates.find(c=>c.candidateId===originalCandidate.candidateId).polygons,originalCandidate.polygons)
-  G.validate(real58,originals.nanzih)
+  const independent=G.independentBlocks(hole),outer=G.clone(independent.candidates[0].polygons);
+  assert.equal(independent.candidates.length,2);assert.equal(independent.candidates[0].polygons[0].length,1);
+  assert.equal(G.area(independent.candidates[0].polygons),3600);
+  const child=independent.candidates[1];assert.equal(G.area(child.polygons),100);
+  const removedInner=G.removeCandidate(independent,child.candidateId);
+  assert.deepEqual(removedInner.candidates[0].polygons,outer);
+  assert.deepEqual(G.independentBlocks(removedInner),removedInner,'不得重建已刪除區塊');
+  G.validate(independent,hole);
+  const real58=G.independentBlocks(originals.nanzih),parent58=originals.nanzih.candidates.find(c=>c.numberCandidates.includes(58)).candidateId;
+  assert.equal(real58.candidates.filter(c=>c.candidateId.startsWith(parent58+'-inner-')).length,8);
+  assert.equal(real58.candidates.find(c=>c.candidateId===parent58).polygons[0].length,1);
+  G.validate(real58,originals.nanzih);
   const throughHole=G.split(hole,'one',[[35,10],[35,90]],'through-hole')
   assert.equal(throughHole.candidates.length,2)
   assert(!G.inside([38,45],throughHole.candidates.flatMap(c=>c.polygons)))
@@ -70,6 +65,12 @@ async function main(){
   assert(smooth.candidates[0].polygons[0][0].length<dense.candidates[0].polygons[0][0].length)
   for(const point of [[20,20],[60,20],[80,20],[80,80],[20,80]])assert(smooth.candidates[0].polygons[0][0].some(p=>JSON.stringify(p)===JSON.stringify(point)))
   G.validate(smooth,dense)
+  const mapped=G.batchVertexEdit(dense,'one',pick([0,1,2,3,4]),'smooth',3);
+  assert.deepEqual(mapped.selection,pick([0,1]));
+  const afterSelectedDelete=G.batchVertices(mapped.document,'one',mapped.selection,'delete');
+  assert.equal(afterSelectedDelete.candidates[0].polygons[0][0].length,4);
+  const wrappedSelection=G.batchVertexEdit(dense,'one',pick([6,7,0,1,2]),'smooth',1);
+  for(const v of wrappedSelection.selection)assert(v.vi<wrappedSelection.document.candidates[0].polygons[v.pi][v.ri].length-1);
   const deletedBatch=G.batchVertices(dense,'one',pick([1,2,3]),'delete')
   assert.equal(deletedBatch.candidates[0].polygons[0][0].length,6)
   const wrapped=G.batchVertices(dense,'one',pick([7,0,1]),'delete')
@@ -84,7 +85,7 @@ async function main(){
   assert.equal(disjoint.candidates[0].polygons[0][0].length,7)
   const rounded=G.batchVertices(dense,'one',pick([0,1,2,3,4,5,6,7]),'smooth',1)
   assert(rounded.candidates[0].polygons[0][0].some(p=>!dense.candidates[0].polygons[0][0].some(q=>JSON.stringify(p)===JSON.stringify(q))),'平滑必須圓滑座標，不只是刪點')
-  assert.throws(()=>G.batchVertices(G.refresh({...G.clone(hole),candidates:[...G.clone(hole.candidates),{candidateId:'inside-hole',polygons:[[ring(31,41,2,2)]]}]}),'one',[{pi:0,ri:1,vi:0}],'delete'),/重疊/)
+  assert.doesNotThrow(()=>G.batchVertices(G.refresh({...G.clone(hole),candidates:[...G.clone(hole.candidates),{candidateId:'inside-hole',polygons:[[ring(31,41,2,2)]]}]}),'one',[{pi:0,ri:1,vi:0}],'delete'))
 
   assert.throws(()=>G.batchVertices(dense,'one',pick([999]),'delete'),/失效/)
   const moved=G.move(base,'one',0,0,0,[22,22])
@@ -102,14 +103,14 @@ async function main(){
   assert.equal(deletedHole.candidates[0].polygons[0][1].length,4)
   const withNeighbour=G.clone(hole)
   withNeighbour.candidates.push({candidateId:'inner-neighbor',polygons:[[ring(31,41,2,2)]]})
-  assert.throws(()=>G.removeVertex(withNeighbour,'one',0,1,0),/重疊/)
+  assert.doesNotThrow(()=>G.removeVertex(withNeighbour,'one',0,1,0))
   assert.deepEqual(moved.candidates[0].polygons[0][0][0],[22,22])
   assert.deepEqual(moved.candidates[0].polygons[0][0].at(-1),[22,22])
   assert.throws(()=>G.move(base,'one',0,0,1,[10,70]),/交叉/)
   assert.throws(()=>G.move(base,'one',0,0,0,[-1,20]),/圖片/)
   assert.throws(()=>G.move(hole,'one',0,1,0,[10,10]),/邊界|內洞/)
   const overlap=G.clone(base);overlap.candidates.push({candidateId:'neighbor',polygons:[[ring(82,20,10,60)]]})
-  assert.throws(()=>G.move(overlap,'one',0,0,1,[90,20]),/重疊/)
+  assert.doesNotThrow(()=>G.move(overlap,'one',0,0,1,[90,20]))
   for(const alter of [d=>d.sourceSha256='bad',d=>d.imageSize=[10,10],d=>d.candidates[0].polygons[0][0][1]=[Infinity,1],d=>d.labelAnchors=[]]){
     const d=G.clone(originals.nanzih);alter(d);assert.throws(()=>G.validate(d,originals.nanzih))
   }
@@ -140,10 +141,10 @@ async function main(){
   assert.equal((await put(0)).status,409)
   assert.deepEqual((await Promise.all([put(1),put(1)])).map(r=>r.status).sort(),[200,409])
   const read=await (await route.GET(new NextRequest(url),context)).json()
-  assert.equal(read.draft.version,2);assert.equal(read.draft.document.summary.approvedCount,0)
+  assert.equal(read.draft.document.boundaryModel,'independent-blocks-v1');assert.equal(read.draft.version,2);assert.equal(read.draft.document.summary.approvedCount,0)
   const foreign=await route.PUT(new NextRequest(url,{method:'PUT',headers:{'content-type':'application/json',origin:'https://other.example'},body:'{}'}),context)
   assert.equal(foreign.status,403)
-  console.log('PASS: split, holes, concave geometry, vertex edits, overlap rejection, import bounds/source, admin access, atomic version conflict contract.')
+  console.log('PASS: split, holes, concave geometry, vertex edits, independent overlapping blocks, retained smoothing selection, import bounds/source, admin access, atomic version conflict contract.')
   console.log('Database calls mocked: live Neon migration and persistence require deployment verification.')
 }
 main().catch(e=>{console.error(e);process.exitCode=1})

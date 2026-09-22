@@ -15,9 +15,10 @@ export function validateBoundarySave(mapId: keyof typeof originals, payload: unk
     throw new Error('草稿版本無效')
   }
   const base = originals[mapId]
-  const doc = geometry.validate(input.document, base)
+  const doc = geometry.independentBlocks(geometry.validate(input.document, base))
+  geometry.validate(doc, base)
   // Reconstruct metadata from the trusted source. Client summaries/approval flags are not authoritative.
-  const document = geometry.refresh({ ...base, candidates: doc.candidates.map((c: { candidateId: string; polygons: number[][][][] }) => ({
+  const document = geometry.refresh({ ...base, boundaryModel: 'independent-blocks-v1', candidates: doc.candidates.map((c: { candidateId: string; polygons: number[][][][] }) => ({
     candidateId: c.candidateId, polygons: c.polygons, status: 'needs-review', numberCandidates: [], issues: [], pixelArea: 0,
   })) })
   return { expectedVersion: input.expectedVersion as number, document }

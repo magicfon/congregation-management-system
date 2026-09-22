@@ -18,7 +18,7 @@ function node(){return {children:[],events:{},dataset:{},value:'',checked:true,c
  const box=(a,b,shiftKey=false)=>{svg.events.pointerdown(event(...a,node(),{shiftKey}));svg.events.pointermove(event(...b));svg.events.pointerup(event(...b));};
  box([0,0],[51,22]);assert.equal(get('vertexCount').textContent,'已選 4 點','框選不包含鄰近候選的頂點');
  box([59,19],[61,22],true);assert.equal(get('vertexCount').textContent,'已選 5 點');
- get('smoothVertices').onclick();assert.match(get('message').textContent,/已平滑/);assert.equal(get('save').disabled,false);await get('save').onclick();assert(draft.candidates[0].polygons[0][0].length<9);assert.deepEqual(draft.candidates[1].polygons,base.candidates[1].polygons);
+ get('smoothVertices').onclick();assert.match(get('message').textContent,/已平滑/);assert.equal(get('vertexCount').textContent,'已選 2 點');assert.equal(get('smoothVertices').disabled,false);get('smoothVertices').onclick();assert.equal(get('vertexCount').textContent,'已選 2 點');assert.equal(get('save').disabled,false);await get('save').onclick();assert(draft.candidates[0].polygons[0][0].length<9);assert.deepEqual(draft.candidates[1].polygons,base.candidates[1].polygons);
  get('undo').onclick();assert.equal(get('save').disabled,false);get('redo').onclick();assert.equal(get('save').disabled,true);
  // Reload original via import to exercise batch delete and keyboard routing.
  await get('import').onchange({target:{files:[{size:100,text:async()=>JSON.stringify(base)}],value:''}});
@@ -29,13 +29,13 @@ function node(){return {children:[],events:{},dataset:{},value:'',checked:true,c
  const withHole=G.clone(base);withHole.candidates[0].polygons[0].push([[25,30],[35,30],[35,40],[25,40],[25,30]]);
  await get('import').onchange({target:{files:[{size:100,text:async()=>JSON.stringify(withHole)}],value:''}});
  modes.find(n=>n.dataset.mode==='select').onclick();
- const inner=get('regions').children.find(n=>n.dataset.id.startsWith('inner:'));
- assert(inner,'內洞必須呈現為可點選區塊');svg.events.pointerdown(event(30,35,inner));svg.events.pointerup(event(30,35,inner));
- assert.match(get('selection').textContent,/內部區塊/);assert.equal(get('deleteBlock').disabled,false);get('focus').onclick();
- get('deleteBlock').onclick();assert.match(get('message').textContent,/內洞已消除/);
- assert(!get('regions').children.some(n=>n.dataset.id.startsWith('inner:')));
- get('undo').onclick();assert(get('regions').children.some(n=>n.dataset.id.startsWith('inner:')));
- get('redo').onclick();await get('save').onclick();assert.equal(draft.candidates[0].polygons[0].length,1);
- await get('loadCloud').onclick();assert(!get('regions').children.some(n=>n.dataset.id.startsWith('inner:')),'讀回已儲存草稿不可復生內部區塊');
+ const inner=get('regions').children.find(n=>n.dataset.id.includes('-inner-'));
+ assert(inner,'內部區塊應為獨立候選');svg.events.pointerdown(event(30,35,inner));svg.events.pointerup(event(30,35,inner));
+ assert.match(get('selection').textContent,/選取/);assert.equal(get('deleteBlock').disabled,false);get('focus').onclick();
+ get('deleteBlock').onclick();assert.match(get('message').textContent,/區塊已刪除/);
+ assert(!get('regions').children.some(n=>n.dataset.id.includes('-inner-')));
+ get('undo').onclick();assert(get('regions').children.some(n=>n.dataset.id.includes('-inner-')));
+ get('redo').onclick();await get('save').onclick();assert.deepEqual(draft.candidates[0].polygons,base.candidates[0].polygons);assert.equal(draft.boundaryModel,'independent-blocks-v1');
+ await get('loadCloud').onclick();assert(!get('regions').children.some(n=>n.dataset.id.includes('-inner-')),'讀回已儲存草稿不可復生內部區塊');
  console.log('PASS: actual UI box selection, Shift append, smoothing, batch Delete, undo/redo, atomic rejection and saved readback.');
 })().catch(e=>{console.error(e);process.exitCode=1});
