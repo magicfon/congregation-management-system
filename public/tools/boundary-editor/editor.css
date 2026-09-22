@@ -5,3 +5,5 @@
 details summary{font-size:13px;cursor:pointer;color:#cbd5e1}details[open] .row{margin-top:6px;margin-bottom:0}
 
 button.danger{color:#fca5a5;border-color:#9f4545}
+
+[hidden]{display:none!important}#vertexCount{font-size:12px;color:#facc15}.selection-box{fill:#38bdf820;stroke:#38bdf8;stroke-width:1.5;stroke-dasharray:5 3;vector-effect:non-scaling-stroke;pointer-events:none}#boxSelection{pointer-events:none}

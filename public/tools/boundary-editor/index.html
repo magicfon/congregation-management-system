@@ -15,10 +15,16 @@
   </div>
   <div class="row tools" role="group" aria-label="編輯模式">
     <button data-mode="select" aria-pressed="true">選取／移動地圖</button><button data-mode="cut" aria-pressed="false">補線切割</button><button data-mode="vertex" aria-pressed="false">調整頂點</button>
+    <button data-mode="box" aria-pressed="false">框選頂點</button>
     <button id="finish" disabled>完成補線</button><button id="cancel" disabled>取消補線</button>
     <button id="deleteBlock" class="danger" disabled>刪除區塊</button>
     <button id="deleteVertex" disabled>刪除頂點</button>
     <button id="undo" disabled>復原</button><button id="redo" disabled>重做</button>
+  </div>
+  <div class="row" id="batchTools" hidden>
+    <span id="vertexCount" role="status">已選 0 點</span>
+    <label>強度 <select id="smoothStrength"><option value="1">輕微</option><option value="3" selected>標準</option><option value="6">較強</option></select></label>
+    <button id="smoothVertices" disabled>平滑化</button><button id="deleteVertices" class="danger" disabled>刪除所選頂點</button><button id="clearVertices" disabled>清除選取</button>
   </div>
   <div class="row">
     <button id="minus" aria-label="縮小">−</button><button id="plus" aria-label="放大">＋</button><button id="fit">全圖</button><button id="focus" disabled>放大選取區</button>
@@ -29,7 +35,7 @@
   <p id="message" role="alert"></p>
 </header>
 <main>
-  <svg id="mapCanvas" aria-label="可編輯分區地圖" tabindex="0"><image id="background"/><g id="regions"></g><g id="labels"></g><g id="vertices"></g><g id="cutLine"></g></svg>
+  <svg id="mapCanvas" aria-label="可編輯分區地圖" tabindex="0"><image id="background"/><g id="regions"></g><g id="labels"></g><g id="vertices"></g><g id="cutLine"></g><g id="boxSelection"></g></svg>
   <p id="selection" aria-live="polite">尚未選取區塊</p>
 </main>
 <footer>修正儲存為雲端草稿，不影響正式地圖。<a id="login" href="/login?callbackUrl=/map/boundary-editor" target="_top" hidden>登入管理員帳號</a></footer>

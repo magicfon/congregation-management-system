@@ -13,6 +13,8 @@
     pendingRecovery=saved?.document&&(!cloudReady||(saved.dirty&&geometryKey(saved.document)!==geometryKey(doc)))?saved:null;
     if(pendingRecovery)message($('message').textContent+' 發現可恢復的修改；可按「恢復修改」查看。');
   }
+  let selectedVertices=[];
+  const vertexKey=v=>v.pi+':'+v.ri+':'+v.vi;
   const ids={nanzih:'楠梓',chiaotou:'橋頭',tzuguan:'梓官'};
   const key=id=>'boundary-editor-v1:'+id;
   const api=id=>'/api/map-boundary-drafts/'+id;
@@ -26,6 +28,10 @@
   }
   function readBackup(id) {try {return JSON.parse(localStorage.getItem(key(id))||'null');}catch{return null;}}
   function controls() {
+    $('batchTools').hidden=mode!=='box';
+    $('vertexCount').textContent=`已選 ${selectedVertices.length} 點`;
+    for(const id of ['smoothVertices','deleteVertices','clearVertices'])$(id).disabled=editingBlocked()||!!gesture||!selectedVertices.length;
+    $('smoothStrength').disabled=editingBlocked()||!!gesture;
     $('deleteBlock').disabled=editingBlocked()||!!gesture||!selected||cut.length>0;
     $('deleteVertex').disabled=editingBlocked()||!!gesture||mode!=='vertex'||!vertex||vertex.id!==selected;
     $('save').disabled=editingBlocked()||!dirty||cut.length>0;
@@ -35,7 +41,7 @@
     $('finish').disabled=busy||cut.length<2; $('cancel').disabled=busy||!cut.length; $('focus').disabled=!selected||busy;
     document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked();b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
     $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':dirty?'尚未儲存':version?'已儲存':'尚無修改';
-    $('hint').textContent=mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
+    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
   }
   function render() {
     if(!doc){controls();return;}
@@ -54,12 +60,12 @@
     $('summary').textContent=`${doc.candidates.length} 塊候選 · ${doc.summary.singleNumberInteriorCandidates} 塊單一編號`;
   }
   function drawHandles() {
-    const group=$('vertices');group.replaceChildren();if(mode!=='vertex')return;
+    const group=$('vertices');group.replaceChildren();if(!['vertex','box'].includes(mode))return;
     const c=doc.candidates.find(c=>c.candidateId===selected);if(!c)return;
-    const r=view[2]/Math.max(svg.clientWidth,1)*5;
+    const r=view[2]/Math.max(svg.clientWidth,1)*(mode==='box'?3.5:5),chosen=new Set(selectedVertices.map(vertexKey));
     c.polygons.forEach((poly,pi)=>poly.forEach((ring,ri)=>ring.slice(0,-1).forEach(([x,y],vi)=>{
       if(x<view[0]-r||x>view[0]+view[2]+r||y<view[1]-r||y>view[1]+view[3]+r)return;
-      group.append(element('circle',{cx:x,cy:y,r,class:'handle'+(vertex?.id===selected&&vertex.pi===pi&&vertex.ri===ri&&vertex.vi===vi?' active-vertex':''),'data-pi':pi,'data-ri':ri,'data-vi':vi}));
+      group.append(element('circle',{cx:x,cy:y,r,class:'handle'+((mode==='box'?chosen.has(vertexKey({pi,ri,vi})):vertex?.id===selected&&vertex.pi===pi&&vertex.ri===ri&&vertex.vi===vi)?' active-vertex':''),'data-pi':pi,'data-ri':ri,'data-vi':vi}));
     })));
   }
   function drawCut() {
@@ -72,7 +78,7 @@
   function zoom(factor,center=[view[0]+view[2]/2,view[1]+view[3]/2]) {if(!doc)return;const w=view[2]*factor;if(w<40||w>doc.imageSize[0]*5)return;setView([center[0]+(view[0]-center[0])*factor,center[1]+(view[1]-center[1])*factor,w,view[3]*factor]);}
   function point(event) {const p=svg.createSVGPoint();p.x=event.clientX;p.y=event.clientY;const v=p.matrixTransform(svg.getScreenCTM().inverse());return [v.x,v.y];}
   function commit(next) {undo.push(G.clone(doc));if(undo.length>20)undo.shift();redo=[];doc=next;dirty=JSON.stringify(doc.candidates)!==savedGeometry;cut=[];backup();render();}
-  function applyDocument(next) {doc=G.refresh(G.clone(G.validate(next,base)));selected=null;vertex=null;undo=[];redo=[];cut=[];render();}
+  function applyDocument(next) {doc=G.refresh(G.clone(G.validate(next,base)));selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];render();}
   async function cloudRequest(id,options) {
     const response=await fetch(api(id),{cache:'no-store',...options});
     const contentType=response.headers.get('content-type')||'';
@@ -92,7 +98,7 @@
     busy=true;controls();message('');
     try {
       const response=await fetch(`/maps/reconstruction-v1/${id}.json`);if(!response.ok){needsReload=true;throw new Error('無法載入原始候選。');}
-      base=await response.json();doc=G.refresh(G.clone(base));selected=null;vertex=null;undo=[];redo=[];cut=[];dirty=false;version=0;cloudReady=false;pendingRecovery=null;needsReload=false;
+      base=await response.json();doc=G.refresh(G.clone(base));selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];dirty=false;version=0;cloudReady=false;pendingRecovery=null;needsReload=false;
       $('background').setAttribute('href','/maps/'+base.sourceImage);$('background').setAttribute('width',base.imageSize[0]);$('background').setAttribute('height',base.imageSize[1]);
       try {const result=await cloudRequest(id);if(result.draft){applyDocument(result.draft.document);version=result.draft.version;message('');}cloudReady=true;}
       catch(error){cloudReady=false;needsReload=true;message('載入失敗，目前顯示原始候選，尚未取得已儲存修改。'+error.message);}
@@ -105,17 +111,30 @@
   $('map').onchange=()=>openMap($('map').value);
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{
     if(b.dataset.mode!=='select'&&!selected){message('請先點選一塊要修正的色塊。');return;}
-    mode=b.dataset.mode;vertex=null;cut=[];message('');render();
+    mode=b.dataset.mode;vertex=null;selectedVertices=[];cut=[];message('');render();
   });
-  $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;vertex=null;mode='select';message('已切開區塊並重新配對編號，請核對後儲存。');render();}catch(error){message(error.message);}};
+  $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';message('已切開區塊並重新配對編號，請核對後儲存。');render();}catch(error){message(error.message);}};
   $('cancel').onclick=()=>{cut=[];render();};
   function deleteVertex(){if(editingBlocked()||gesture||mode!=='vertex'||!vertex||vertex.id!==selected)return;try{const v=vertex;const next=G.removeVertex(doc,selected,v.pi,v.ri,v.vi);vertex=null;commit(next);message('頂點已刪除，前後頂點已連接；可復原，尚未儲存。');}catch(error){message(error.message);}}
   $('deleteVertex').onclick=deleteVertex;
+  function batchEdit(operation){
+    if(editingBlocked()||gesture||mode!=='box'||!selectedVertices.length)return;
+    try{
+      const count=d=>d.candidates.find(c=>c.candidateId===selected).polygons.reduce((n,p)=>n+p.reduce((m,r)=>m+r.length-1,0),0);
+      const before=count(doc),next=G.batchVertices(doc,selected,selectedVertices,operation,Number($('smoothStrength').value));
+      const removed=before-count(next);selectedVertices=[];vertex=null;commit(next);
+      message(`${operation==='smooth'?'已平滑邊界':'已刪除所選頂點'}，減少 ${removed} 點；可復原，尚未儲存。`);
+    }catch(error){message(error.message);}
+  }
+  $('smoothVertices').onclick=()=>batchEdit('smooth');$('deleteVertices').onclick=()=>batchEdit('delete');
+  $('clearVertices').onclick=()=>{selectedVertices=[];render();};
+  function drawBox(a,b){$('boxSelection').replaceChildren(element('rect',{x:Math.min(a[0],b[0]),y:Math.min(a[1],b[1]),width:Math.abs(a[0]-b[0]),height:Math.abs(a[1]-b[1]),class:'selection-box'}));}
+
   $('deleteBlock').onclick=()=>{
     if(editingBlocked()||gesture||!selected||cut.length)return;
-    try{const next=G.removeCandidate(doc,selected);selected=null;vertex=null;mode='select';commit(next);message('區塊已刪除，可按「復原」恢復；尚未儲存。');}catch(error){message(error.message);}
+    try{const next=G.removeCandidate(doc,selected);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';commit(next);message('區塊已刪除，可按「復原」恢復；尚未儲存。');}catch(error){message(error.message);}
   };
-  function history(back) {if(editingBlocked())return;const from=back?undo:redo,to=back?redo:undo;if(!from.length)return;to.push(G.clone(doc));doc=from.pop();dirty=JSON.stringify(doc.candidates)!==savedGeometry;selected=null;vertex=null;cut=[];backup();render();}
+  function history(back) {if(editingBlocked())return;const from=back?undo:redo,to=back?redo:undo;if(!from.length)return;to.push(G.clone(doc));doc=from.pop();dirty=JSON.stringify(doc.candidates)!==savedGeometry;selected=null;mode='select';vertex=null;selectedVertices=[];cut=[];backup();render();}
   $('undo').onclick=()=>history(true);$('redo').onclick=()=>history(false);
   $('overlay').onchange=render;$('anchors').onchange=render;
   $('plus').onclick=()=>zoom(.7);$('minus').onclick=()=>zoom(1/.7);$('fit').onclick=fit;
@@ -124,6 +143,7 @@
   svg.addEventListener('pointerdown',e=>{
     if(editingBlocked()||e.button!==0)return;
     const p=point(e),target=e.target;
+    if(mode==='box'){if(!selected){message('請先選取區塊。');return;}gesture={kind:'box',start:p,append:e.shiftKey};drawBox(p,p);svg.setPointerCapture(e.pointerId);controls();return;}
     if(mode==='cut') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;cut.push(p);drawCut();controls();return;}
     if(target.classList.contains('handle')) {
       const pi=Number(target.dataset.pi),ri=Number(target.dataset.ri),vi=Number(target.dataset.vi),c=doc.candidates.find(c=>c.candidateId===selected);
@@ -134,17 +154,28 @@
   });
   svg.addEventListener('pointermove',e=>{
     if(!gesture)return;
+    if(gesture.kind==='box'){drawBox(gesture.start,point(e));return;}
     if(gesture.kind==='pan') {const dx=e.clientX-gesture.start[0],dy=e.clientY-gesture.start[1];gesture.moved ||= Math.hypot(dx,dy)>4;const scale=gesture.view[2]/svg.clientWidth;setView([gesture.view[0]-dx*scale,gesture.view[1]-dy*scale,gesture.view[2],gesture.view[3]]);}
     else {const p=point(e),r=gesture.preview[gesture.pi][gesture.ri];r[gesture.vi]=p;if(gesture.vi===0)r[r.length-1]=p;gesture.node.setAttribute('cx',p[0]);gesture.node.setAttribute('cy',p[1]);$('regions').querySelector('.selected').setAttribute('d',path(gesture.preview));}
   });
   svg.addEventListener('pointerup',e=>{
     if(!gesture)return;const g=gesture;gesture=null;
     if(svg.hasPointerCapture(e.pointerId))svg.releasePointerCapture(e.pointerId);
-    if(g.kind==='pan'){if(!g.moved&&g.id){selected=g.id;vertex=null;cut=[];message('');render();}}
+    if(g.kind==='box'){
+      $('boxSelection').replaceChildren();const end=point(e),found=g.append?selectedVertices.slice():[],seen=new Set(found.map(vertexKey));
+      const c=doc.candidates.find(c=>c.candidateId===selected);
+      c.polygons.forEach((poly,pi)=>poly.forEach((ring,ri)=>ring.slice(0,-1).forEach(([x,y],vi)=>{
+        if(x>=Math.min(g.start[0],end[0])&&x<=Math.max(g.start[0],end[0])&&y>=Math.min(g.start[1],end[1])&&y<=Math.max(g.start[1],end[1])){
+          const v={pi,ri,vi};if(!seen.has(vertexKey(v))){found.push(v);seen.add(vertexKey(v));}
+        }
+      })));
+      selectedVertices=found;message(found.length?'已框選頂點，可平滑化或刪除。':'框內沒有目前區塊的頂點。');render();return;
+    }
+    if(g.kind==='pan'){if(!g.moved&&g.id){selected=g.id;vertex=null;selectedVertices=[];cut=[];message('');render();}}
     else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存。');}catch(error){message(error.message);render();}}
   });
-  svg.addEventListener('pointercancel',()=>{gesture=null;render();});
-  document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;if(e.key==='Delete'&&mode==='vertex'&&vertex){e.preventDefault();deleteVertex();}if(e.key==='Escape'){cut=[];gesture=null;render();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();});
+  svg.addEventListener('pointercancel',()=>{gesture=null;$('boxSelection').replaceChildren();render();});
+  document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;if(e.key==='Delete'&&mode==='box'){e.preventDefault();batchEdit('delete');}if(e.key==='Delete'&&mode==='vertex'&&vertex){e.preventDefault();deleteVertex();}if(e.key==='Escape'){selectedVertices=[];$('boxSelection').replaceChildren();cut=[];gesture=null;render();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();});
   $('save').onclick=async()=>{
     busy=true;controls();message('');const snapshot=G.clone(doc);
     try {

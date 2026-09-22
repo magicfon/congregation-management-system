@@ -112,6 +112,53 @@
     record(next,{type:'delete-vertex',candidateId:id,polyIndex,ringIndex,index});
     return refresh(next);
   }
+  function batchVertices(doc,id,selection,operation,tolerance=3) {
+    const next=clone(doc),candidate=next.candidates.find(c=>c.candidateId===id);
+    if(!candidate || !selection.length)throw new Error('請先框選頂點。');
+    if(!['delete','smooth'].includes(operation) || ![1,3,6].includes(tolerance))throw new Error('操作或平滑強度無效。');
+    const groups=new Map();
+    for(const {pi,ri,vi} of selection){
+      const ring=candidate.polygons[pi]?.[ri];
+      if(![pi,ri,vi].every(Number.isInteger)||!ring||vi<0||vi>=ring.length-1)throw new Error('頂點選取已失效，請重新框選。');
+      const key=pi+':'+ri;if(!groups.has(key))groups.set(key,{pi,ri,indices:new Set()});groups.get(key).indices.add(vi);
+    }
+    let removed=0;
+    for(const {pi,ri,indices} of groups.values()){
+      const points=candidate.polygons[pi][ri].slice(0,-1),n=points.length;
+      let result;
+      if(operation==='delete')result=points.filter((_,i)=>!indices.has(i));
+      else {
+        const pinned=new Set(points.map((_,i)=>i).filter(i=>!indices.has(i)||!indices.has((i+n-1)%n)||!indices.has((i+1)%n)));
+        if(!pinned.size)[0,Math.floor(n/3),Math.floor(2*n/3)].forEach(i=>pinned.add(i));
+        const weight={1:.12,3:.25,6:.35}[tolerance];
+        const smoothed=points.map((p,i)=>!indices.has(i)||(!indices.has((i+n-1)%n)||!indices.has((i+1)%n))?p:p.map((v,k)=>(1-2*weight)*v+weight*(points[(i+n-1)%n][k]+points[(i+1)%n][k])));
+        const anchors=[...pinned].sort((a,b)=>a-b),keep=new Set(anchors);
+        for(let a=0;a<anchors.length;a++){
+          const start=anchors[a],end=anchors[(a+1)%anchors.length]+(a===anchors.length-1?n:0),stack=[[start,end]];
+          while(stack.length){
+            const [lo,hi]=stack.pop();let max=tolerance,index=-1;
+            for(let j=lo+1;j<hi;j++){const distance=segmentDistance(smoothed[j%n],smoothed[lo%n],smoothed[hi%n]);if(distance>max){max=distance;index=j;}}
+            if(index>=0){keep.add(index%n);stack.push([lo,index],[index,hi]);}
+          }
+        }
+        result=smoothed.filter((_,i)=>keep.has(i));
+      }
+      if(result.length<3)throw new Error('每個封閉邊界至少保留 3 個頂點，未套用任何修改。');
+      removed+=n-result.length;candidate.polygons[pi][ri]=[...result,result[0].slice()];
+    }
+    for(const {pi,ri} of groups.values())validateEdit(doc,next,id,pi,ri);
+    const before=doc.candidates.find(c=>c.candidateId===id);
+    const overlap=c=>area(c.polygons)-area(clip.union(c.polygons));
+    if(overlap(candidate)>overlap(before)+.01)throw new Error('修改後區塊部件互相重疊，未套用任何修改。');
+    if(JSON.stringify(before.polygons)===JSON.stringify(candidate.polygons))throw new Error('目前強度沒有可平滑或縮減的頂點。');
+    record(next,{type:operation+'-vertices',candidateId:id,selection,tolerance,removed});
+    return refresh(next);
+  }
+  function segmentDistance(p,a,b){
+    const dx=b[0]-a[0],dy=b[1]-a[1],length=dx*dx+dy*dy;
+    const t=length?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/length)):0;
+    return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy);
+  }
   function validateEdit(doc,next,id,polyIndex,ringIndex) {
     const c=next.candidates.find(c=>c.candidateId===id),poly=c.polygons[polyIndex],r=poly[ringIndex];
     if(!simple(r))throw new Error('頂點修改造成交叉或無效區塊，已保留原邊界。');
@@ -127,5 +174,5 @@
     const others=doc.candidates.filter(x=>x.candidateId!==id).flatMap(x=>x.polygons);
     if(others.length && area(clip.intersection(c.polygons,others))>area(clip.intersection(before.polygons,others))+0.01)throw new Error('移動後與相鄰區塊重疊，請縮小移動範圍。');
   }
-  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate};
+  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices};
 });
