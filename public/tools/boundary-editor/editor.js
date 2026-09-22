@@ -4,7 +4,15 @@
   const G=window.BoundaryGeometry, $=id=>document.getElementById(id), svg=$('mapCanvas'), ns='http://www.w3.org/2000/svg';
   let doc,base,selected=null,mode='select',cut=[],undo=[],redo=[],dirty=false,version=0,cloudReady=false,busy=false;
   let view=[0,0,1,1],gesture=null,storageOK=true;
-  let savedGeometry='', vertex=null;
+  let savedGeometry='', vertex=null, pendingRecovery=null, needsReload=false;
+  const geometryKey=d=>JSON.stringify(d.candidates.map(c=>[c.candidateId,c.polygons]).sort((a,b)=>a[0].localeCompare(b[0])));
+  const editingBlocked=()=>busy||!doc||!cloudReady||!!pendingRecovery;
+  function offerRecovery(){
+    const saved=readBackup(doc.mapId);
+    if(saved?.document){try{G.validate(saved.document,base);}catch{message('先前保留的修改無法讀取，請保留備份檔案以便檢查。');return;}}
+    pendingRecovery=saved?.document&&(!cloudReady||(saved.dirty&&geometryKey(saved.document)!==geometryKey(doc)))?saved:null;
+    if(pendingRecovery)message($('message').textContent+' 發現可恢復的修改；可按「恢復修改」查看。');
+  }
   const ids={nanzih:'楠梓',chiaotou:'橋頭',tzuguan:'梓官'};
   const key=id=>'boundary-editor-v1:'+id;
   const api=id=>'/api/map-boundary-drafts/'+id;
@@ -14,18 +22,18 @@
   function backup() {
     if(!doc)return true;
     try {localStorage.setItem(key(doc.mapId),JSON.stringify({document:doc,baseVersion:version,dirty,savedAt:new Date().toISOString()}));storageOK=true;return true;}
-    catch {storageOK=false;message('瀏覽器無法保留本機備份，請立即匯出 JSON 或儲存到雲端。');return false;}
+    catch {storageOK=false;message('瀏覽器無法保留本機備份，請立即匯出 JSON 或儲存。');return false;}
   }
   function readBackup(id) {try {return JSON.parse(localStorage.getItem(key(id))||'null');}catch{return null;}}
   function controls() {
-    $('deleteVertex').disabled=busy||!!gesture||mode!=='vertex'||!vertex||vertex.id!==selected;
-    $('save').disabled=busy||!doc||!cloudReady||!dirty||cut.length>0;
-    $('map').disabled=busy; $('loadCloud').disabled=busy||!doc; $('restore').disabled=busy;
-    $('export').disabled=busy||!doc; $('import').disabled=busy;
-    $('undo').disabled=busy||!undo.length; $('redo').disabled=busy||!redo.length;
+    $('deleteVertex').disabled=editingBlocked()||!!gesture||mode!=='vertex'||!vertex||vertex.id!==selected;
+    $('save').disabled=editingBlocked()||!dirty||cut.length>0;
+    $('map').disabled=busy; $('loadCloud').disabled=busy||!doc; $('restore').disabled=busy; $('restore').hidden=!pendingRecovery; $('skipRestore').hidden=!pendingRecovery||!cloudReady; $('skipRestore').disabled=busy; $('loadCloud').hidden=!needsReload;
+    $('export').disabled=busy||!doc; $('import').disabled=editingBlocked();
+    $('undo').disabled=editingBlocked()||!undo.length; $('redo').disabled=editingBlocked()||!redo.length;
     $('finish').disabled=busy||cut.length<2; $('cancel').disabled=busy||!cut.length; $('focus').disabled=!selected||busy;
-    document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=busy||!doc;b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
-    $('saveState').textContent=busy?'處理中…':!doc?'未載入':`${dirty?'未儲存至雲端':'目前無未存修改'} · ${cloudReady?'雲端版本 '+version:'雲端未連線'}`;
+    document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked();b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
+    $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':dirty?'尚未儲存':version?'已儲存':'尚無修改';
     $('hint').textContent=mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
   }
   function render() {
@@ -75,22 +83,20 @@
     if(response.status===401){$('login').textContent='登入管理員帳號';$('login').href='/login?callbackUrl=/map/boundary-editor';cloudReady=false;}
     if(response.status===403)cloudReady=false;
     if(offline){$('login').textContent='開啟雲端版';$('login').href='https://congregation-management-system.vercel.app/map/boundary-editor';}
-    if(!response.ok)throw new Error(data.error || (response.status===401?'請先登入管理員帳號。':response.status===403?'僅管理員可存取雲端草稿。':'目前是離線預覽或雲端尚未部署。請使用雲端版，修正可先匯出 JSON。'));
+    if(!response.ok){needsReload=true;throw new Error(data.error || (response.status===401?'請先登入管理員帳號。':response.status===403?'僅管理員可存取雲端草稿。':'暫時無法連線，請稍後重試。'));}
     return data;
   }
   async function openMap(id) {
     if(doc&&dirty&&!backup()){ $('map').value=doc.mapId;return; }
     busy=true;controls();message('');
     try {
-      const response=await fetch(`/maps/reconstruction-v1/${id}.json`);if(!response.ok)throw new Error('無法載入原始候選。');
-      base=await response.json();doc=G.refresh(G.clone(base));selected=null;vertex=null;undo=[];redo=[];cut=[];dirty=false;version=0;cloudReady=false;
+      const response=await fetch(`/maps/reconstruction-v1/${id}.json`);if(!response.ok){needsReload=true;throw new Error('無法載入原始候選。');}
+      base=await response.json();doc=G.refresh(G.clone(base));selected=null;vertex=null;undo=[];redo=[];cut=[];dirty=false;version=0;cloudReady=false;pendingRecovery=null;needsReload=false;
       $('background').setAttribute('href','/maps/'+base.sourceImage);$('background').setAttribute('width',base.imageSize[0]);$('background').setAttribute('height',base.imageSize[1]);
-      try {const result=await cloudRequest(id);if(result.draft){applyDocument(result.draft.document);version=result.draft.version;message(`已載入雲端版本 ${version}（${new Date(result.draft.updatedAt).toLocaleString()}）。`);}cloudReady=true;}
-      catch(error){cloudReady=false;message('雲端載入失敗，目前顯示原始候選，並非你的雲端修正。'+error.message);}
-      const saved=readBackup(id);$('restore').hidden=!saved?.document;
+      try {const result=await cloudRequest(id);if(result.draft){applyDocument(result.draft.document);version=result.draft.version;message('');}cloudReady=true;}
+      catch(error){cloudReady=false;needsReload=true;message('載入失敗，目前顯示原始候選，尚未取得已儲存修改。'+error.message);}
       savedGeometry=JSON.stringify(doc.candidates);
-      if(saved?.dirty)message($('message').textContent+' 此裝置另有未存備份，可按「恢復本機備份」。');
-      else if(saved?.document&&!cloudReady)message($('message').textContent+' 可按「恢復本機備份」取回此裝置上次儲存的修正。');
+      offerRecovery();
       fit();render();
     }catch(error){message(error.message);if(doc)$('map').value=doc.mapId;}
     finally {busy=false;controls();}
@@ -100,18 +106,18 @@
     if(b.dataset.mode!=='select'&&!selected){message('請先點選一塊要修正的色塊。');return;}
     mode=b.dataset.mode;vertex=null;cut=[];message('');render();
   });
-  $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;vertex=null;mode='select';message('已切開區塊並重新配對編號，請核對後儲存到雲端。');render();}catch(error){message(error.message);}};
+  $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;vertex=null;mode='select';message('已切開區塊並重新配對編號，請核對後儲存。');render();}catch(error){message(error.message);}};
   $('cancel').onclick=()=>{cut=[];render();};
-  function deleteVertex(){if(busy||gesture||mode!=='vertex'||!vertex||vertex.id!==selected)return;try{const v=vertex;const next=G.removeVertex(doc,selected,v.pi,v.ri,v.vi);vertex=null;commit(next);message('頂點已刪除，前後頂點已連接；可復原，尚未儲存到雲端。');}catch(error){message(error.message);}}
+  function deleteVertex(){if(editingBlocked()||gesture||mode!=='vertex'||!vertex||vertex.id!==selected)return;try{const v=vertex;const next=G.removeVertex(doc,selected,v.pi,v.ri,v.vi);vertex=null;commit(next);message('頂點已刪除，前後頂點已連接；可復原，尚未儲存。');}catch(error){message(error.message);}}
   $('deleteVertex').onclick=deleteVertex;
-  function history(back) {if(busy||!doc)return;const from=back?undo:redo,to=back?redo:undo;if(!from.length)return;to.push(G.clone(doc));doc=from.pop();dirty=JSON.stringify(doc.candidates)!==savedGeometry;selected=null;vertex=null;cut=[];backup();render();}
+  function history(back) {if(editingBlocked())return;const from=back?undo:redo,to=back?redo:undo;if(!from.length)return;to.push(G.clone(doc));doc=from.pop();dirty=JSON.stringify(doc.candidates)!==savedGeometry;selected=null;vertex=null;cut=[];backup();render();}
   $('undo').onclick=()=>history(true);$('redo').onclick=()=>history(false);
   $('overlay').onchange=render;$('anchors').onchange=render;
   $('plus').onclick=()=>zoom(.7);$('minus').onclick=()=>zoom(1/.7);$('fit').onclick=fit;
   $('focus').onclick=()=>{const c=doc.candidates.find(c=>c.candidateId===selected);if(!c)return;const pts=c.polygons.flat(2);const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);const x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1),vw=Math.max(w,h*ratio)*1.15;setView([x+w/2-vw/2,y+h/2-vw/ratio/2,vw,vw/ratio]);};
   svg.addEventListener('wheel',e=>{e.preventDefault();if(!busy)zoom(e.deltaY>0?1.15:1/1.15,point(e));},{passive:false});
   svg.addEventListener('pointerdown',e=>{
-    if(busy||!doc||e.button!==0)return;
+    if(editingBlocked()||e.button!==0)return;
     const p=point(e),target=e.target;
     if(mode==='cut') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;cut.push(p);drawCut();controls();return;}
     if(target.classList.contains('handle')) {
@@ -130,7 +136,7 @@
     if(!gesture)return;const g=gesture;gesture=null;
     if(svg.hasPointerCapture(e.pointerId))svg.releasePointerCapture(e.pointerId);
     if(g.kind==='pan'){if(!g.moved&&g.id){selected=g.id;vertex=null;cut=[];message('');render();}}
-    else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存到雲端。');}catch(error){message(error.message);render();}}
+    else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存。');}catch(error){message(error.message);render();}}
   });
   svg.addEventListener('pointercancel',()=>{gesture=null;render();});
   document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;if(e.key==='Delete'&&mode==='vertex'&&vertex){e.preventDefault();deleteVertex();}if(e.key==='Escape'){cut=[];gesture=null;render();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();});
@@ -140,29 +146,30 @@
       const result=await cloudRequest(doc.mapId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:version,document:snapshot})});
       version=result.saved.version;
       const check=await cloudRequest(doc.mapId);
-      if(!check.draft || check.draft.version!==version)throw new Error('雲端讀回版本不一致，請先匯出本機備份，再載入雲端核對。');
+      if(!check.draft || check.draft.version!==version)throw new Error('儲存後讀回版本不一致，請先匯出本機備份，再載入雲端核對。');
       G.validate(check.draft.document,base);
-      const signature=d=>JSON.stringify(d.candidates.map(c=>[c.candidateId,c.polygons]).sort((a,b)=>a[0].localeCompare(b[0])));
-      if(signature(check.draft.document)!==signature(snapshot))throw new Error('雲端讀回的邊界與送出內容不同，已保留本機修正，請勿以原圖覆蓋。');
-      dirty=false;savedGeometry=JSON.stringify(doc.candidates);backup();$('restore').hidden=false;message(`已儲存到雲端版本 ${version}，並確認可重新載入。`);
+      const signature=geometryKey;
+      if(signature(check.draft.document)!==signature(snapshot))throw new Error('儲存後讀回的邊界與送出內容不同，已保留本機修正，請勿以原圖覆蓋。');
+      dirty=false;needsReload=false;pendingRecovery=null;savedGeometry=JSON.stringify(doc.candidates);backup();message('已儲存，並確認可重新載入。');
     }
-    catch(error){backup();message(error.message);}
+    catch(error){needsReload=true;backup();message('儲存未完成，修改已暫時保留。'+error.message);}
     finally{busy=false;controls();}
   };
   $('loadCloud').onclick=async()=>{
-    if((dirty||cut.length)&&!confirm('載入雲端會取代目前畫面。本機修正將保留為備份；建議先匯出 JSON。繼續？'))return;
+    if((dirty||cut.length)&&!confirm('重新載入會取代目前畫面，尚未儲存的修改會暫時保留供恢復。繼續？'))return;
     if(dirty&&!backup())return;busy=true;controls();
-    try {const result=await cloudRequest(doc.mapId);applyDocument(result.draft?.document||base);version=result.draft?.version||0;dirty=false;savedGeometry=JSON.stringify(doc.candidates);cloudReady=true;$('restore').hidden=!readBackup(doc.mapId)?.document;message(`已載入雲端版本 ${version}。`);}
+    try {const result=await cloudRequest(doc.mapId);applyDocument(result.draft?.document||base);version=result.draft?.version||0;dirty=false;savedGeometry=JSON.stringify(doc.candidates);cloudReady=true;needsReload=false;message('已載入儲存內容。');offerRecovery();}
     catch(error){message(error.message);}finally{busy=false;controls();}
   };
   $('restore').onclick=()=>{
-    const saved=readBackup(doc.mapId);if(!saved)return;
-    if(dirty&&!confirm('以先前本機備份取代目前修正？建議先匯出目前 JSON。'))return;
-    try {applyDocument(saved.document);version=saved.baseVersion;dirty=JSON.stringify(doc.candidates)!==savedGeometry;backup();$('restore').hidden=!dirty;message('已恢復本機備份；若其他裝置已更新，儲存時會提示版本衝突。');controls();}catch(error){message(error.message);}
+    const saved=pendingRecovery;if(!saved)return;
+    if(dirty&&!confirm('以先前保留的修改取代目前畫面？'))return;
+    try {applyDocument(saved.document);version=saved.baseVersion;dirty=JSON.stringify(doc.candidates)!==savedGeometry;pendingRecovery=null;backup();message(cloudReady?'已恢復修改，確認後請按「儲存」。':'已恢復修改供查看及匯出；連線恢復後請重新載入，再恢復修改並儲存。');controls();}catch(error){message(error.message);}
   };
+  $('skipRestore').onclick=()=>{if(!cloudReady||!pendingRecovery||!confirm('放棄先前未儲存的修改，保留目前已儲存內容？'))return;pendingRecovery=null;backup();message('已保留儲存內容。');controls();};
   $('export').onclick=()=>{const blob=new Blob([JSON.stringify({...doc,editorBackup:{baseVersion:version}},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${doc.mapId}-corrections-v${version}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message(cut.length?'已匯出已完成修正；正在繪製的補線尚未包含。':'已匯出修正 JSON。');};
   $('import').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;if(file.size>2_000_000){message('檔案超過 2 MB。');return;}if(dirty&&!confirm('匯入將取代目前修正，請先確認已備份。'))return;
-    busy=true;controls();try{const next=JSON.parse(await file.text());G.validate(next,base);if(next.editorBackup && (!Number.isSafeInteger(next.editorBackup.baseVersion)||next.editorBackup.baseVersion<0))throw new Error('備份版本無效。');const previousVersion=version;commit(G.refresh(next));version=next.editorBackup?.baseVersion??previousVersion;backup();message('已匯入修正，請核對後儲存到雲端。');}catch(error){message(error.message);}finally{busy=false;controls();}};
+    busy=true;controls();try{const next=JSON.parse(await file.text());G.validate(next,base);if(next.editorBackup && (!Number.isSafeInteger(next.editorBackup.baseVersion)||next.editorBackup.baseVersion<0))throw new Error('備份版本無效。');const previousVersion=version;commit(G.refresh(next));version=next.editorBackup?.baseVersion??previousVersion;backup();message('已匯入修正，請核對後儲存。');}catch(error){message(error.message);}finally{busy=false;controls();}};
   window.addEventListener('beforeunload',e=>{if(dirty||cut.length){e.preventDefault();e.returnValue='';}});
   new ResizeObserver(()=>{if(doc)drawHandles();}).observe(svg);
   if(location.port==='18832')$('login').href='https://congregation-management-system.vercel.app/map/boundary-editor';

@@ -14,7 +14,7 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false) {
   document.getElementById('login')
   vm.runInNewContext(fs.readFileSync('public/tools/boundary-editor/editor.js','utf8'),{
     window:{BoundaryGeometry:G,addEventListener(){}},document,
-    location:{port:'',search:''},URLSearchParams,
+    location:{port:'',search:''},URLSearchParams,confirm:()=>true,
     localStorage:{getItem:()=>backup&&JSON.stringify(backup),setItem:(_key,value)=>{backup=JSON.parse(value)}},ResizeObserver:class{observe(){}},
     fetch:async (url,options)=>{
       if(url.includes('/reconstruction-v1/'))return {ok:true,json:async()=>G.clone(base)}
@@ -32,7 +32,21 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false) {
 (async()=>{
   const admin=await check(200)
   assert.equal(admin.get('login').hidden,true,'管理員已通過雲端 API，但登入連結仍顯示')
-  assert.match(admin.get('saveState').textContent,/雲端版本 0/)
+  assert.match(admin.get('saveState').textContent,/尚無修改/)
+  assert.equal(admin.get('restore').hidden,true)
+  assert.equal(admin.get('loadCloud').hidden,true)
+  assert.equal(admin.get('save').disabled,true)
+  const modifiedBackup=G.clone(base);modifiedBackup.candidates[0].candidateId='recovery-test'
+  const recovery=await check(200,{document:base,version:4},{document:modifiedBackup,dirty:true,baseVersion:3})
+  assert.equal(recovery.get('restore').hidden,false)
+  assert.equal(recovery.get('import').disabled,true,'恢復決定前不可覆蓋備份')
+  recovery.get('restore').onclick()
+  assert.equal(recovery.get('restore').hidden,true)
+  assert.equal(recovery.get('save').disabled,false)
+  const same=await check(200,{document:jsonb(base),version:4},{document:base,dirty:true,baseVersion:3})
+  assert.equal(same.get('restore').hidden,true,'已儲存的相同內容不用提示恢復')
+  const clean=await check(200,{document:base,version:4},{document:modifiedBackup,dirty:false,baseVersion:3})
+  assert.equal(clean.get('restore').hidden,true,'正常載入不可提示過時已儲存備份')
   const anonymous=await check(401)
   assert.equal(anonymous.get('login').hidden,false)
   const denied=await check(403)
@@ -41,7 +55,7 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false) {
   const unavailable=await check(503)
   assert.equal(unavailable.get('login').hidden,true,'服務失敗不等於未登入')
   const loaded=await check(200,{document:jsonb(base),version:4,updatedAt:new Date().toISOString()})
-  assert.match(loaded.get('saveState').textContent,/雲端版本 4/,'JSONB 重排欄位後仍須載入雲端版本')
+  assert.match(loaded.get('saveState').textContent,/已儲存/,'JSONB 重排欄位後仍須載入雲端版本')
   const fallback=await check(503,null,{document:base,dirty:false,baseVersion:4})
   assert.equal(fallback.get('restore').hidden,false,'已儲存的本機備份也必須可恢復')
   assert.match(fallback.get('message').textContent,/目前顯示原始候選/)
@@ -51,7 +65,7 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false) {
     await editor.get('import').onchange({target:{files:[{size:1000,text:async()=>JSON.stringify(modified)}],value:''}})
     assert.equal(editor.get('save').disabled,false)
     await editor.get('save').onclick()
-    assert.match(editor.get('message').textContent,corrupt?/雲端讀回的邊界與送出內容不同/:/並確認可重新載入/)
+    assert.match(editor.get('message').textContent,corrupt?/儲存後讀回的邊界與送出內容不同/:/並確認可重新載入/)
     assert.equal(editor.get('save').disabled,!corrupt,'讀回不一致時不得清除未儲存狀態')
   }
   console.log('PASS: actual editor startup distinguishes admin, signed out, forbidden, and service failure.')

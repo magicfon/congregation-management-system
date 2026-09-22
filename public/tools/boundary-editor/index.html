@@ -7,9 +7,11 @@
   <div class="row"><h1>地圖分區修正</h1><span id="saveState" role="status">載入中…</span></div>
   <div class="row">
     <select id="map" aria-label="地圖"><option value="nanzih">楠梓 1–89</option><option value="chiaotou">橋頭 90–148</option><option value="tzuguan">梓官 149–213</option></select>
-    <button id="save" class="primary" disabled>儲存到雲端</button><button id="loadCloud">載入雲端</button>
-    <button id="export">匯出 JSON</button><label class="button">匯入 JSON<input id="import" type="file" accept=".json,application/json" hidden></label>
-    <button id="restore" hidden>恢復本機備份</button>
+    <button id="save" class="primary" disabled>儲存</button><button id="loadCloud" hidden>重新載入</button>
+    <button id="restore" hidden>恢復修改</button><button id="skipRestore" hidden>保留已儲存內容</button>
+    <details><summary>更多工具</summary><div class="row">
+    <button id="export">匯出檔案</button><label class="button">匯入檔案<input id="import" type="file" accept=".json,application/json" hidden></label>
+    </div></details>
   </div>
   <div class="row tools" role="group" aria-label="編輯模式">
     <button data-mode="select" aria-pressed="true">選取／移動地圖</button><button data-mode="cut" aria-pressed="false">補線切割</button><button data-mode="vertex" aria-pressed="false">調整頂點</button>
