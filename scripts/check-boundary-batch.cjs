@@ -26,5 +26,16 @@ function node(){return {children:[],events:{},dataset:{},value:'',checked:true,c
  box([29,18],[51,22]);assert.equal(get('vertexCount').textContent,'已選 3 點');
  keyboard.keydown({key:'Delete',target:{matches:()=>false},preventDefault(){}});assert.match(get('message').textContent,/減少 3 點/);await get('save').onclick();assert.equal(draft.candidates[0].polygons[0][0].length,6);
  box([0,0],[100,100]);get('deleteVertices').onclick();assert.match(get('message').textContent,/至少保留/);assert.equal(get('vertexCount').textContent,'已選 5 點');
+ const withHole=G.clone(base);withHole.candidates[0].polygons[0].push([[25,30],[35,30],[35,40],[25,40],[25,30]]);
+ await get('import').onchange({target:{files:[{size:100,text:async()=>JSON.stringify(withHole)}],value:''}});
+ modes.find(n=>n.dataset.mode==='select').onclick();
+ const inner=get('regions').children.find(n=>n.dataset.id.startsWith('inner:'));
+ assert(inner,'內洞必須呈現為可點選區塊');svg.events.pointerdown(event(30,35,inner));svg.events.pointerup(event(30,35,inner));
+ assert.match(get('selection').textContent,/內部區塊/);assert.equal(get('deleteBlock').disabled,false);get('focus').onclick();
+ get('deleteBlock').onclick();assert.match(get('message').textContent,/內洞已消除/);
+ assert(!get('regions').children.some(n=>n.dataset.id.startsWith('inner:')));
+ get('undo').onclick();assert(get('regions').children.some(n=>n.dataset.id.startsWith('inner:')));
+ get('redo').onclick();await get('save').onclick();assert.equal(draft.candidates[0].polygons[0].length,1);
+ await get('loadCloud').onclick();assert(!get('regions').children.some(n=>n.dataset.id.startsWith('inner:')),'讀回已儲存草稿不可復生內部區塊');
  console.log('PASS: actual UI box selection, Shift append, smoothing, batch Delete, undo/redo, atomic rejection and saved readback.');
 })().catch(e=>{console.error(e);process.exitCode=1});

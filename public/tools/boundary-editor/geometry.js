@@ -95,7 +95,24 @@
     record(next,{type:'move-vertex',candidateId:id,polyIndex,ringIndex,index,point});
     return refresh(next);
   }
+  function innerBlocks(doc) {
+    return doc.candidates.flatMap(c=>c.polygons.flatMap((poly,pi)=>poly.slice(1).map((ring,index)=>({
+      candidateId:`inner:${c.candidateId}:${pi}:${index+1}`,parentId:c.candidateId,pi,ri:index+1,
+      polygons:[[ring]],numberCandidates:c.numberCandidates,issues:['inner-block'],
+    }))));
+  }
+  function removeInnerBlock(doc,block) {
+    const next=clone(doc),parent=next.candidates.find(c=>c.candidateId===block.parentId);
+    const ring=parent.polygons[block.pi][block.ri];
+    const others=next.candidates.flatMap(c=>c.candidateId===parent.candidateId?c.polygons.filter((_,pi)=>pi!==block.pi):c.polygons);
+    if(others.length&&area(clip.intersection([[ring]],others))>.01)throw new Error('內部已有其他區塊，直接併回會造成重疊，未刪除。');
+    parent.polygons[block.pi].splice(block.ri,1);
+    record(next,{type:'fill-inner-block',candidateId:parent.candidateId,polyIndex:block.pi,ringIndex:block.ri});
+    return refresh(next);
+  }
   function removeCandidate(doc,id) {
+    const inner=innerBlocks(doc).find(c=>c.candidateId===id);
+    if(inner)return removeInnerBlock(doc,inner);
     if(!doc.candidates.some(c=>c.candidateId===id))throw new Error('請先選取要刪除的區塊。');
     const next=clone(doc);
     next.candidates=next.candidates.filter(c=>c.candidateId!==id);
@@ -174,5 +191,5 @@
     const others=doc.candidates.filter(x=>x.candidateId!==id).flatMap(x=>x.polygons);
     if(others.length && area(clip.intersection(c.polygons,others))>area(clip.intersection(before.polygons,others))+0.01)throw new Error('移動後與相鄰區塊重疊，請縮小移動範圍。');
   }
-  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices};
+  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,innerBlocks};
 });

@@ -13,6 +13,8 @@
     pendingRecovery=saved?.document&&(!cloudReady||(saved.dirty&&geometryKey(saved.document)!==geometryKey(doc)))?saved:null;
     if(pendingRecovery)message($('message').textContent+' 發現可恢復的修改；可按「恢復修改」查看。');
   }
+  let innerBlocks=[];
+  const selectedBlock=()=>doc?.candidates.find(c=>c.candidateId===selected)||innerBlocks.find(c=>c.candidateId===selected);
   let selectedVertices=[];
   const vertexKey=v=>v.pi+':'+v.ri+':'+v.vi;
   const ids={nanzih:'楠梓',chiaotou:'橋頭',tzuguan:'梓官'};
@@ -39,25 +41,26 @@
     $('export').disabled=busy||!doc; $('import').disabled=editingBlocked();
     $('undo').disabled=editingBlocked()||!undo.length; $('redo').disabled=editingBlocked()||!redo.length;
     $('finish').disabled=busy||cut.length<2; $('cancel').disabled=busy||!cut.length; $('focus').disabled=!selected||busy;
-    document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked();b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
+    document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked()||(!!selectedBlock()?.parentId&&b.dataset.mode!=='select');b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
     $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':dirty?'尚未儲存':version?'已儲存':'尚無修改';
-    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
+    $('hint').textContent=selectedBlock()?.parentId?'此為內部區塊，按「刪除區塊」後會併回外層，消除內洞。可復原。':mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
   }
   function render() {
     if(!doc){controls();return;}
     const region=$('regions');region.replaceChildren();
-    for(const c of doc.candidates) {
-      const e=element('path',{d:path(c.polygons),fill:c.issues.length?'#f97316':'#22c55e','fill-opacity':$('overlay').checked?'.18':'0',stroke:c.candidateId===selected?'#38bdf8':($('overlay').checked?(c.issues.length?'#ea580c':'#16a34a'):'transparent'),'fill-rule':'evenodd',class:'region'+(c.candidateId===selected?' selected':''),'data-id':c.candidateId});
-      const title=element('title',{});title.textContent='編號 '+(c.numberCandidates.join('、')||'未配對');e.append(title);
+    innerBlocks=G.innerBlocks(doc);
+    for(const c of [...innerBlocks,...doc.candidates]) {
+      const e=element('path',{d:path(c.polygons),fill:c.parentId?'#a78bfa':c.issues.length?'#f97316':'#22c55e','fill-opacity':$('overlay').checked?'.18':'0',stroke:c.candidateId===selected?'#38bdf8':($('overlay').checked?(c.parentId?'#a78bfa':c.issues.length?'#ea580c':'#16a34a'):'transparent'),'fill-rule':'evenodd',class:'region'+(c.candidateId===selected?' selected':''),'data-id':c.candidateId});
+      const title=element('title',{});title.textContent=c.parentId?'內部區塊｜刪除後併回 '+(c.numberCandidates.join('、')||'外層區塊'):'編號 '+(c.numberCandidates.join('、')||'未配對');e.append(title);
       region.append(e);
     }
     const labels=$('labels');labels.replaceChildren();
     if($('anchors').checked)for(const a of doc.labelAnchors)labels.append(element('circle',{cx:a.point[0],cy:a.point[1],r:view[2]/Math.max(svg.clientWidth,1)*2.5,fill:'#e11d48'}));
     drawHandles();drawCut();controls();
-    const c=doc.candidates.find(c=>c.candidateId===selected);
+    const c=selectedBlock();
     const issueNames={'image-edge':'碰圖片邊緣','multiple-numbers':'多個編號合併','no-number':'尚未配對編號'};
-    $('selection').textContent=c?`選取：${c.numberCandidates.join('、')||'未配對編號'}｜${c.issues.map(i=>issueNames[i]||i).join('、')||'單一編號'}｜仍待核對`:'尚未選取區塊';
-    $('summary').textContent=`${doc.candidates.length} 塊候選 · ${doc.summary.singleNumberInteriorCandidates} 塊單一編號`;
+    $('selection').textContent=c?.parentId?`內部區塊｜屬於 ${c.numberCandidates.join('、')||'未配對'}｜刪除後併回外層` :c?`選取：${c.numberCandidates.join('、')||'未配對編號'}｜${c.issues.map(i=>issueNames[i]||i).join('、')||'單一編號'}｜仍待核對`:'尚未選取區塊';
+    $('summary').textContent=`${doc.candidates.length} 塊候選 · ${innerBlocks.length} 塊內部區塊 · ${doc.summary.singleNumberInteriorCandidates} 塊單一編號`;
   }
   function drawHandles() {
     const group=$('vertices');group.replaceChildren();if(!['vertex','box'].includes(mode))return;
@@ -110,6 +113,7 @@
   }
   $('map').onchange=()=>openMap($('map').value);
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{
+    if(selectedBlock()?.parentId&&b.dataset.mode!=='select'){message('內部區塊可直接刪除併回；調整邊界請選取外層區塊。');return;}
     if(b.dataset.mode!=='select'&&!selected){message('請先點選一塊要修正的色塊。');return;}
     mode=b.dataset.mode;vertex=null;selectedVertices=[];cut=[];message('');render();
   });
@@ -132,13 +136,13 @@
 
   $('deleteBlock').onclick=()=>{
     if(editingBlocked()||gesture||!selected||cut.length)return;
-    try{const next=G.removeCandidate(doc,selected);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';commit(next);message('區塊已刪除，可按「復原」恢復；尚未儲存。');}catch(error){message(error.message);}
+    try{const inner=selectedBlock()?.parentId;const next=G.removeCandidate(doc,selected);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';commit(next);message(inner?'內部區塊已刪除並併回外層，內洞已消除；可復原，尚未儲存。':'區塊已刪除，可按「復原」恢復；尚未儲存。');}catch(error){message(error.message);}
   };
   function history(back) {if(editingBlocked())return;const from=back?undo:redo,to=back?redo:undo;if(!from.length)return;to.push(G.clone(doc));doc=from.pop();dirty=JSON.stringify(doc.candidates)!==savedGeometry;selected=null;mode='select';vertex=null;selectedVertices=[];cut=[];backup();render();}
   $('undo').onclick=()=>history(true);$('redo').onclick=()=>history(false);
   $('overlay').onchange=render;$('anchors').onchange=render;
   $('plus').onclick=()=>zoom(.7);$('minus').onclick=()=>zoom(1/.7);$('fit').onclick=fit;
-  $('focus').onclick=()=>{const c=doc.candidates.find(c=>c.candidateId===selected);if(!c)return;const pts=c.polygons.flat(2);const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);const x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1),vw=Math.max(w,h*ratio)*1.15;setView([x+w/2-vw/2,y+h/2-vw/ratio/2,vw,vw/ratio]);};
+  $('focus').onclick=()=>{const c=selectedBlock();if(!c)return;const pts=c.polygons.flat(2);const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);const x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1),vw=Math.max(w,h*ratio)*1.15;setView([x+w/2-vw/2,y+h/2-vw/ratio/2,vw,vw/ratio]);};
   svg.addEventListener('wheel',e=>{e.preventDefault();if(!busy)zoom(e.deltaY>0?1.15:1/1.15,point(e));},{passive:false});
   svg.addEventListener('pointerdown',e=>{
     if(editingBlocked()||e.button!==0)return;
@@ -171,7 +175,7 @@
       })));
       selectedVertices=found;message(found.length?'已框選頂點，可平滑化或刪除。':'框內沒有目前區塊的頂點。');render();return;
     }
-    if(g.kind==='pan'){if(!g.moved&&g.id){selected=g.id;vertex=null;selectedVertices=[];cut=[];message('');render();}}
+    if(g.kind==='pan'){if(!g.moved&&g.id){selected=g.id;if(selectedBlock()?.parentId)mode='select';vertex=null;selectedVertices=[];cut=[];message('');render();}}
     else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存。');}catch(error){message(error.message);render();}}
   });
   svg.addEventListener('pointercancel',()=>{gesture=null;$('boxSelection').replaceChildren();render();});
