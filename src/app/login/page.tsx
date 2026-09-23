@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import Link from 'next/link'
 
 const ERROR_MESSAGES: Record<string, string> = {
   LineNotLinked: '此 LINE 帳號尚未綁定成員，請聯絡管理員',
@@ -185,6 +186,10 @@ function LoginForm() {
           </form>
         </div>
 
+        <div className="text-center mt-6">
+          <Link href="/boundary-editor" className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-4">地圖編輯器（免登入）</Link>
+          <p className="mt-1 text-xs text-mc-text/50">可直接編輯及儲存共用地圖草稿</p>
+        </div>
         <p className="text-center text-xs text-mc-text/30 mt-6">
           Territory Assignment &mdash; 內部管理系統
         </p>

@@ -18,7 +18,9 @@
   const vertexKey=v=>v.pi+':'+v.ri+':'+v.vi;
   const ids={nanzih:'楠梓',chiaotou:'橋頭',tzuguan:'梓官'};
   const key=id=>'boundary-editor-v1:'+id;
-  const api=id=>'/api/map-boundary-drafts/'+id;
+  const publicAccess=new URLSearchParams(location.search).get('access')==='public';
+  const api=id=>(publicAccess?'/api/public/map-boundary-drafts/':'/api/map-boundary-drafts/')+id;
+  if(publicAccess)$('accessNote').textContent='免登入編輯 · 儲存會更新所有人共用的地圖草稿。';
   const message=text=>$('message').textContent=text;
   const path=polys=>polys.map(p=>p.map(r=>'M'+r.map(p=>p.join(',')).join(' L')+' Z').join(' ')).join(' ');
   const element=(tag,attrs)=>{const e=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));return e;};

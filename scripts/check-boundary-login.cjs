@@ -6,7 +6,7 @@ const G = require('../public/tools/boundary-editor/geometry.js')
 const sourceBase = require('../public/maps/reconstruction-v1/nanzih.json')
 const base = G.independentBlocks(sourceBase)
 const jsonb=x=>Array.isArray(x)?x.map(jsonb):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,jsonb(x[k])])):x
-async function check(status, draft=null, backup=null, corruptAfterSave=false) {
+async function check(status, draft=null, backup=null, corruptAfterSave=false, publicMode=false) {
   const elements = new Map()
   const node = () => ({hidden:false,checked:true,value:'nanzih',clientWidth:1000,clientHeight:600,
     setAttribute(){},replaceChildren(){},append(){},addEventListener(){},textContent:''})
@@ -15,10 +15,11 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false) {
   document.getElementById('login')
   vm.runInNewContext(fs.readFileSync('public/tools/boundary-editor/editor.js','utf8'),{
     window:{BoundaryGeometry:G,addEventListener(){}},document,
-    location:{port:'',search:''},URLSearchParams,confirm:()=>true,
+    location:{port:'',search:publicMode?'?access=public':''},URLSearchParams,confirm:()=>true,
     localStorage:{getItem:()=>backup&&JSON.stringify(backup),setItem:(_key,value)=>{backup=JSON.parse(value)}},ResizeObserver:class{observe(){}},
     fetch:async (url,options)=>{
       if(url.includes('/reconstruction-v1/'))return {ok:true,json:async()=>G.clone(sourceBase)}
+      assert.equal(url.startsWith('/api/public/'),publicMode,'公開入口必須使用公開 API');
       if(options?.method==='PUT'){
         const payload=JSON.parse(options.body)
         draft={document:jsonb(corruptAfterSave?base:payload.document),version:payload.expectedVersion+1,updatedAt:new Date().toISOString()}
@@ -31,6 +32,11 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false) {
   return elements
 }
 (async()=>{
+  const publicEditor=await check(200,null,null,false,true)
+  assert.match(publicEditor.get('accessNote').textContent,/免登入/)
+  assert.equal(publicEditor.get('save').disabled,false)
+  await publicEditor.get('save').onclick()
+  assert.match(publicEditor.get('message').textContent,/已儲存/)
   const admin=await check(200)
   assert.equal(admin.get('login').hidden,true,'管理員已通過雲端 API，但登入連結仍顯示')
   assert.match(admin.get('saveState').textContent,/尚未儲存/)

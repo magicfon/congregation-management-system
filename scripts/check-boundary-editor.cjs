@@ -117,18 +117,22 @@ async function main(){
   const validation=load('src/lib/boundary-drafts.ts',{'../../public/tools/boundary-editor/geometry':G,...Object.fromEntries(Object.entries(originals).map(([id,d])=>[`../../public/maps/reconstruction-v1/${id}.json`,d]))})
   const {NextRequest,NextResponse}=require('next/server')
   let role='admin',rows=new Map(),writes=0
-  const route=load('src/app/api/map-boundary-drafts/[mapId]/route.ts',{
-    '../../../../lib/api-auth':{requireApiUser:async roles=>role==='admin'?{user:{id:'admin-test',role}}:{response:NextResponse.json({error:'denied'},{status:role==='anonymous'?401:403})}},
-    '../../../../lib/boundary-drafts':validation,
-    '../../../../lib/db':{prisma:{$queryRaw:async(strings,...values)=>{
+  const shared=load('src/lib/boundary-draft-api.ts',{
+    './boundary-drafts':validation,
+    './db':{prisma:{$queryRaw:async(strings,...values)=>{
       const sql=strings.join('?')
       if(sql.startsWith('SELECT'))return rows.has(values[0])?[rows.get(values[0])]:[]
       writes++
       const insert=sql.startsWith('INSERT'),id=insert?values[0]:values[2],expected=insert?0:values[3],current=rows.get(id)
       if((current?.version||0)!==expected)return []
-      const saved={mapId:id,document:JSON.parse(insert?values[1]:values[0]),version:expected+1,updatedAt:new Date(),updatedBy:'admin-test'};rows.set(id,saved);return [saved]
+      const saved={mapId:id,document:JSON.parse(insert?values[1]:values[0]),version:expected+1,updatedAt:new Date(),updatedBy:insert?values[2]:values[1]};rows.set(id,saved);return [saved]
     }}},
   })
+  const route=load('src/app/api/map-boundary-drafts/[mapId]/route.ts',{
+    '../../../../lib/api-auth':{requireApiUser:async roles=>role==='admin'?{user:{id:'admin-test',role}}:{response:NextResponse.json({error:'denied'},{status:role==='anonymous'?401:403})}},
+    '../../../../lib/boundary-draft-api':shared,
+  })
+  const publicRoute=load('src/app/api/public/map-boundary-drafts/[mapId]/route.ts',{'../../../../../lib/boundary-draft-api':shared})
   const context={params:{mapId:'nanzih'}},url='http://localhost/api/map-boundary-drafts/nanzih'
   const put=(version,document=originals.nanzih)=>route.PUT(new NextRequest(url,{method:'PUT',headers:{'content-type':'application/json','origin':'http://localhost'},body:JSON.stringify({expectedVersion:version,document})}),context)
   role='anonymous';assert.equal((await put(0)).status,401)
@@ -144,6 +148,18 @@ async function main(){
   assert.equal(read.draft.document.boundaryModel,'independent-blocks-v1');assert.equal(read.draft.version,2);assert.equal(read.draft.document.summary.approvedCount,0)
   const foreign=await route.PUT(new NextRequest(url,{method:'PUT',headers:{'content-type':'application/json',origin:'https://other.example'},body:'{}'}),context)
   assert.equal(foreign.status,403)
+  role='anonymous'
+  const publicUrl='http://localhost/api/public/map-boundary-drafts/nanzih'
+  const publicPut=version=>publicRoute.PUT(new NextRequest(publicUrl,{method:'PUT',headers:{'content-type':'application/json',origin:'http://localhost'},body:JSON.stringify({expectedVersion:version,document:G.independentBlocks(originals.nanzih)})}),context)
+  const publicRead=await (await publicRoute.GET(new NextRequest(publicUrl),context)).json()
+  assert.equal(publicRead.draft.version,2);assert.equal(publicRead.draft.updatedBy,undefined)
+  assert.deepEqual((await Promise.all([publicPut(2),publicPut(2)])).map(r=>r.status).sort(),[200,409])
+  assert.equal(rows.get('nanzih').updatedBy,'public-editor')
+  assert.equal((await route.GET(new NextRequest(url),context)).status,401)
+  role='admin';assert.equal((await put(2)).status,409)
+  assert.equal((await publicRoute.GET(new NextRequest(publicUrl),{params:{mapId:'unknown'}})).status,404)
+  assert.equal((await publicRoute.PUT(new NextRequest(publicUrl,{method:'PUT',headers:{'content-type':'application/json',origin:'https://other.example'},body:'{}'}),context)).status,403)
+  assert.equal((await publicRoute.PUT(new NextRequest(publicUrl,{method:'PUT',headers:{'content-type':'application/json'},body:'{}'}),context)).status,400)
   console.log('PASS: split, holes, concave geometry, vertex edits, independent overlapping blocks, retained smoothing selection, import bounds/source, admin access, atomic version conflict contract.')
   console.log('Database calls mocked: live Neon migration and persistence require deployment verification.')
 }
