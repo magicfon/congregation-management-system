@@ -64,7 +64,7 @@
     drawHandles();drawCut();if(mode==='draw')drawDraft();controls();
     const c=selectedBlock();
     const issueNames={'image-edge':'碰圖片邊緣','multiple-numbers':'多個編號合併','no-number':'尚未配對編號'};
-    $('selection').textContent=c?`選取：${c.numberCandidates.join('、')||'未配對編號'}｜${c.issues.map(i=>issueNames[i]||i).join('、')||'單一編號'}｜仍待核對`:'尚未選取區塊';
+    $('selection').textContent=c?`選取：${c.numberCandidates.join('、')||'未配對編號'}${c.manualNumber!=null?'（手動指定）':''}｜${c.issues.map(i=>issueNames[i]||i).join('、')||'單一編號'}｜仍待核對｜可用「指定號碼」改號`:'尚未選取區塊';
     $('summary').textContent=`${doc.candidates.length} 塊候選 · ${doc.summary.singleNumberInteriorCandidates} 塊單一編號`;
   }
   function drawHandles() {
@@ -134,6 +134,8 @@
   $('cancelDraw').onclick=()=>{drawn=[];mode='select';render();};
   $('applyNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}const n=Number($('setNumber').value);try{commit(G.setNumber(doc,selected,n));message(`已指定號碼 ${n}，儲存後生效。`);}catch(error){message(error.message);}};
   $('clearNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}try{commit(G.setNumber(doc,selected,null));message('已改回自動配對。');}catch(error){message(error.message);}};
+  $('setNumber').addEventListener('input',()=>{const n=Number($('setNumber').value);$('applyNumber').disabled=editingBlocked()||!selected||!Number.isInteger(n)||n<1||n>999;});
+  $('setNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(!$('applyNumber').disabled)$('applyNumber').click();}});
   function deleteVertex(){if(editingBlocked()||gesture||mode!=='vertex'||!vertex||vertex.id!==selected)return;try{const v=vertex;const next=G.removeVertex(doc,selected,v.pi,v.ri,v.vi);vertex=null;commit(next);message('頂點已刪除，前後頂點已連接；可復原，尚未儲存。');}catch(error){message(error.message);}}
   $('deleteVertex').onclick=deleteVertex;
   function batchEdit(operation){
