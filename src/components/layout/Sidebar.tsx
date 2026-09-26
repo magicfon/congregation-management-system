@@ -30,6 +30,7 @@ const navItems = [
     label: '區域狀況',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 20V10m5 10V4m6 16v-7m5 7V7" /></svg>,
   },
+  { href: '/map-requests', label: '領圖申請', icon: <span className="w-5 text-center">✓</span> },
   {
     href: '/map-images',
     label: '地圖圖檔',
@@ -116,7 +117,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse }: 
       {/* Nav */}
       <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
-          const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+          const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
           return (
             <Link
               key={item.href}

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireApiUser } from '../../../../lib/api-auth'
 import { prisma } from '../../../../lib/db'
 import { boundaryMapId, boundaryOriginal, validateBoundarySave } from '../../../../lib/boundary-drafts'
+import { isAreaDispatched } from '../../../../lib/allocation'
 import { regionHeat, maximumReportDays } from '../../../../lib/area-status'
 import { taipeiDate } from '../../../../lib/google-sheets'
 import { COMPLETION_SYNC_KEY } from '../../../../lib/report-completion-sync'
@@ -16,13 +17,13 @@ export async function GET(_request: Request, { params }: { params: { mapId: stri
   try {
     const [rows, areas, sync] = await Promise.all([
       prisma.$queryRaw<{ document: unknown; version: number; updatedAt: Date }[]>`SELECT "document", "version", "updatedAt" FROM "map_boundary_drafts" WHERE "mapId" = ${mapId}`,
-      prisma.area.findMany({ where: { mapId: { in: ['nanzih', 'chiaotou', 'tzuguan'] } }, select: { mapId: true, sheetNo: true, name: true, lastReportedCompletedAt: true } }),
+      prisma.area.findMany({ where: { mapId: { in: ['nanzih', 'chiaotou', 'tzuguan'] } }, select: { id: true, assignedMemberId: true, dispatchedAt: true, completedAt: true, mapId: true, sheetNo: true, name: true, lastReportedCompletedAt: true } }),
       prisma.setting.findUnique({ where: { key: COMPLETION_SYNC_KEY } }),
     ])
     const draft = rows[0], original = boundaryOriginal(mapId)
     const { document } = validateBoundarySave(mapId, { expectedVersion: 0, document: draft?.document ?? original })
     const today = taipeiDate(new Date())
-    const allCompletionAreas = areas.map(a => ({ mapId: a.mapId, sheetNo: a.sheetNo, name: a.name, lastCompletedDate: taipeiDate(a.lastReportedCompletedAt) || null }))
+    const allCompletionAreas = areas.map(a => ({ areaId: a.id, isDispatched: isAreaDispatched(a), mapId: a.mapId, sheetNo: a.sheetNo, name: a.name, lastCompletedDate: taipeiDate(a.lastReportedCompletedAt) || null }))
     const scaleMaxDays = sync?.value ? maximumReportDays(allCompletionAreas, today) : null
     const completionAreas = allCompletionAreas.filter(a => a.mapId === mapId)
     const regions = document.candidates.map((c: { candidateId: string; numberCandidates: number[]; polygons: number[][][][]; pixelArea: number }) => ({

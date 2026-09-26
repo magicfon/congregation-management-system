@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AllocationArea, allocationLabel, DISTRICT_NAMES } from '../../lib/allocation'
 
+import RequestSubmitBar from './RequestSubmitBar'
+
 type Member = { id: string; name: string }
 
 export default function MapAllocationList() {
@@ -66,7 +68,7 @@ export default function MapAllocationList() {
     setSelected((previous) => {
       const next = new Set(previous)
       const all = ids.every((id) => next.has(id))
-      for (const id of ids) { if (all) next.delete(id); else next.add(id) }
+      for (const id of ids) { if (all) next.delete(id); else if (isAdmin || next.size < 5) next.add(id) }
       return next
     })
     setMessage('')
@@ -133,6 +135,7 @@ export default function MapAllocationList() {
       {message && <p role="status" className="text-sm text-blue-300">{message}</p>}
       {!loading && !syncedAt && <p className="text-xs text-yellow-200">尚未匯入上次回報完成日期。{isAdmin ? '可點「更新回報日期」立即匯入。' : '請等候排程同步或由管理員更新。'}</p>}
 
+      {!loading && !isAdmin && <RequestSubmitBar items={selectedAreas.map(a => ({ id: a.id, label: allocationLabel(a) }))} onRemove={id => setSelected(previous => new Set([...previous].filter(v => v !== id)))} onSubmitted={() => setSelected(new Set())} />}
       {isAdmin && selectedAreas.length > 0 && (
         <div className="sticky top-14 md:top-0 z-10 space-y-2 rounded-xl border border-blue-400/30 bg-mc-card p-3 shadow-lg">
           <div className="flex flex-wrap items-center gap-2">
@@ -154,7 +157,7 @@ export default function MapAllocationList() {
             <caption className="sr-only">所有地圖依區域排序的最後回報完成日期、距今天數與分配狀態</caption>
             <thead className="text-xs text-mc-text/60">
               <tr>
-                {isAdmin && <th scope="col" className="w-8"><span className="sr-only">選取</span></th>}
+                <th scope="col" className="w-8"><span className="sr-only">選取</span></th>
                 <th scope="col" className="px-2 py-1">地圖</th>
                 <th scope="col" className="hidden sm:table-cell px-2 py-1">上次回報完成</th>
                 <th scope="col" className="px-2 py-1 text-right">距今</th>
@@ -163,7 +166,7 @@ export default function MapAllocationList() {
             </thead>
             <tbody className="border-t border-white/10">
                 {visible.map((area) => <tr key={area.id} className={`border-t border-white/5 ${selected.has(area.id) ? 'bg-blue-500/10' : 'hover:bg-white/[0.03]'}`}>
-                  {isAdmin && <td className="pl-2"><input type="checkbox" aria-label={`選取${allocationLabel(area)}`} checked={selected.has(area.id)} disabled={disabled || area.isDispatched || !!error} onChange={() => toggle([area.id])} className="h-4 w-4 accent-blue-500 disabled:opacity-25" /></td>}
+                  <td className="pl-2"><input type="checkbox" aria-label={`選取${allocationLabel(area)}`} checked={selected.has(area.id)} disabled={disabled || area.isDispatched || !!error || (!isAdmin && selected.size >= 5 && !selected.has(area.id))} onChange={() => toggle([area.id])} className="h-4 w-4 accent-blue-500 disabled:opacity-25" /></td>
                   <th scope="row" className="px-2 py-1 font-medium">
                     {area.sheetNo && area.sheetNo !== 2 ? <a href={`/maps/areas/${area.sheetNo}.jpg`} target="_blank" rel="noreferrer" className="underline decoration-white/20 underline-offset-4" aria-label={`開啟${allocationLabel(area)}圖檔（新分頁）`}>{allocationLabel(area)}</a> : allocationLabel(area)}
                     <span className="sm:hidden block text-[11px] font-normal text-mc-text/50">{area.lastCompletedDate || (syncedAt ? '無回報紀錄' : '待同步')}</span>

@@ -30,6 +30,7 @@ model Area {
   updatedAt        DateTime @updatedAt
 
   assignedMember Member?        @relation("AreaAssignments", fields: [assignedMemberId], references: [id], onDelete: SetNull)
+  mapRequests    MapRequest[]
   scheduleAreas  ScheduleArea[]
   reports        Report[]
 
@@ -60,6 +61,7 @@ model Member {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  mapRequests MapRequest[]
   assignedAreas Area[]         @relation("AreaAssignments")
   schedules     Schedule[]
   reports       Report[]
@@ -149,4 +151,20 @@ model VirtualBoundary {
   updatedAt DateTime @updatedAt
 
   @@map("virtual_boundaries")
+}
+
+model MapRequest {
+  id String @id @default(cuid())
+  batchId String
+  memberId String
+  areaId String
+  status String @default("pending")
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  @@index([memberId, status])
+  @@index([status, createdAt])
+  @@map("map_requests")
 }

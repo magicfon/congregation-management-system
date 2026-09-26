@@ -5,10 +5,12 @@ import type * as Leaflet from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { HEAT_STATUS_LABELS, type AreaStatusData } from '../../lib/area-status'
 
-export default function AreaStatusMap({ data, selectedId, onSelect }: { data: AreaStatusData; selectedId: string | null; onSelect: (id: string) => void }) {
+export default function AreaStatusMap({ data, selectedId, onSelect, grayDispatched }: { data: AreaStatusData; grayDispatched: boolean; selectedId: string | null; onSelect: (id: string) => void }) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Leaflet.Map | null>(null)
   const layers = useRef(new Map<string, Leaflet.Polygon>())
+  const grayState = useRef(grayDispatched)
+  grayState.current = grayDispatched
   const selection = useRef(onSelect)
   selection.current = onSelect
   const [imageState, setImageState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -28,8 +30,8 @@ export default function AreaStatusMap({ data, selectedId, onSelect }: { data: Ar
       // Render small overlapping blocks last so that they remain selectable.
       for (const region of [...data.regions].sort((a, b) => b.pixelArea - a.pixelArea)) {
         const coordinates = region.polygons.map(poly => poly.map(ring => ring.map(([x, y]) => [height - y, x] as [number, number])))
-        const polygon = L.polygon(coordinates, { color: '#334155', weight: 1, fillColor: region.color, fillOpacity: .58, fillRule: 'evenodd' }).addTo(map)
-        const label = `${region.numbers.length ? region.numbers.join('、') + ' 號' : '未配對區塊'}：${region.days === null ? HEAT_STATUS_LABELS[region.status] : region.days + ' 天未完成回報'}`
+        const polygon = L.polygon(coordinates, { color: '#334155', weight: 1, fillColor: region.isDispatched && grayState.current ? '#64748b' : region.color, fillOpacity: .58, fillRule: 'evenodd' }).addTo(map)
+        const label = `${region.isDispatched ? '使用中 · ' : ''}${region.numbers.length ? region.numbers.join('、') + ' 號' : '未配對區塊'}：${region.days === null ? HEAT_STATUS_LABELS[region.status] : region.days + ' 天未完成回報'}`
         const tooltip = document.createElement('span'); tooltip.textContent = label
         polygon.bindTooltip(tooltip, { sticky: true }).on('click', () => selection.current(region.candidateId))
         const element = polygon.getElement()
@@ -46,8 +48,11 @@ export default function AreaStatusMap({ data, selectedId, onSelect }: { data: Ar
     return () => { cancelled = true; observer.disconnect(); mapRef.current?.remove(); mapRef.current = null; layers.current.clear() }
   }, [data])
   useEffect(() => {
-    for (const [id, layer] of layers.current) layer.setStyle({ color: id === selectedId ? '#ffffff' : '#334155', weight: id === selectedId ? 3 : 1, fillOpacity: id === selectedId ? .78 : .58 })
-  }, [selectedId])
+    for (const [id, layer] of layers.current) {
+      const region = data.regions.find(r => r.candidateId === id)!
+      layer.setStyle({ fillColor: grayDispatched && region.isDispatched ? '#64748b' : region.color, color: id === selectedId ? '#ffffff' : '#334155', weight: id === selectedId ? 3 : 1, fillOpacity: id === selectedId ? .78 : .58 })
+    }
+  }, [selectedId, grayDispatched, data])
   return <div className="relative isolate overflow-hidden rounded-xl border border-white/10 bg-mc-accent">
     <div ref={container} style={{ background: '#162132' }} className="h-[calc(100dvh-20rem)] min-h-[360px] max-h-[850px] w-full" aria-label="距上次完成回報熱力圖，可縮放及拖曳" />
     <button type="button" className="absolute top-3 right-3 z-[500] rounded-lg bg-mc-card px-3 py-2 text-sm shadow border border-white/10" onClick={() => { const [w, h] = data.imageSize; mapRef.current?.fitBounds([[0, 0], [h, w]], { padding: [8, 8] }) }}>全圖</button>

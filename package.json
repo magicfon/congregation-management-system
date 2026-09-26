@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run db:line-profile && npm run db:area-completion && npm run db:boundary-drafts && prisma generate && next build",
+    "build": "npm run db:line-profile && npm run db:area-completion && npm run db:boundary-drafts && npm run db:map-requests && prisma generate && next build",
+    "db:map-requests": "prisma db execute --file prisma/map-requests.sql --schema prisma/schema.prisma",
     "db:boundary-drafts": "prisma db execute --file prisma/map-boundary-drafts.sql --schema prisma/schema.prisma",
     "check:area-status": "node scripts/check-area-status.cjs",
     "check:boundary-editor": "node scripts/check-boundary-editor.cjs && node scripts/check-boundary-login.cjs && node scripts/check-boundary-batch.cjs",
@@ -15,7 +16,8 @@
     "lint": "next lint",
     "check:regression": "node scripts/regression-checks.cjs",
     "check:line-pairing": "node scripts/check-line-pairing.cjs",
-    "check:map-allocation": "node scripts/check-map-allocation.cjs"
+    "check:map-allocation": "node scripts/check-map-allocation.cjs",
+    "check:map-requests": "node scripts/check-map-requests.cjs"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",
