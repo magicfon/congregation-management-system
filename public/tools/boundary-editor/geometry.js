@@ -132,12 +132,19 @@
     for(const p of closed) if(!p.every(Number.isFinite)||p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])throw new Error('頂點不可超出圖片範圍。');
     if(!simple(closed))throw new Error('邊界交叉，無法建立區塊。');
     if(area([[closed]])<25)throw new Error('區塊太小，請畫大一點。');
-    // overlap check against existing candidates
-    for(const c of doc.candidates) if(area(clip.union([...c.polygons,[closed]]))<area(c.polygons)+area([[closed]])-0.05)throw new Error('新區塊與現有區塊重疊。');
+    // 新區塊優先：與既有區塊重疊時，既有區塊裁掉重疊部分（可復原）；完全被覆蓋的移除
+    const newPoly=[[closed]];
     const next=clone(doc);
-    const candidate={candidateId:`${doc.mapId}-draw-${nonce}`,polygons:[[closed]],status:'needs-review',numberCandidates:[],issues:[],pixelArea:0};
-    next.candidates.push(candidate);
-    record(next,{type:'add-block',candidateId:candidate.candidateId,vertices:closed.length-1});
+    const kept=[];let carved=0,removed=0;
+    for(const c of next.candidates) {
+      const diff=clip.difference(c.polygons,newPoly);
+      if(diff.length){ if(JSON.stringify(diff)!==JSON.stringify(c.polygons))carved++; kept.push({...c,polygons:diff}); }
+      else removed++;
+    }
+    const candidate={candidateId:`${doc.mapId}-draw-${nonce}`,polygons:newPoly,status:'needs-review',numberCandidates:[],issues:[],pixelArea:0};
+    kept.push(candidate);
+    next.candidates=kept;
+    record(next,{type:'add-block',candidateId:candidate.candidateId,vertices:closed.length-1,carved,removed});
     return refresh(next);
   }
   function removeCandidate(doc,id) {

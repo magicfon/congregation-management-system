@@ -130,7 +130,7 @@
   });
   $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';message('已切開區塊並重新配對編號，請核對後儲存。');render();}catch(error){message(error.message);}};
   $('cancel').onclick=()=>{cut=[];render();};
-  $('finishDraw').onclick=()=>{try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);drawn=[];mode='select';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message('已建立新區塊，可在下方指定號碼後儲存。');render();}catch(error){message(error.message);}};
+  $('finishDraw').onclick=()=>{try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);const log=next.correctionLog[next.correctionLog.length-1];drawn=[];mode='select';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message(`已建立新區塊${log.carved?`，${log.carved} 塊舊區塊已自動讓位`:''}${log.removed?`，${log.removed} 塊被完全覆蓋而移除`:''}；可指定號碼後儲存（可復原）。`);render();}catch(error){message(error.message);}};
   $('cancelDraw').onclick=()=>{drawn=[];mode='select';render();};
   $('applyNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}const n=Number($('setNumber').value);try{commit(G.setNumber(doc,selected,n));message(`已指定號碼 ${n}，儲存後生效。`);}catch(error){message(error.message);}};
   $('clearNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}try{commit(G.setNumber(doc,selected,null));message('已改回自動配對。');}catch(error){message(error.message);}};
