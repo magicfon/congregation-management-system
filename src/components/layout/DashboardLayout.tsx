@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Sidebar from './Sidebar'
-import CurrentUser, { type CurrentUserState } from './CurrentUser'
+import { type CurrentUserState } from './CurrentUser'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -60,9 +60,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </svg>
         </button>
         <span className="shrink-0 text-sm font-semibold text-mc-text">地圖分配</span>
-        <div className="ml-auto min-w-0">
-          <CurrentUser state={currentUser} onRetry={() => void refreshUser()} />
-        </div>
       </header>
 
       {/* Backdrop — mobile only */}
@@ -74,6 +71,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       <Sidebar
+        currentUser={currentUser}
+        onRetryUser={() => void refreshUser()}
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
         collapsed={desktopCollapsed}
@@ -86,11 +85,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           desktopCollapsed ? 'md:ml-16' : 'md:ml-64'
         }`}
       >
-        <div className="hidden md:flex h-10 items-center justify-end border-b border-white/5 px-4 md:px-8">
-          <div className="max-w-sm min-w-0">
-            <CurrentUser state={currentUser} onRetry={() => void refreshUser()} />
-          </div>
-        </div>
         {children}
       </main>
     </div>

@@ -53,8 +53,8 @@ export default function AreaStatusMap({ data, selectedId, onSelect, grayDispatch
       layer.setStyle({ fillColor: grayDispatched && region.isDispatched ? '#64748b' : region.color, color: id === selectedId ? '#ffffff' : '#334155', weight: id === selectedId ? 3 : 1, fillOpacity: id === selectedId ? .78 : .58 })
     }
   }, [selectedId, grayDispatched, data])
-  return <div className="relative isolate overflow-hidden rounded-xl border border-white/10 bg-mc-accent">
-    <div ref={container} style={{ background: '#162132' }} className="h-[calc(100dvh-20rem)] min-h-[360px] max-h-[850px] w-full" aria-label="距上次完成回報熱力圖，可縮放及拖曳" />
+  return <div className="relative isolate h-full min-h-0 overflow-hidden rounded-xl border border-white/10 bg-mc-accent">
+    <div ref={container} style={{ background: '#162132' }} className="h-full min-h-0 w-full" aria-label="距上次完成回報熱力圖，可縮放及拖曳" />
     <button type="button" className="absolute top-3 right-3 z-[500] rounded-lg bg-mc-card px-3 py-2 text-sm shadow border border-white/10" onClick={() => { const [w, h] = data.imageSize; mapRef.current?.fitBounds([[0, 0], [h, w]], { padding: [8, 8] }) }}>全圖</button>
     {(imageState !== 'ready' || error) && <p role="status" className="absolute bottom-3 left-3 right-3 z-[500] rounded bg-mc-card/95 px-3 py-2 text-sm">{error || (imageState === 'error' ? '底圖載入失敗，仍可查看分區；請按重新整理再試。' : '正在載入大地圖…')}</p>}
   </div>
