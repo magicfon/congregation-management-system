@@ -26,6 +26,11 @@ const navItems = [
     ),
   },
   {
+    href: '/area-status',
+    label: '區域狀況',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 20V10m5 10V4m6 16v-7m5 7V7" /></svg>,
+  },
+  {
     href: '/map-images',
     label: '地圖圖檔',
     icon: (

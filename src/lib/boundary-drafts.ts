@@ -4,6 +4,8 @@ import chiaotou from '../../public/maps/reconstruction-v1/chiaotou.json'
 import tzuguan from '../../public/maps/reconstruction-v1/tzuguan.json'
 
 const originals = { nanzih, chiaotou, tzuguan }
+export function boundaryOriginal(mapId: keyof typeof originals) { return originals[mapId] }
+
 export function boundaryMapId(value: string): value is keyof typeof originals {
   return Object.prototype.hasOwnProperty.call(originals, value)
 }
