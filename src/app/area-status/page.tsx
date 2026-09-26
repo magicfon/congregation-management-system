@@ -29,6 +29,7 @@ export default function AreaStatusPage() {
     })()
     return () => controller.abort()
   }, [mapId, revision])
+  const maxDays = data?.scaleMaxDays ?? null
   const selected = data?.regions.find(r => r.candidateId === selectedId)
   const known = data?.regions.filter(r => r.days !== null) || []
   const synchronized = data?.syncedAt ? new Date(data.syncedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false }) : '尚未同步'
@@ -43,9 +44,9 @@ export default function AreaStatusPage() {
       </div>
     </div>
     <div className="rounded-xl border border-white/10 bg-mc-card p-3 flex flex-wrap items-center gap-x-6 gap-y-2">
-      <div className="w-64 max-w-full"><div className="h-3 rounded-full" style={{ background: 'linear-gradient(to right, #22c55e, #facc15, #ef4444)' }} /><div className="flex justify-between text-xs text-mc-text/70 mt-1"><span>0 天</span><span>90 天</span><span>180 天以上</span></div></div>
-      <span className="flex items-center gap-2 text-xs text-mc-text/70"><span className="h-3 w-3 rounded bg-slate-500" />灰色：無紀錄／待配對／資料不完整</span>
-      {data && <span className="text-sm">{known.length} 塊可上色 · <strong className="text-red-400">{known.filter(r => r.days! >= 180).length}</strong> 塊達 180 天 · {data.regions.length - known.length} 塊待確認</span>}
+      <div className="w-64 max-w-full"><div className="h-3 rounded-full" style={{ background: maxDays === null ? '#64748b' : maxDays === 0 ? '#22c55e' : 'linear-gradient(to right, #22c55e, #facc15, #ef4444)' }} /><div className="flex justify-between text-xs text-mc-text/70 mt-1"><span>0 天</span>{maxDays !== null && maxDays > 0 && <span>{maxDays / 2} 天</span>}<span>{maxDays === null ? '尚無可計算日期' : maxDays === 0 ? '有效紀錄皆為 0 天' : `${maxDays} 天`}</span></div></div>
+      <span className="flex items-center gap-2 text-xs text-mc-text/70"><span className="h-3 w-3 rounded bg-slate-500" />三區共用色階 · 灰色：無紀錄／待配對／資料不完整</span>
+      {data && <span className="text-sm">{known.length} 塊可上色 · <span>全三區最久 <strong className="text-red-400">{maxDays ?? '—'}</strong> 天</span> · {data.regions.length - known.length} 塊待確認</span>}
     </div>
     {loading && <div role="status" className="min-h-[360px] rounded-xl border border-white/10 bg-mc-card flex items-center justify-center text-mc-text/60">正在載入分區與完成回報日期…</div>}
     {error && <div role="alert" className="rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}

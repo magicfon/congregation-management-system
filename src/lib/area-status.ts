@@ -6,13 +6,18 @@ export type HeatStatus = 'known' | 'unmatched' | 'no-report' | 'incomplete' | 'u
 export const HEAT_STATUS_LABELS: Record<HeatStatus, string> = {
   known: '距上次完成回報', unmatched: '未配對區域編號', 'no-report': '無完成回報紀錄', incomplete: '日期或編號資料不完整', unsynced: '完成回報日期尚未同步',
 }
-export function heatColor(days: number | null): string {
-  if (days === null || !Number.isFinite(days) || days < 0) return '#64748b'
+export function maximumReportDays(areas: CompletionArea[], today: string): number | null {
+  const values = areas.map(a => idleCalendarDays(a.lastCompletedDate, today)).filter((days): days is number => days !== null)
+  return values.length ? Math.max(...values) : null
+}
+export function heatColor(days: number | null, maxDays: number | null): string {
+  if (days === null || !Number.isFinite(days) || days < 0 || maxDays === null || !Number.isFinite(maxDays) || maxDays < 0) return '#64748b'
   const stops = [[34, 197, 94], [250, 204, 21], [239, 68, 68]]
-  const value = Math.min(days, 180), segment = value < 90 ? 0 : 1, t = (value - segment * 90) / 90
+  if (maxDays === 0) return days === 0 ? '#22c55e' : '#64748b'
+  const value = Math.min(days / maxDays, 1) * 2, segment = value < 1 ? 0 : 1, t = value - segment
   return '#' + stops[segment].map((v, i) => Math.round(v + (stops[segment + 1][i] - v) * t).toString(16).padStart(2, '0')).join('')
 }
-export function regionHeat(numbers: number[], areas: CompletionArea[], today: string, synced: boolean) {
+export function regionHeat(numbers: number[], areas: CompletionArea[], today: string, synced: boolean, maxDays: number | null = maximumReportDays(areas, today)) {
   const reports: HeatReport[] = [...new Set(numbers)].sort((a, b) => a - b).map(number => {
     const matches = areas.filter(a => a.sheetNo === number)
     const area = matches.length === 1 ? matches[0] : null
@@ -22,11 +27,11 @@ export function regionHeat(numbers: number[], areas: CompletionArea[], today: st
     : reports.some(r => !r.name) ? 'incomplete' : reports.every(r => !r.lastCompletedDate) ? 'no-report'
     : reports.some(r => r.days === null) ? 'incomplete' : 'known'
   const days = status === 'known' ? Math.max(...reports.map(r => r.days!)) : null
-  return { status, days, color: heatColor(days), reports }
+  return { status, days, color: heatColor(days, maxDays), reports }
 }
 export type HeatRegion = ReturnType<typeof regionHeat> & { candidateId: string; numbers: number[]; polygons: number[][][][]; pixelArea: number }
 export type AreaStatusData = {
-  mapId: string; today: string; syncedAt: string | null; sourceImage: string; imageSize: number[]
+  mapId: string; today: string; scaleMaxDays: number | null; syncedAt: string | null; sourceImage: string; imageSize: number[]
   boundary: { source: 'cloud' | 'original'; version: number | null; updatedAt: string | null }
   regions: HeatRegion[]; unlocatedNumbers: number[]
 }
