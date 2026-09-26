@@ -50,7 +50,12 @@
   function refresh(doc) {
     const [w,h]=doc.imageSize;
     for(const c of doc.candidates) {
-      c.numberCandidates=[...new Set(doc.labelAnchors.filter(a=>inside(a.point,c.polygons)).map(a=>a.number))].sort((a,b)=>a-b);
+      // manualNumber wins over anchor auto-pairing
+      if(c.manualNumber==null) {
+        c.numberCandidates=[...new Set(doc.labelAnchors.filter(a=>inside(a.point,c.polygons)).map(a=>a.number))].sort((a,b)=>a-b);
+      } else {
+        c.numberCandidates=[c.manualNumber];
+      }
       c.issues=[];
       if(c.polygons.some(p=>p[0].some(([x,y])=>x<5||y<5||x>w-5||y>h-5))) c.issues.push('image-edge');
       if(!c.numberCandidates.length)c.issues.push('no-number');
@@ -108,6 +113,32 @@
       return [poly[0]];
     });
     next.candidates.push(...children);next.boundaryModel='independent-blocks-v1';return refresh(next);
+  }
+  function setNumber(doc,id,number) {
+    const next=clone(doc),c=next.candidates.find(c=>c.candidateId===id);
+    if(!c)throw new Error('請先選取區塊。');
+    if(number==null)delete c.manualNumber;
+    else {
+      if(!Number.isSafeInteger(number)||number<1||number>999)throw new Error('號碼須為 1–999 的整數。');
+      c.manualNumber=number;
+    }
+    record(next,{type:'set-number',candidateId:id,number});
+    return refresh(next);
+  }
+  function addBlock(doc,ring,nonce) {
+    if(!Array.isArray(ring)||ring.length<3)throw new Error('新區塊至少需要 3 個頂點。');
+    const closed=[...ring.map(p=>[Math.round(p[0]*100)/100,Math.round(p[1]*100)/100])];
+    closed.push(closed[0].slice());
+    for(const p of closed) if(!p.every(Number.isFinite)||p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])throw new Error('頂點不可超出圖片範圍。');
+    if(!simple(closed))throw new Error('邊界交叉，無法建立區塊。');
+    if(area([[closed]])<25)throw new Error('區塊太小，請畫大一點。');
+    // overlap check against existing candidates
+    for(const c of doc.candidates) if(area(clip.union([...c.polygons,[closed]]))<area(c.polygons)+area([[closed]])-0.05)throw new Error('新區塊與現有區塊重疊。');
+    const next=clone(doc);
+    const candidate={candidateId:`${doc.mapId}-draw-${nonce}`,polygons:[[closed]],status:'needs-review',numberCandidates:[],issues:[],pixelArea:0};
+    next.candidates.push(candidate);
+    record(next,{type:'add-block',candidateId:candidate.candidateId,vertices:closed.length-1});
+    return refresh(next);
   }
   function removeCandidate(doc,id) {
     if(!doc.candidates.some(c=>c.candidateId===id))throw new Error('請先選取要刪除的區塊。');
@@ -190,5 +221,5 @@
     for(let i=1;i<poly.length;i++)for(let j=i+1;j<poly.length;j++)if(insideRing(poly[i][0],poly[j])||insideRing(poly[j][0],poly[i]))throw new Error('內洞不可重疊。');
 
   }
-  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,batchVertexEdit,independentBlocks};
+  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,batchVertexEdit,independentBlocks,setNumber,addBlock};
 });

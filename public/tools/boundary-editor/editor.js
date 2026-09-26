@@ -3,6 +3,7 @@
   'use strict';
   const G=window.BoundaryGeometry, $=id=>document.getElementById(id), svg=$('mapCanvas'), ns='http://www.w3.org/2000/svg';
   let doc,base,selected=null,mode='select',cut=[],undo=[],redo=[],dirty=false,version=0,cloudReady=false,busy=false;
+  let drawn=[];
   let view=[0,0,1,1],gesture=null,storageOK=true;
   let loadedGeometry='', savedGeometry='', vertex=null, pendingRecovery=null, needsReload=false;
   const geometryKey=d=>JSON.stringify(d.candidates.map(c=>[c.candidateId,c.polygons]).sort((a,b)=>a[0].localeCompare(b[0])));
@@ -42,9 +43,13 @@
     $('export').disabled=busy||!doc; $('import').disabled=editingBlocked();
     $('undo').disabled=editingBlocked()||!undo.length; $('redo').disabled=editingBlocked()||!redo.length;
     $('finish').disabled=busy||cut.length<2; $('cancel').disabled=busy||!cut.length; $('focus').disabled=!selected||busy;
+    $('finishDraw').disabled=busy||drawn.length<3; $('cancelDraw').disabled=busy||!drawn.length;
+    const sel=selectedBlock();
+    $('setNumber').disabled=editingBlocked()||!selected; $('applyNumber').disabled=editingBlocked()||!selected||!$('setNumber').value; $('clearNumber').disabled=editingBlocked()||!selected||sel?.manualNumber==null;
+    if(selected&&sel&&document.activeElement!==$('setNumber'))$('setNumber').value=sel.manualNumber!=null?String(sel.manualNumber):'';
     document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked();b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
     $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':dirty?'尚未儲存':version?'已儲存':'尚無修改';
-    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
+    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='draw'?'點擊地圖放置頂點，沿新區塊邊界逐一點出（至少 3 點），完成後按「完成新區塊」或 Enter。Esc 取消。':mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
   }
   function render() {
     if(!doc){controls();return;}
@@ -56,7 +61,7 @@
     }
     const labels=$('labels');labels.replaceChildren();
     if($('anchors').checked)for(const a of doc.labelAnchors)labels.append(element('circle',{cx:a.point[0],cy:a.point[1],r:view[2]/Math.max(svg.clientWidth,1)*2.5,fill:'#e11d48'}));
-    drawHandles();drawCut();controls();
+    drawHandles();drawCut();if(mode==='draw')drawDraft();controls();
     const c=selectedBlock();
     const issueNames={'image-edge':'碰圖片邊緣','multiple-numbers':'多個編號合併','no-number':'尚未配對編號'};
     $('selection').textContent=c?`選取：${c.numberCandidates.join('、')||'未配對編號'}｜${c.issues.map(i=>issueNames[i]||i).join('、')||'單一編號'}｜仍待核對`:'尚未選取區塊';
@@ -75,6 +80,12 @@
     $('cutLine').replaceChildren();if(!cut.length)return;
     $('cutLine').append(element('polyline',{points:cut.map(p=>p.join(',')).join(' '),class:'cut'}));
     for(const [x,y] of cut)$('cutLine').append(element('circle',{cx:x,cy:y,r:view[2]/Math.max(svg.clientWidth,1)*4,fill:'#e11d48','pointer-events':'none'}));
+  }
+  function drawDraft() {
+    $('cutLine').replaceChildren();if(!drawn.length)return;
+    if(drawn.length>1)$('cutLine').append(element('polyline',{points:drawn.map(p=>p.join(',')).join(' '),class:'cut'}));
+    if(drawn.length>2)$('cutLine').append(element('polygon',{points:drawn.map(p=>p.join(',')).join(' '),fill:'#38bdf833',stroke:'#38bdf8','stroke-width':2,'vector-effect':'non-scaling-stroke','pointer-events':'none'}));
+    for(const [x,y] of drawn)$('cutLine').append(element('circle',{cx:x,cy:y,r:view[2]/Math.max(svg.clientWidth,1)*4,fill:'#38bdf8','pointer-events':'none'}));
   }
   function setView(next) {view=next;svg.setAttribute('viewBox',view.join(' '));if(doc){drawHandles();drawCut();}}
   function fit() {if(!doc)return;const [w,h]=doc.imageSize;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1);const vw=Math.max(w,h*ratio),vh=vw/ratio;setView([(w-vw)/2,(h-vh)/2,vw,vh]);}
@@ -101,7 +112,7 @@
     busy=true;controls();message('');
     try {
       const response=await fetch(`/maps/reconstruction-v1/${id}.json`);if(!response.ok){needsReload=true;throw new Error('無法載入原始候選。');}
-      base=await response.json();loadedGeometry=geometryKey(base);doc=G.independentBlocks(base);selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];dirty=false;version=0;cloudReady=false;pendingRecovery=null;needsReload=false;
+      base=await response.json();loadedGeometry=geometryKey(base);doc=G.independentBlocks(base);selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];drawn=[];dirty=false;version=0;cloudReady=false;pendingRecovery=null;needsReload=false;
       $('background').setAttribute('href','/maps/'+base.sourceImage);$('background').setAttribute('width',base.imageSize[0]);$('background').setAttribute('height',base.imageSize[1]);
       try {const result=await cloudRequest(id);if(result.draft){loadedGeometry=geometryKey(result.draft.document);applyDocument(result.draft.document);version=result.draft.version;message('');}cloudReady=true;}
       catch(error){cloudReady=false;needsReload=true;message('載入失敗，目前顯示原始候選，尚未取得已儲存修改。'+error.message);}
@@ -113,11 +124,16 @@
   }
   $('map').onchange=()=>openMap($('map').value);
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{
-    if(b.dataset.mode!=='select'&&!selected){message('請先點選一塊要修正的色塊。');return;}
-    mode=b.dataset.mode;vertex=null;selectedVertices=[];cut=[];message('');render();
+    if(editingBlocked())return;
+    if(b.dataset.mode!=='select'&&b.dataset.mode!=='draw'&&!selected){message('請先點選一塊要修正的色塊。');return;}
+    mode=b.dataset.mode;vertex=null;selectedVertices=[];cut=[];drawn=[];message('');render();
   });
   $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';message('已切開區塊並重新配對編號，請核對後儲存。');render();}catch(error){message(error.message);}};
   $('cancel').onclick=()=>{cut=[];render();};
+  $('finishDraw').onclick=()=>{try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);drawn=[];mode='select';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message('已建立新區塊，可在下方指定號碼後儲存。');render();}catch(error){message(error.message);}};
+  $('cancelDraw').onclick=()=>{drawn=[];mode='select';render();};
+  $('applyNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}const n=Number($('setNumber').value);try{commit(G.setNumber(doc,selected,n));message(`已指定號碼 ${n}，儲存後生效。`);}catch(error){message(error.message);}};
+  $('clearNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}try{commit(G.setNumber(doc,selected,null));message('已改回自動配對。');}catch(error){message(error.message);}};
   function deleteVertex(){if(editingBlocked()||gesture||mode!=='vertex'||!vertex||vertex.id!==selected)return;try{const v=vertex;const next=G.removeVertex(doc,selected,v.pi,v.ri,v.vi);vertex=null;commit(next);message('頂點已刪除，前後頂點已連接；可復原，尚未儲存。');}catch(error){message(error.message);}}
   $('deleteVertex').onclick=deleteVertex;
   function batchEdit(operation){
@@ -150,6 +166,7 @@
     const p=point(e),target=e.target;
     if(mode==='box'){if(!selected){message('請先選取區塊。');return;}gesture={kind:'box',start:p,append:e.shiftKey};drawBox(p,p);svg.setPointerCapture(e.pointerId);controls();return;}
     if(mode==='cut') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;cut.push(p);drawCut();controls();return;}
+    if(mode==='draw') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;drawn.push(p);drawDraft();controls();return;}
     if(target.classList.contains('handle')) {
       const pi=Number(target.dataset.pi),ri=Number(target.dataset.ri),vi=Number(target.dataset.vi),c=doc.candidates.find(c=>c.candidateId===selected);
       vertex={id:selected,pi,ri,vi};
@@ -180,7 +197,7 @@
     else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存。');}catch(error){message(error.message);render();}}
   });
   svg.addEventListener('pointercancel',()=>{gesture=null;$('boxSelection').replaceChildren();render();});
-  document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;if(e.key==='Delete'&&mode==='box'){e.preventDefault();batchEdit('delete');}if(e.key==='Delete'&&mode==='vertex'&&vertex){e.preventDefault();deleteVertex();}if(e.key==='Escape'){selectedVertices=[];$('boxSelection').replaceChildren();cut=[];gesture=null;render();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();});
+  document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;if(e.key==='Delete'&&mode==='box'){e.preventDefault();batchEdit('delete');}if(e.key==='Delete'&&mode==='vertex'&&vertex){e.preventDefault();deleteVertex();}if(e.key==='Escape'){selectedVertices=[];$('boxSelection').replaceChildren();cut=[];drawn=[];gesture=null;render();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();if(e.key==='Enter'&&mode==='draw'&&drawn.length>=3)$('finishDraw').click();});
   $('save').onclick=async()=>{
     busy=true;controls();message('');const snapshot=G.clone(doc);
     try {
