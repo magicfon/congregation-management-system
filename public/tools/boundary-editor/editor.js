@@ -141,6 +141,8 @@
   $('undo').onclick=()=>history(true);$('redo').onclick=()=>history(false);
   $('overlay').onchange=render;$('anchors').onchange=render;
   $('plus').onclick=()=>zoom(.7);$('minus').onclick=()=>zoom(1/.7);$('fit').onclick=fit;
+  $('plus2').onclick=()=>zoom(.7);$('minus2').onclick=()=>zoom(1/.7);$('fit2').onclick=fit;
+  $('toolToggle').onclick=()=>{const h=document.querySelector('header'),open=h.classList.toggle('open');$('toolToggle').setAttribute('aria-expanded',String(open));$('toolToggle').textContent=open?'工具 ▲':'工具 ▼';};
   $('focus').onclick=()=>{const c=selectedBlock();if(!c)return;const pts=c.polygons.flat(2);const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);const x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1),vw=Math.max(w,h*ratio)*1.15;setView([x+w/2-vw/2,y+h/2-vw/ratio/2,vw,vw/ratio]);};
   svg.addEventListener('wheel',e=>{e.preventDefault();if(!busy)zoom(e.deltaY>0?1.15:1/1.15,point(e));},{passive:false});
   svg.addEventListener('pointerdown',e=>{
