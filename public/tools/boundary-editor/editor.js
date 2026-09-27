@@ -85,7 +85,8 @@
     $('cutLine').replaceChildren();if(!drawn.length)return;
     if(drawn.length>1)$('cutLine').append(element('polyline',{points:drawn.map(p=>p.join(',')).join(' '),class:'cut'}));
     if(drawn.length>2)$('cutLine').append(element('polygon',{points:drawn.map(p=>p.join(',')).join(' '),fill:'#38bdf833',stroke:'#38bdf8','stroke-width':2,'vector-effect':'non-scaling-stroke','pointer-events':'none'}));
-    for(const [x,y] of drawn)$('cutLine').append(element('circle',{cx:x,cy:y,r:view[2]/Math.max(svg.clientWidth,1)*4,fill:'#38bdf8','pointer-events':'none'}));
+    for(const [x,y] of drawn)$('cutLine').append(element('circle',{cx:x,cy:y,r:view[2]/Math.max(svg.clientWidth,1)*9,fill:'#38bdf8',opacity:.85,class:'drawDot',style:'cursor:pointer;pointer-events:all;touch-action:none'}));
+    if(mode==='draw'&&drawn.length)$('hint').textContent=`已放 ${drawn.length} 點｜點藍點可刪除前一點｜按「完成新區塊」收合（至少 3 點）`;
   }
   function setView(next) {view=next;svg.setAttribute('viewBox',view.join(' '));if(doc){drawHandles();drawCut();}}
   function fit() {if(!doc)return;const [w,h]=doc.imageSize;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1);const vw=Math.max(w,h*ratio),vh=vw/ratio;setView([(w-vw)/2,(h-vh)/2,vw,vh]);}
@@ -169,6 +170,7 @@
     if(mode==='box'){if(!selected){message('請先選取區塊。');return;}gesture={kind:'box',start:p,append:e.shiftKey};drawBox(p,p);svg.setPointerCapture(e.pointerId);controls();return;}
     if(mode==='cut') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;cut.push(p);drawCut();controls();return;}
     if(mode==='draw') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;drawn.push(p);drawDraft();controls();return;}
+    if(mode==='draw'&&e.pointerType!=='mouse'&&target.classList.contains('drawDot')) {drawn.pop();drawDraft();controls();return;}
     if(target.classList.contains('handle')) {
       const pi=Number(target.dataset.pi),ri=Number(target.dataset.ri),vi=Number(target.dataset.vi),c=doc.candidates.find(c=>c.candidateId===selected);
       vertex={id:selected,pi,ri,vi};
