@@ -49,7 +49,7 @@
     if(selected&&sel&&document.activeElement!==$('setNumber'))$('setNumber').value=sel.manualNumber!=null?String(sel.manualNumber):'';
     document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked();b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
     $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':dirty?'尚未儲存':version?'已儲存':'尚無修改';
-    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='draw'?'點擊地圖放置頂點，沿新區塊邊界逐一點出（至少 3 點），完成後按「完成新區塊」或 Enter。Esc 取消。':mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
+    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='draw'?(drawn.length?`已放 ${drawn.length} 點｜點最後的藍點可退一點｜按「完成新區塊」或 Enter 收合（至少 3 點）；Esc 取消。`:'點擊地圖放置頂點，沿新區塊邊界逐一點出（至少 3 點），完成後按「完成新區塊」或 Enter。Esc 取消。'):mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
   }
   function render() {
     if(!doc){controls();return;}
@@ -86,7 +86,6 @@
     if(drawn.length>1)$('cutLine').append(element('polyline',{points:drawn.map(p=>p.join(',')).join(' '),class:'cut'}));
     if(drawn.length>2)$('cutLine').append(element('polygon',{points:drawn.map(p=>p.join(',')).join(' '),fill:'#38bdf833',stroke:'#38bdf8','stroke-width':2,'vector-effect':'non-scaling-stroke','pointer-events':'none'}));
     for(const [x,y] of drawn)$('cutLine').append(element('circle',{cx:x,cy:y,r:view[2]/Math.max(svg.clientWidth,1)*9,fill:'#38bdf8',opacity:.85,class:'drawDot',style:'cursor:pointer;pointer-events:all;touch-action:none'}));
-    if(mode==='draw'&&drawn.length)$('hint').textContent=`已放 ${drawn.length} 點｜點藍點可刪除前一點｜按「完成新區塊」收合（至少 3 點）`;
   }
   function setView(next) {view=next;svg.setAttribute('viewBox',view.join(' '));if(doc){drawHandles();drawCut();}}
   function fit() {if(!doc)return;const [w,h]=doc.imageSize;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1);const vw=Math.max(w,h*ratio),vh=vw/ratio;setView([(w-vw)/2,(h-vh)/2,vw,vh]);}
@@ -169,8 +168,8 @@
     const p=point(e),target=e.target;
     if(mode==='box'){if(!selected){message('請先選取區塊。');return;}gesture={kind:'box',start:p,append:e.shiftKey};drawBox(p,p);svg.setPointerCapture(e.pointerId);controls();return;}
     if(mode==='cut') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;cut.push(p);drawCut();controls();return;}
+    if(mode==='draw'&&target.classList&&target.classList.contains('drawDot')) {drawn.pop();drawDraft();controls();return;}
     if(mode==='draw') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;drawn.push(p);drawDraft();controls();return;}
-    if(mode==='draw'&&e.pointerType!=='mouse'&&target.classList.contains('drawDot')) {drawn.pop();drawDraft();controls();return;}
     if(target.classList.contains('handle')) {
       const pi=Number(target.dataset.pi),ri=Number(target.dataset.ri),vi=Number(target.dataset.vi),c=doc.candidates.find(c=>c.candidateId===selected);
       vertex={id:selected,pi,ri,vi};
