@@ -49,14 +49,14 @@ export default function MapAllocationList() {
 
   const visible = useMemo(() => areas.filter((area) => {
     if (district !== 'all' && area.mapId !== district) return false
-    if (onlyAvailable && area.isDispatched) return false
+    if (onlyAvailable && (area.isDispatched || !area.dispatchEnabled)) return false
     const needle = query.trim().toLowerCase()
     return !needle || [allocationLabel(area), area.blockCode, area.assignedTo].some((value) => value?.toLowerCase().includes(needle))
   }), [areas, district, onlyAvailable, query])
 
-  const selectedAreas = visible.filter((area) => selected.has(area.id) && !area.isDispatched)
+  const selectedAreas = visible.filter((area) => selected.has(area.id) && !area.isDispatched && area.dispatchEnabled)
   useEffect(() => {
-    const allowed = new Set(visible.filter((area) => !area.isDispatched).map((area) => area.id))
+    const allowed = new Set(visible.filter((area) => !area.isDispatched && area.dispatchEnabled).map((area) => area.id))
     setSelected((previous) => {
       const next = new Set([...previous].filter((id) => allowed.has(id)))
       return next.size === previous.size ? previous : next
@@ -107,12 +107,12 @@ export default function MapAllocationList() {
     finally { busyRef.current = false; setBusy(false) }
   }
 
-  const available = areas.filter((area) => !area.isDispatched).length
+  const available = areas.filter((area) => !area.isDispatched && area.dispatchEnabled).length
   const disabled = loading || busy
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span className="text-mc-text/70">共 {areas.length} 張 · 可分發 {available} 張 · 使用中 {areas.length - available} 張</span>
+        <span className="text-mc-text/70">共 {areas.length} 張 · 可分發 {available} 張 · 使用中 {areas.filter(a => a.isDispatched).length} 張 · 暫停分發 {areas.filter(a => !a.dispatchEnabled).length} 張</span>
         <div className="flex gap-2">
           <button type="button" disabled={disabled} onClick={() => void load()} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs disabled:opacity-40">重新整理</button>
           {isAdmin && <button type="button" disabled={disabled} onClick={() => void refreshDates()} className="rounded-lg border border-blue-400/30 px-3 py-1.5 text-xs text-blue-300 disabled:opacity-40">更新回報日期</button>}
@@ -166,7 +166,7 @@ export default function MapAllocationList() {
             </thead>
             <tbody className="border-t border-white/10">
                 {visible.map((area) => <tr key={area.id} className={`border-t border-white/5 ${selected.has(area.id) ? 'bg-blue-500/10' : 'hover:bg-white/[0.03]'}`}>
-                  <td className="pl-2"><input type="checkbox" aria-label={`選取${allocationLabel(area)}`} checked={selected.has(area.id)} disabled={disabled || area.isDispatched || !!error || (!isAdmin && selected.size >= 5 && !selected.has(area.id))} onChange={() => toggle([area.id])} className="h-4 w-4 accent-blue-500 disabled:opacity-25" /></td>
+                  <td className="pl-2"><input type="checkbox" aria-label={`選取${allocationLabel(area)}`} checked={selected.has(area.id)} disabled={disabled || !area.dispatchEnabled || area.isDispatched || !!error || (!isAdmin && selected.size >= 5 && !selected.has(area.id))} onChange={() => toggle([area.id])} className="h-4 w-4 accent-blue-500 disabled:opacity-25" /></td>
                   <th scope="row" className="px-2 py-1 font-medium">
                     {area.sheetNo && area.sheetNo !== 2 ? <a href={`/maps/areas/${area.sheetNo}.jpg`} target="_blank" rel="noreferrer" className="underline decoration-white/20 underline-offset-4" aria-label={`開啟${allocationLabel(area)}圖檔（新分頁）`}>{allocationLabel(area)}</a> : allocationLabel(area)}
                     <span className="sm:hidden block text-[11px] font-normal text-mc-text/50">{area.lastCompletedDate || (syncedAt ? '無回報紀錄' : '待同步')}</span>
@@ -175,7 +175,7 @@ export default function MapAllocationList() {
                   <td className={`px-2 py-1 text-right whitespace-nowrap tabular-nums ${area.idleDays === null ? 'text-mc-text/40' : area.idleDays >= 180 ? 'text-red-400' : area.idleDays >= 90 ? 'text-yellow-300' : 'text-mc-text'}`}>
                     {area.idleDays === null ? '—' : <><strong>{area.idleDays}</strong> 天</>}
                   </td>
-                  <td className="px-2 py-1 max-w-28 break-words">{area.isDispatched ? <><span className="text-mc-text/50">使用中</span><span className="ml-1 text-xs">{area.assignedTo || '未知持有人'}</span></> : <span className="text-emerald-300">可分發</span>}</td>
+                  <td className="px-2 py-1 max-w-28 break-words">{!area.dispatchEnabled && <span className="block text-amber-300">暫停分發</span>}{area.isDispatched ? <><span className="text-mc-text/50">使用中</span><span className="ml-1 text-xs">{area.assignedTo || '未知持有人'}</span></> : area.dispatchEnabled ? <span className="text-emerald-300">可分發</span> : null}</td>
                 </tr>)}
             </tbody>
           </table>

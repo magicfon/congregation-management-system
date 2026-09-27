@@ -30,6 +30,11 @@ const db={ $transaction:async(fn,options)=>{
  await service.decideMapRequest(db,'r2',{id:'admin',isAdmin:true},'reject');assert.equal(state.requests[2].status,'rejected');assert.equal(state.areas[2].assignedMemberId,'other');
  active=false;await assert.rejects(service.decideMapRequest(db,'r3',{id:'admin',isAdmin:true},'approve'),/停用/);assert.equal(state.requests[3].status,'pending');
  await assert.rejects(service.submitMapRequests(db,'m2',['a6']),/停用/);
+ reset();state.areas[0].dispatchEnabled=false;
+ await assert.rejects(service.submitMapRequests(db,'m1',['a0']),/暫停/);assert.equal(state.requests.length,0);
+ state.areas[0].dispatchEnabled=true;await service.submitMapRequests(db,'m1',['a0']);state.areas[0].dispatchEnabled=false;
+ await assert.rejects(service.decideMapRequest(db,'r0',{id:'admin',isAdmin:true},'approve'),/暫停/);assert.equal(state.requests[0].status,'pending');assert.equal(state.areas[0].assignedMemberId,null);
+ state.areas[0].dispatchEnabled=true;await service.decideMapRequest(db,'r0',{id:'admin',isAdmin:true},'approve');assert.equal(state.areas[0].assignedMemberId,'m1');
  const {NextResponse}=require('next/server');let user=null,seenWhere,posted,decisions=0,complete=true,sheetFail=false;
  const auth={requireApiUser:async()=>user?{user}:{response:NextResponse.json({error:'denied'},{status:401})}};
  const api=load('src/app/api/map-requests/route.ts',{'../../../lib/api-auth':auth,'../../../lib/db':{prisma:{mapRequest:{findMany:async({where})=>{seenWhere=where;return []}}}},'../../../lib/map-requests':{...service,submitMapRequests:async(db,id,ids)=>{posted={id,ids};return{count:ids.length}}}});

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../lib/db'
 import { requireApiUser } from '../../../../lib/api-auth'
 import { pushAreaCD, updateSnapshot, DEFAULT_SHEET_ID } from '../../../../lib/google-sheets'
@@ -50,6 +51,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(updated)
     }
 
+    const area = await prisma.area.findUnique({ where: { id: areaId } })
+    if (!area) return NextResponse.json({ error: '區域不存在' }, { status: 404 })
+    if (!area.dispatchEnabled) return NextResponse.json({ error: '此地圖已暫停分發' }, { status: 409 })
+
     // Verify member exists
     const member = await prisma.member.findUnique({ where: { id: memberId } })
     if (!member) {
@@ -58,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const now = new Date()
     const updated = await prisma.area.update({
-      where: { id: areaId },
+      where: { id: areaId, dispatchEnabled: true },
       data: {
         assignedMemberId: memberId,
         assignedTo: member.name,
@@ -82,6 +87,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(updated)
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') return NextResponse.json({ error: '地圖已暫停分發或不存在，請重新整理' }, { status: 409 })
     console.error('POST /api/areas/assign error:', error)
     return NextResponse.json({ error: '分配失敗' }, { status: 500 })
   }

@@ -12,6 +12,7 @@ export async function dispatchInTransaction(tx: Prisma.TransactionClient, ids: s
   if (!member?.active) throw new DispatchConflict('成員不存在或已停用，請重新選擇')
   const areas = await tx.area.findMany({ where: { id: { in: ids } } })
   if (areas.length !== ids.length) throw new DispatchConflict('部分地圖已不存在，請重新整理')
+  if (areas.some(area => area.dispatchEnabled === false)) throw new DispatchConflict('部分地圖已暫停分發，本次未分發')
   if (areas.some(isAreaDispatched)) throw new DispatchConflict('部分地圖已被領取，本次全部未分發，請重新整理後選取')
   const result = await tx.area.updateMany({
     where: { id: { in: ids } },

@@ -4,7 +4,7 @@ const DISTRICT_ORDER = ['nanzih', 'chiaotou', 'tzuguan']
 export type AllocationArea = {
   id: string; name: string; mapId: string | null; mapAreaId: number | null
   sheetNo: number | null; blockCode: string | null; assignedTo: string | null
-  isDispatched: boolean; lastCompletedDate: string | null; idleDays: number | null
+  dispatchEnabled: boolean; isDispatched: boolean; lastCompletedDate: string | null; idleDays: number | null
 }
 
 export function isAreaDispatched(area: { assignedMemberId: string | null; dispatchedAt: Date | null; completedAt: Date | null }) {

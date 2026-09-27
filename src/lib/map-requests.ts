@@ -12,6 +12,7 @@ export async function submitMapRequests(db: PrismaClient, memberId: string, ids:
     if (pending.length + ids.length > 5) throw new RequestConflict('每人待審最多 5 張，請先取消或等候已有申請審核')
     if (pending.some(r => ids.includes(r.areaId))) throw new RequestConflict('選取的地圖已有待審申請')
     const areas = await tx.area.findMany({ where: { id: { in: ids } } })
+    if (areas.some(area => area.dispatchEnabled === false)) throw new RequestConflict('部分地圖已暫停分發，不能申請')
     if (areas.length !== ids.length || areas.some(isAreaDispatched)) throw new RequestConflict('部分地圖已被領取或不存在，請重新整理')
     const batchId = randomUUID()
     await tx.mapRequest.createMany({ data: ids.map(areaId => ({ memberId, areaId, batchId })) })

@@ -3,11 +3,19 @@
 import { useEffect, useRef, useState } from 'react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
+import AreaProperties from '../../components/map/AreaProperties'
 import AreaStatusMap from '../../components/map/AreaStatusMap'
 import { DISTRICT_NAMES } from '../../lib/allocation'
 import { HEAT_STATUS_LABELS, type AreaStatusData } from '../../lib/area-status'
 
 export default function AreaStatusPage() {
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [availability, setAvailability] = useState<Record<string, boolean>>({})
+  useEffect(() => { const controller = new AbortController(); void fetch('/api/me', { signal: controller.signal }).then(r => r.ok ? r.json() : null).then(user => { if (!controller.signal.aborted) setIsAdmin(user?.role === 'admin') }).catch(() => {}); return () => controller.abort() }, [])
+  function updateAvailability(id: string, enabled: boolean) {
+    setAvailability(old => ({ ...old, [id]: enabled }))
+    if (!enabled) setQueue(old => old.filter(item => item.id !== id))
+  }
   const detailPanel = useRef<HTMLElement>(null)
   const [queue, setQueue] = useState<{ id: string; label: string }[]>([])
   const [grayDispatched, setGrayDispatched] = useState(true)
@@ -65,11 +73,11 @@ export default function AreaStatusPage() {
             <h2 className="font-semibold">{selected.numbers.length ? `${selected.numbers.join('、')} 號` : '未配對區塊'}</h2>
             <p className="text-sm text-mc-text/70 mt-1">{selected.days === null ? HEAT_STATUS_LABELS[selected.status] : `距上次完成回報 ${selected.days} 天`}</p>
             {selected.numbers.length > 1 && <p className="text-xs text-yellow-300 mt-1">多編號區塊，以最久天數呈現</p>}
-            <div className="mt-2 space-y-1">{selected.reports.map(r => <label key={r.number} className="flex items-center gap-2 rounded-lg border border-white/10 p-2 text-sm">
-              <input type="checkbox" aria-label={`申請${r.number}號`} checked={queue.some(i => i.id === r.areaId)} disabled={!r.areaId || r.isDispatched || (queue.length >= 5 && !queue.some(i => i.id === r.areaId))} onChange={e => { const checked = e.target.checked; if (r.areaId) setQueue(old => checked ? old.some(i => i.id === r.areaId) || old.length >= 5 ? old : [...old, { id: r.areaId!, label: `${DISTRICT_NAMES[mapId]} ${r.number} 號` }] : old.filter(i => i.id !== r.areaId)) }} />
-              <span className="flex-1"><strong>{r.number} 號</strong><span className="ml-2 text-xs text-mc-text/60">{r.isDispatched ? '使用中' : r.areaId ? '勾選申請' : '未配對'}</span><span className="block text-xs text-mc-text/50">完成回報：{r.lastCompletedDate || '無紀錄'}</span></span>
+            <div className="mt-2 space-y-1">{selected.reports.map(r => { const enabled = (r.areaId ? availability[r.areaId] : undefined) ?? r.dispatchEnabled; return <div key={r.number}><label className="flex items-center gap-2 rounded-lg border border-white/10 p-2 text-sm">
+              <input type="checkbox" aria-label={`申請${r.number}號`} checked={queue.some(i => i.id === r.areaId)} disabled={!enabled || !r.areaId || r.isDispatched || (queue.length >= 5 && !queue.some(i => i.id === r.areaId))} onChange={e => { const checked = e.target.checked; if (r.areaId) setQueue(old => checked ? old.some(i => i.id === r.areaId) || old.length >= 5 ? old : [...old, { id: r.areaId!, label: `${DISTRICT_NAMES[mapId]} ${r.number} 號` }] : old.filter(i => i.id !== r.areaId)) }} />
+              <span className="flex-1"><strong>{r.number} 號</strong><span className="ml-2 text-xs text-mc-text/60">{!enabled ? '暫停分發' : r.isDispatched ? '使用中' : r.areaId ? '勾選申請' : '未配對'}</span><span className="block text-xs text-mc-text/50">完成回報：{r.lastCompletedDate || '無紀錄'}</span></span>
               <span className="tabular-nums whitespace-nowrap">{r.days === null ? '—' : `${r.days} 天`}</span>
-            </label>)}</div>
+            </label>{isAdmin && r.areaId && <AreaProperties key={r.areaId} areaId={r.areaId} number={r.number} onChange={updateAvailability} />}</div> })}</div>
           </> : <><h2 className="font-semibold">區塊明細</h2><p className="mt-1 text-sm text-mc-text/60">點選地圖色塊，即可在此查看回報日期與勾選申請。</p></>}
         </section>
         <RequestSubmitBar items={queue} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} />

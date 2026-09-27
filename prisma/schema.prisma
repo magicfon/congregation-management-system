@@ -14,6 +14,7 @@ datasource db {
 model Area {
   id               String   @id @default(cuid())
   name             String
+  dispatchEnabled  Boolean  @default(true) // 暫停時保留持有人，阻擋新申請與分發
   description      String?
   assignedTo       String?
   assignedMemberId String?
