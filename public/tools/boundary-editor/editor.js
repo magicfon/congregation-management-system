@@ -49,7 +49,7 @@
     if(selected&&sel&&document.activeElement!==$('setNumber'))$('setNumber').value=sel.manualNumber!=null?String(sel.manualNumber):'';
     document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked();b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
     $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':dirty?'尚未儲存':version?'已儲存':'尚無修改';
-    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='draw'?(drawn.length?`已放 ${drawn.length} 點｜點最後的藍點可退一點｜按「完成新區塊」或 Enter 收合（至少 3 點）；Esc 取消。`:'點擊地圖放置頂點，沿新區塊邊界逐一點出（至少 3 點），完成後按「完成新區塊」或 Enter。Esc 取消。'):mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
+    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='draw'?(drawn.length?`已放 ${drawn.length} 點｜點最後的藍點可退一點｜滿 3 點自動成塊；Esc 結束畫圖。`:'點擊放置頂點（滿 3 點自動建立區塊，可連續畫多塊）；點錯點藍點退一點；Esc 結束。'):mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
   }
   function render() {
     if(!doc){controls();return;}
@@ -130,7 +130,8 @@
   });
   $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';message('已切開區塊並重新配對編號，請核對後儲存。');render();}catch(error){message(error.message);}};
   $('cancel').onclick=()=>{cut=[];render();};
-  $('finishDraw').onclick=()=>{try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);const log=next.correctionLog[next.correctionLog.length-1];drawn=[];mode='select';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message(`已建立新區塊${log.carved?`，${log.carved} 塊舊區塊已自動讓位`:''}${log.removed?`，${log.removed} 塊被完全覆蓋而移除`:''}；可指定號碼後儲存（可復原）。`);render();}catch(error){message(error.message);}};
+  function finishDrawAuto(){try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);const log=next.correctionLog[next.correctionLog.length-1];drawn=[];mode='draw';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message(`已自動建立新區塊${log.carved?`，${log.carved} 塊舊區塊已自動讓位`:''}${log.removed?`，${log.removed} 塊被完全覆蓋而移除`:''}；繼續點可畫下一塊，或指定號碼後儲存（可復原）。`);render();}catch(error){/* 3 點階段可能自交：保留頂點讓使用者繼續修正，不彈錯 */}}
+  $('finishDraw').onclick=()=>{if(drawn.length<3){message('至少需要 3 個頂點。');return;}try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);const log=next.correctionLog[next.correctionLog.length-1];drawn=[];mode='select';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message(`已建立新區塊${log.carved?`，${log.carved} 塊舊區塊已自動讓位`:''}${log.removed?`，${log.removed} 塊被完全覆蓋而移除`:''}；可指定號碼後儲存（可復原）。`);render();}catch(error){message(error.message);}};
   $('cancelDraw').onclick=()=>{drawn=[];mode='select';render();};
   $('applyNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}const n=Number($('setNumber').value);try{commit(G.setNumber(doc,selected,n));message(`已指定號碼 ${n}，儲存後生效。`);}catch(error){message(error.message);}};
   $('clearNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}try{commit(G.setNumber(doc,selected,null));message('已改回自動配對。');}catch(error){message(error.message);}};
@@ -169,7 +170,7 @@
     if(mode==='box'){if(!selected){message('請先選取區塊。');return;}gesture={kind:'box',start:p,append:e.shiftKey};drawBox(p,p);svg.setPointerCapture(e.pointerId);controls();return;}
     if(mode==='cut') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;cut.push(p);drawCut();controls();return;}
     if(mode==='draw'&&target.classList&&target.classList.contains('drawDot')) {drawn.pop();drawDraft();controls();return;}
-    if(mode==='draw') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;drawn.push(p);drawDraft();controls();return;}
+    if(mode==='draw') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;drawn.push(p);if(drawn.length>=3)finishDrawAuto();drawDraft();controls();return;}
     if(target.classList.contains('handle')) {
       const pi=Number(target.dataset.pi),ri=Number(target.dataset.ri),vi=Number(target.dataset.vi),c=doc.candidates.find(c=>c.candidateId===selected);
       vertex={id:selected,pi,ri,vi};
