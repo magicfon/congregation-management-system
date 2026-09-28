@@ -109,6 +109,8 @@
   function fit() {if(!doc)return;const [w,h]=doc.imageSize;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1);const vw=Math.max(w,h*ratio),vh=vw/ratio;setView([(w-vw)/2,(h-vh)/2,vw,vh]);}
   function zoom(factor,center=[view[0]+view[2]/2,view[1]+view[3]/2]) {if(!doc)return;const w=view[2]*factor;if(w<40||w>doc.imageSize[0]*5)return;setView([center[0]+(view[0]-center[0])*factor,center[1]+(view[1]-center[1])*factor,w,view[3]*factor]);}
   function point(event) {const p=svg.createSVGPoint();p.x=event.clientX;p.y=event.clientY;const v=p.matrixTransform(svg.getScreenCTM().inverse());return [v.x,v.y];}
+  function removeLive(){if(liveBlockId&&undo.length){doc=undo.pop();dirty=geometryKey(doc)!==savedGeometry;liveBlockId=null;backup();render();}}
+  function commitQuiet(next) {doc=next;dirty=geometryKey(doc)!==savedGeometry;backup();render();}
   function commit(next) {undo.push(G.clone(doc));if(undo.length>20)undo.shift();redo=[];doc=next;dirty=geometryKey(doc)!==savedGeometry;cut=[];backup();render();}
   function applyDocument(next) {resetDraft();pointers.clear();gesture=null;doc=G.independentBlocks(G.validate(next,base));selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];render();}
   async function cloudRequest(id,options) {
@@ -151,18 +153,30 @@
   });
   $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';message('已切開區塊並重新配對編號，請核對後儲存。');render();}catch(error){message(error.message);}};
   $('cancel').onclick=()=>{cut=[];render();};
-  function resetDraft(){drawn=[];draftVertex=null;drawError=null;}
-  function updateDraft(){drawError=drawn.length>=3?G.draftShape(drawn,doc.imageSize).error:null;drawDraft();controls();message(drawError||'預覽尚未完成；完成區塊後才能儲存到雲端。');}
+  function resetDraft(){drawn=[];draftVertex=null;drawError=null;liveBlockId=null;}
+  let liveBlockId=null;
+  function updateDraft(){
+    drawError=drawn.length>=3?G.draftShape(drawn,doc.imageSize).error:null;
+    if(!drawError&&drawn.length>=3){
+      try{
+        if(!liveBlockId){const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));liveBlockId=next.candidates[next.candidates.length-1].candidateId;commit(next);message('已自動儲存區塊；繼續點可加頂點即時更新，按 Enter 或「完成新區塊」定案。');}
+        else{commitQuiet(G.updateBlock(doc,liveBlockId,drawn));}
+      }catch(error){drawError=error.message;}
+    }
+    drawDraft();controls();
+  }
   function discardDraft(){resetDraft();mode='select';message('已放棄本次繪製，先前完成的修改保留。');render();}
   $('finishDraw').onclick=()=>{
-    if(editingBlocked()||gesture||drawn.length<3)return;
+    if(editingBlocked()||gesture)return;
+    if(liveBlockId){const id=liveBlockId;resetDraft();mode='select';selected=id;render();message('區塊已定案；可指定號碼後儲存。');return;}
+    if(drawn.length<3)return;
     const shape=G.draftShape(drawn,doc.imageSize);
     if(shape.error){drawError=shape.error;updateDraft();return;}
     try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));const id=next.candidates[next.candidates.length-1].candidateId;resetDraft();mode='select';selected=id;commit(next);message('區塊已完成，尚未儲存到雲端。');}catch(error){drawError=error.message;drawDraft();controls();message(error.message);}
   };
   $('cancelDraw').onclick=()=>{if(!editingBlocked()&&!gesture)discardDraft();};
-  $('backPoint').onclick=()=>{if(editingBlocked()||gesture||!drawn.length)return;drawn.pop();draftVertex=null;updateDraft();};
-  $('deleteDraftPoint').onclick=()=>{if(editingBlocked()||gesture||draftVertex===null)return;drawn.splice(draftVertex,1);draftVertex=null;updateDraft();};
+  $('backPoint').onclick=()=>{if(editingBlocked()||gesture||!drawn.length)return;drawn.pop();draftVertex=null;if(liveBlockId&&drawn.length<3)removeLive();updateDraft();};
+  $('deleteDraftPoint').onclick=()=>{if(editingBlocked()||gesture||draftVertex===null)return;drawn.splice(draftVertex,1);draftVertex=null;if(liveBlockId&&drawn.length<3)removeLive();updateDraft();};
   function assignNumber(input){
     if(editingBlocked()||gesture||hasDraft()||!selected)return;
     const n=Number($(input).value);
@@ -290,7 +304,7 @@
     if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;
     if(e.key==='Delete'&&mode==='draw')$('deleteDraftPoint').click();
     if(e.key==='Delete'&&mode==='box')batchEdit('delete');
-    if(e.key==='Delete'&&mode==='vertex'&&vertex)deleteVertex();
+    if(e.key==='Delete'&&mode==='vertex'&&vertex)deleteVertex();if((e.key==='Delete'||e.key==='Backspace')&&mode==='select'&&selected&&!cut.length){e.preventDefault();$('deleteBlock').click();}
     if(e.key==='Escape'){e.preventDefault();if(mode==='draw')discardDraft();else{selectedVertices=[];$('boxSelection').replaceChildren();cut=[];render();}}
     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}
     if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();
