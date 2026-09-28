@@ -109,6 +109,40 @@
       box.append(div);
     }
   }
+  function nearestEdgePoint(p){
+    if(!selected)return null;
+    const c=selectedBlock();if(!c)return null;
+    const tol=14*view[2]/Math.max(svg.clientWidth,1);
+    let best=null,bd=tol;
+    c.polygons.forEach((poly,pi)=>poly.forEach((ring,ri)=>ring.slice(0,-1).forEach((a,vi)=>{
+      const b=ring[vi+1];
+      const d=segmentDistance(p,a,b);
+      if(d<bd){
+        const abx=b[0]-a[0],aby=b[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*abx+(p[1]-a[1])*aby)/(abx*abx+aby*aby||1)));
+        bd=d;best={pi,ri,vi,p:[a[0]+abx*t,a[1]+aby*t]};
+      }
+    })));
+    return best;
+  }
+  function clearInsertPreview(){
+    const g=$('insertPreview');if(g)g.replaceChildren();
+    svg.style.cursor='';
+  }
+  function updateInsertPreview(e){
+    if(mode!=='select'||!selected||!doc){clearInsertPreview();return;}
+    if(e.buttons){clearInsertPreview();return;}
+    const hit=nearestEdgePoint(point(e));
+    const g=$('insertPreview');
+    if(!hit){clearInsertPreview();return;}
+    svg.style.cursor='crosshair';
+    if(!g){
+      const el=document.createElementNS('http://www.w3.org/2000/svg','g');
+      el.id='insertPreview';el.setAttribute('pointer-events','none');
+      $('labels').parentNode.appendChild(el);
+    }
+    const el2=$('insertPreview');
+    el2.replaceChildren(element('circle',{cx:hit.p[0],cy:hit.p[1],r:view[2]/Math.max(svg.clientWidth,1)*5,fill:'#38bdf8','fill-opacity':'.9',stroke:'#0c4a6e','stroke-width':view[2]/Math.max(svg.clientWidth,1)*1.5}));
+  }
   function drawHandles() {
     const group=$('vertices');group.replaceChildren();if(!['vertex','box'].includes(mode))return;
     const c=doc.candidates.find(c=>c.candidateId===selected);if(!c)return;
@@ -283,7 +317,7 @@
   });
   svg.addEventListener('pointermove',e=>{
     if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(!gesture)return;
+    if(!gesture){updateInsertPreview(e);return;}
     if(gesture.kind==='pinch'){
       if(pointers.size<2||gesture.cancelled)return;
       const [a,b]=[...pointers.values()],g=gesture;
@@ -339,20 +373,17 @@
       if(!g.moved){
         if(g.id){selected=g.id;vertex=null;selectedVertices=[];cut=[];message('');}
         // 點邊線加頂點：已選取且點在 selected 邊線附近（非頂點）→ 插入
-        if(selected&&g.id===selected){
-          const p=point(e),c=selectedBlock();
-          let best=null,bd=8*view[2]/Math.max(svg.clientWidth,1);
-          c.polygons.forEach((poly,pi)=>poly.forEach((ring,ri)=>ring.slice(0,-1).forEach((a,vi)=>{
-            const b=ring[vi+1];
-            if(segmentDistance(p,a,b)<bd){bd=segmentDistance(p,a,b);best=[pi,ri,vi];}
-          })));
-          if(best){try{commit(G.insertVertex(doc,selected,best[0],best[1],best[2]+1,p));message('已新增頂點，可拖曳調整；尚未儲存。');}catch(error){message(error.message);}}
+        if(selected&&mode==='select'){
+          const hit=nearestEdgePoint(point(e));
+          if(hit){try{commit(G.insertVertex(doc,selected,hit.pi,hit.ri,hit.vi+1,hit.p));message('已新增頂點，可拖曳調整；尚未儲存。');}catch(error){message(error.message);}}
+          else if(g.id&&g.id!==selected)message('已切換選取其他區塊；加頂點請點在選取區塊的邊線上。');
         }
       }
       render();
     }
     else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存到雲端。');}catch(error){message(error.message);render();}}
   });
+  svg.addEventListener('pointerleave',()=>{clearInsertPreview();});
   svg.addEventListener('pointercancel',e=>{
     pointers.delete(e.pointerId);
     if(svg.hasPointerCapture(e.pointerId))svg.releasePointerCapture(e.pointerId);
