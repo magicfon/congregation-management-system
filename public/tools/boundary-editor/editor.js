@@ -272,7 +272,6 @@
       const p=point(e);
       if(p[0]>=0&&p[1]>=0&&p[0]<doc.imageSize[0]&&p[1]<doc.imageSize[1]){
         drawn[gesture.vi]=p;
-        if(gesture.vi===0&&drawn.length>1)drawn[drawn.length-1]=p; // 首點=末點（封閉預覽）
         drawDraft();
       }
       return;
