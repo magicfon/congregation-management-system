@@ -157,6 +157,17 @@
     record(next,{type:'add-block',candidateId:`${doc.mapId}-draw-${nonce}`,vertices:closed.length-1,carved,removed,overlapped});
     return refresh(next);
   }
+  function insertVertex(doc,id,polyIndex,ringIndex,vertexIndex,p) {
+    const next=clone(doc),c=next.candidates.find(c=>c.candidateId===id);
+    if(!c)throw new Error('找不到區塊。');
+    const ring=c.polygons[polyIndex][ringIndex];
+    const at=Math.max(1,Math.min(ring.length-1,vertexIndex));
+    if(!p.every(Number.isFinite)||p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])throw new Error('頂點不可超出圖片範圍。');
+    ring.splice(at,0,[Math.round(p[0]*100)/100,Math.round(p[1]*100)/100]);
+    validateEdit(doc,next,c.candidateId,polyIndex,ringIndex);
+    record(next,{type:'insert-vertex',candidateId:id,polyIndex,ringIndex,vertexIndex:at});
+    return refresh(next);
+  }
   function updateBlock(doc,id,ring) {
     const next=clone(doc),c=next.candidates.find(c=>c.candidateId===id);
     if(!c)throw new Error('區塊不存在。');
@@ -250,5 +261,5 @@
     for(let i=1;i<poly.length;i++)for(let j=i+1;j<poly.length;j++)if(insideRing(poly[i][0],poly[j])||insideRing(poly[j][0],poly[i]))throw new Error('內洞不可重疊。');
 
   }
-  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,batchVertexEdit,independentBlocks,setNumber,addBlock,updateBlock,draftShape};
+  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,batchVertexEdit,independentBlocks,setNumber,addBlock,updateBlock,insertVertex,draftShape};
 });

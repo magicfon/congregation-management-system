@@ -107,6 +107,11 @@
     }
     drawn.forEach(([x,y],i)=>group.append(element('circle',{cx:x,cy:y,r:view[2]/Math.max(svg.clientWidth,1)*(draftVertex===i?11:9),fill:draftVertex===i?'#facc15':'#38bdf8',class:'drawDot','data-index':i,style:'cursor:pointer;touch-action:none'})));
   }
+  function segmentDistance(p,a,b){
+    const dx=b[0]-a[0],dy=b[1]-a[1],length=dx*dx+dy*dy;
+    const t=length?Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/length)):0;
+    return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy);
+  }
   function setView(next) {view=next;svg.setAttribute('viewBox',view.join(' '));if(doc){drawHandles();if(mode==='draw')drawDraft();else drawCut();}}
   function fit() {if(!doc)return;const [w,h]=doc.imageSize;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1);const vw=Math.max(w,h*ratio),vh=vw/ratio;setView([(w-vw)/2,(h-vh)/2,vw,vh]);}
   function zoom(factor,center=[view[0]+view[2]/2,view[1]+view[3]/2]) {if(!doc)return;const w=view[2]*factor;if(w<40||w>doc.imageSize[0]*5)return;setView([center[0]+(view[0]-center[0])*factor,center[1]+(view[1]-center[1])*factor,w,view[3]*factor]);}
@@ -236,7 +241,8 @@
     }
     const p=point(e),target=e.target,touch=e.pointerType==='touch';
     if(mode==='draw'||mode==='cut'){
-      gesture={kind:'tap',start:[e.clientX,e.clientY],point:p,dot:mode==='draw'&&target.classList.contains('drawDot')?Number(target.dataset.index):null,moved:false};
+      if(mode==='draw'&&target.classList.contains('drawDot')){const vi=Number(target.dataset.index);gesture={kind:'dragDraft',vi,node:target,moved:false,pointerId:e.pointerId};svg.setPointerCapture(e.pointerId);}
+      else gesture={kind:'tap',start:[e.clientX,e.clientY],point:p,dot:mode==='draw'&&target.classList.contains('drawDot')?Number(target.dataset.index):null,moved:false};
     }else if(mode==='box'){
       if(!selected)return;gesture={kind:'box',start:p,append:e.shiftKey||$('appendVertices').checked};drawBox(p,p);
     }else if(mode==='vertex'&&target.classList.contains('handle')){
@@ -262,6 +268,15 @@
       setView([g.anchor[0]-u*w,g.anchor[1]-v*h,w,h]);return;
     }
     if(gesture.pointerId!==e.pointerId)return;
+    if(gesture.kind==='dragDraft'){
+      const p=point(e);
+      if(p[0]>=0&&p[1]>=0&&p[0]<doc.imageSize[0]&&p[1]<doc.imageSize[1]){
+        drawn[gesture.vi]=p;
+        if(gesture.vi===0&&drawn.length>1)drawn[drawn.length-1]=p; // 首點=末點（封閉預覽）
+        drawDraft();
+      }
+      return;
+    }
     if(gesture.kind==='tap'||gesture.kind==='pick'){gesture.moved ||= Math.hypot(e.clientX-gesture.start[0],e.clientY-gesture.start[1])>8;return;}
     if(gesture.kind==='box'){drawBox(gesture.start,point(e));return;}
     if(gesture.kind==='pan') {const dx=e.clientX-gesture.start[0],dy=e.clientY-gesture.start[1];gesture.moved ||= Math.hypot(dx,dy)>4;const scale=gesture.view[2]/svg.clientWidth;setView([gesture.view[0]-dx*scale,gesture.view[1]-dy*scale,gesture.view[2],gesture.view[3]]);}
@@ -282,6 +297,7 @@
         }}
       }controls();return;
     }
+    if(g.kind==='dragDraft'){g.moved=true;draftVertex=g.vi;updateDraft();return;}
     if(g.kind==='pick'){if(!g.moved)vertex={id:selected,pi:g.pi,ri:g.ri,vi:g.vi};render();return;}
     if(g.kind==='box'){
       $('boxSelection').replaceChildren();const end=point(e),found=g.append?selectedVertices.slice():[],seen=new Set(found.map(vertexKey));
@@ -293,7 +309,22 @@
       })));
       selectedVertices=found;message(found.length?'已框選頂點，可平滑化或刪除。':'框內沒有目前區塊的頂點。');render();return;
     }
-    if(g.kind==='pan'){if(!g.moved&&g.id){selected=g.id;vertex=null;selectedVertices=[];cut=[];message('');}render();}
+    if(g.kind==='pan'){
+      if(!g.moved){
+        if(g.id){selected=g.id;vertex=null;selectedVertices=[];cut=[];message('');}
+        // 點邊線加頂點：已選取且點在 selected 邊線附近（非頂點）→ 插入
+        if(selected&&g.id===selected){
+          const p=point(e),c=selectedBlock();
+          let best=null,bd=8*view[2]/Math.max(svg.clientWidth,1);
+          c.polygons.forEach((poly,pi)=>poly.forEach((ring,ri)=>ring.slice(0,-1).forEach((a,vi)=>{
+            const b=ring[vi+1];
+            if(segmentDistance(p,a,b)<bd){bd=segmentDistance(p,a,b);best=[pi,ri,vi];}
+          })));
+          if(best){try{commit(G.insertVertex(doc,selected,best[0],best[1],best[2]+1,p));message('已新增頂點，可拖曳調整；尚未儲存。');}catch(error){message(error.message);}}
+        }
+      }
+      render();
+    }
     else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存到雲端。');}catch(error){message(error.message);render();}}
   });
   svg.addEventListener('pointercancel',e=>{
@@ -309,7 +340,6 @@
     if(e.key==='Delete'&&mode==='vertex'&&vertex)deleteVertex();if((e.key==='Delete'||e.key==='Backspace')&&mode==='select'&&selected&&!cut.length){e.preventDefault();$('deleteBlock').click();}
     if(e.key==='Escape'){e.preventDefault();if(mode==='draw')discardDraft();else{selectedVertices=[];$('boxSelection').replaceChildren();cut=[];render();}}
     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}
-    if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();
     if(e.key==='Enter'&&mode==='draw')$('finishDraw').click();
   });
   document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>$(b.dataset.action).click());
