@@ -151,7 +151,7 @@
   function drawHandles() {
     const group=$('vertices');group.replaceChildren();if(!['vertex','box'].includes(mode))return;
     const c=doc.candidates.find(c=>c.candidateId===selected);if(!c)return;
-    const r=view[2]/Math.max(svg.clientWidth,1)*(mode==='box'?3.5:(window.matchMedia?.('(pointer:coarse)').matches?12:5)),chosen=new Set(selectedVertices.map(vertexKey));
+    const r=view[2]/Math.max(svg.clientWidth,1)*(mode==='box'?9:(window.matchMedia?.('(pointer:coarse)').matches?12:9)),chosen=new Set(selectedVertices.map(vertexKey));
     c.polygons.forEach((poly,pi)=>poly.forEach((ring,ri)=>ring.slice(0,-1).forEach(([x,y],vi)=>{
       if(x<view[0]-r||x>view[0]+view[2]+r||y<view[1]-r||y>view[1]+view[3]+r)return;
       group.append(element('circle',{cx:x,cy:y,r,class:'handle'+((mode==='box'?chosen.has(vertexKey({pi,ri,vi})):vertex?.id===selected&&vertex.pi===pi&&vertex.ri===ri&&vertex.vi===vi)?' active-vertex':''),'data-pi':pi,'data-ri':ri,'data-vi':vi}));
