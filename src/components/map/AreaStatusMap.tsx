@@ -5,10 +5,12 @@ import type * as Leaflet from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { HEAT_STATUS_LABELS, type AreaStatusData } from '../../lib/area-status'
 
-export default function AreaStatusMap({ data, selectedId, onSelect, grayDispatched }: { data: AreaStatusData; grayDispatched: boolean; selectedId: string | null; onSelect: (id: string) => void }) {
+export default function AreaStatusMap({ data, selectedId, onSelect, grayDispatched, queuedAreaIds }: { data: AreaStatusData; queuedAreaIds: string[]; grayDispatched: boolean; selectedId: string | null; onSelect: (id: string) => void }) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Leaflet.Map | null>(null)
   const layers = useRef(new Map<string, Leaflet.Polygon>())
+  const markers = useRef(new Map<string, Leaflet.Marker>())
+  const [mapReady, setMapReady] = useState(0)
   const grayState = useRef(grayDispatched)
   grayState.current = grayDispatched
   const selection = useRef(onSelect)
@@ -40,19 +42,23 @@ export default function AreaStatusMap({ data, selectedId, onSelect, grayDispatch
           element.addEventListener('keydown', e => { const key = (e as KeyboardEvent).key; if (key === 'Enter' || key === ' ') { e.preventDefault(); selection.current(region.candidateId) } })
         }
         layers.current.set(region.candidateId, polygon)
+        markers.current.set(region.candidateId, L.marker(polygon.getBounds().getCenter(), { interactive: false, keyboard: false, opacity: 0, icon: L.divIcon({ className: '', html: '<span aria-hidden="true" style="display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#2563eb;color:white;border:2px solid white;font-size:14px">✓</span>', iconSize: [22, 22], iconAnchor: [11, 11] }) }).addTo(map))
       }
+      setMapReady(v => v + 1)
     }
     void create().catch(() => { if (!cancelled) setError('地圖工具載入失敗，請重新整理。') })
     const observer = new ResizeObserver(() => mapRef.current?.invalidateSize())
     if (container.current) observer.observe(container.current)
-    return () => { cancelled = true; observer.disconnect(); mapRef.current?.remove(); mapRef.current = null; layers.current.clear() }
+    return () => { cancelled = true; observer.disconnect(); mapRef.current?.remove(); mapRef.current = null; layers.current.clear(); markers.current.clear() }
   }, [data])
   useEffect(() => {
     for (const [id, layer] of layers.current) {
       const region = data.regions.find(r => r.candidateId === id)!
-      layer.setStyle({ fillColor: grayDispatched && region.isDispatched ? '#64748b' : region.color, color: id === selectedId ? '#ffffff' : '#334155', weight: id === selectedId ? 3 : 1, fillOpacity: id === selectedId ? .78 : .58 })
+      const queued = region.reports.some(r => r.areaId && queuedAreaIds.includes(r.areaId))
+      markers.current.get(id)?.setOpacity(queued ? 1 : 0)
+      layer.setStyle({ fillColor: grayDispatched && region.isDispatched ? '#64748b' : region.color, color: id === selectedId ? '#ffffff' : queued ? '#60a5fa' : '#334155', weight: id === selectedId || queued ? 3 : 1, fillOpacity: id === selectedId ? .78 : .58 })
     }
-  }, [selectedId, grayDispatched, data])
+  }, [selectedId, grayDispatched, data, queuedAreaIds, mapReady])
   return <div className="relative isolate h-full min-h-0 overflow-hidden rounded-xl border border-white/10 bg-mc-accent">
     <div ref={container} style={{ background: '#162132' }} className="h-full min-h-0 w-full" aria-label="距上次完成回報熱力圖，可縮放及拖曳" />
     <button type="button" className="absolute top-3 right-3 z-[500] rounded-lg bg-mc-card px-3 py-2 text-sm shadow border border-white/10" onClick={() => { const [w, h] = data.imageSize; mapRef.current?.fitBounds([[0, 0], [h, w]], { padding: [8, 8] }) }}>全圖</button>

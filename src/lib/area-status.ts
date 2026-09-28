@@ -1,7 +1,7 @@
 import { idleCalendarDays } from './allocation'
 
-export type CompletionArea = { sheetNo: number | null; name: string; lastCompletedDate: string | null; areaId?: string; dispatchEnabled?: boolean; isDispatched?: boolean }
-export type HeatReport = { number: number; name: string | null; lastCompletedDate: string | null; days: number | null; areaId: string | null; dispatchEnabled: boolean; isDispatched: boolean }
+export type CompletionArea = { sheetNo: number | null; name: string; lastCompletedDate: string | null; areaId?: string; dispatchEnabled?: boolean; isDispatched?: boolean; assignedTo?: string | null; dispatchedDate?: string | null }
+export type HeatReport = { number: number; name: string | null; lastCompletedDate: string | null; days: number | null; areaId: string | null; dispatchEnabled: boolean; isDispatched: boolean; assignedTo: string | null; dispatchedDate: string | null }
 export type HeatStatus = 'known' | 'unmatched' | 'no-report' | 'incomplete' | 'unsynced'
 export const HEAT_STATUS_LABELS: Record<HeatStatus, string> = {
   known: '距上次完成回報', unmatched: '未配對區域編號', 'no-report': '無完成回報紀錄', incomplete: '日期或編號資料不完整', unsynced: '完成回報日期尚未同步',
@@ -21,7 +21,7 @@ export function regionHeat(numbers: number[], areas: CompletionArea[], today: st
   const reports: HeatReport[] = [...new Set(numbers)].sort((a, b) => a - b).map(number => {
     const matches = areas.filter(a => a.sheetNo === number)
     const area = matches.length === 1 ? matches[0] : null
-    return { number, dispatchEnabled: area?.dispatchEnabled !== false, areaId: area?.areaId || null, isDispatched: area?.isDispatched === true, name: area?.name || null, lastCompletedDate: area?.lastCompletedDate || null, days: idleCalendarDays(area?.lastCompletedDate || null, today) }
+    return { number, assignedTo: area?.assignedTo || null, dispatchedDate: area?.dispatchedDate || null, dispatchEnabled: area?.dispatchEnabled !== false, areaId: area?.areaId || null, isDispatched: area?.isDispatched === true, name: area?.name || null, lastCompletedDate: area?.lastCompletedDate || null, days: idleCalendarDays(area?.lastCompletedDate || null, today) }
   })
   const status: HeatStatus = !reports.length ? 'unmatched' : !synced ? 'unsynced'
     : reports.some(r => !r.name) ? 'incomplete' : reports.every(r => !r.lastCompletedDate) ? 'no-report'

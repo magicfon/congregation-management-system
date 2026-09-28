@@ -32,13 +32,13 @@ export default function AreaProperties({ areaId, number, onChange }: { areaId: s
     finally { lock.current = false; setBusy(false) }
   }
   return <div className="mt-1 border-t border-white/5 pt-1 text-xs">
-    <button type="button" aria-expanded={open} onClick={() => { setOpen(!open); if (!open && !data) void load() }} className="text-blue-300 py-1">{open ? '收合' : '管理'} {number} 號屬性與歷史回報</button>
+    <button type="button" aria-expanded={open} onClick={() => { setOpen(!open); if (!open && !data) void load() }} className="text-blue-300 py-1">{open ? '▾' : '▸'} 歷史回報與管理設定</button>
     {open && <div className="space-y-2 py-2">
       <button disabled={loading || busy} onClick={() => void load()} className="underline text-mc-text/60">重新載入屬性與紀錄</button>
       {loading && <p role="status">載入中…</p>}{error && <p role="alert" className="text-red-300">{error}</p>}{message && <p role="status" className="text-blue-300">{message}</p>}
       {data && <>
-        <div className="flex flex-wrap gap-2 items-center"><strong className={data.dispatchEnabled ? 'text-emerald-300' : 'text-amber-300'}>{data.dispatchEnabled ? '允許分發' : '暫停分發'}</strong><button disabled={busy || loading || !!error} onClick={() => void save()} className="rounded border border-white/20 px-2 py-1 disabled:opacity-40">{busy ? '儲存中…' : data.dispatchEnabled ? '暫停分發' : '重新開放'}</button></div>
-        <p className="text-mc-text/50">暫停後不能申請、分發或核准，保留目前持有人。</p>
+        <details><summary className="cursor-pointer text-mc-text/60">管理設定</summary><div className="mt-2 flex flex-wrap gap-2 items-center"><strong className={data.dispatchEnabled ? 'text-emerald-300' : 'text-amber-300'}>{data.dispatchEnabled ? '允許分發' : '暫停分發'}</strong><button disabled={busy || loading || !!error} onClick={() => void save()} className="rounded border border-white/20 px-2 py-1 disabled:opacity-40">{busy ? '儲存中…' : data.dispatchEnabled ? '暫停分發' : '重新開放'}</button></div>
+        <p className="text-mc-text/50">暫停後不能申請、分發或核准，保留目前持有人。</p></details>
         <details><summary className="cursor-pointer">歷史回報紀錄（表單 {data.sheetError ? '讀取失敗' : data.formReports.length} 筆／系統 {data._count.reports} 筆）</summary>
           <div className="space-y-2 mt-2">
             {data.sheetError && <p className="text-amber-300">{data.sheetError}</p>}

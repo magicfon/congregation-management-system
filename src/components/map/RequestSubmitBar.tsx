@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-export default function RequestSubmitBar({ items, onRemove, onSubmitted }: { items: { id: string; label: string }[]; onRemove: (id: string) => void; onSubmitted: () => void }) {
+export default function RequestSubmitBar({ items, onRemove, onSubmitted, onBusy, compact = false }: { items: { id: string; label: string }[]; onRemove: (id: string) => void; onSubmitted: () => void; onBusy?: (busy: boolean) => void; compact?: boolean }) {
   const [pending, setPending] = useState<string[] | null>(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
@@ -15,7 +15,7 @@ export default function RequestSubmitBar({ items, onRemove, onSubmitted }: { ite
   useEffect(() => { void load() }, [])
   async function submit() {
     if (lock.current) return
-    lock.current = true; setBusy(true); setMessage('')
+    lock.current = true; setBusy(true); onBusy?.(true); setMessage('')
     try {
       const res = await fetch('/api/map-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ areaIds: items.map(i => i.id) }) })
       const data = await res.json()
@@ -23,14 +23,20 @@ export default function RequestSubmitBar({ items, onRemove, onSubmitted }: { ite
       setMessage(`已提交 ${data.count} 張申請，請等候管理員審核。`)
       onSubmitted()
     } catch (e) { setMessage(e instanceof Error ? e.message : '連線中斷，請先查看申請清單確認結果。') }
-    finally { await load(); lock.current = false; setBusy(false) }
+    finally { await load(); lock.current = false; setBusy(false); onBusy?.(false) }
   }
   const duplicate = items.some(i => pending?.includes(i.id))
   const over = pending !== null && pending.length + items.length > 5
+  if (compact) return <section aria-label="待申請清單" className="space-y-2 p-3 text-xs">
+    <div className="flex items-center justify-between gap-2"><div><strong className="text-sm">已選 {items.length}/5 張</strong><p className="mt-1 text-mc-text/50">待審 {pending?.length ?? '—'}/5 · <a className="text-blue-300" href="/map-requests">查看申請</a></p></div><button disabled={busy || !items.length || pending === null || duplicate || over} onClick={() => void submit()} className="shrink-0 rounded-lg bg-mc-highlight px-3 py-2.5 text-sm disabled:opacity-40">{busy ? '提交中…' : '提交申請'}</button></div>
+    {!!items.length && <div className="flex max-h-16 overflow-y-auto flex-wrap gap-1">{items.map(i => <button key={i.id} disabled={busy} onClick={() => onRemove(i.id)} aria-label={`取消選取${i.label}`} className="rounded bg-white/5 px-2 py-1">{i.label} ×</button>)}</div>}
+    {(duplicate || over) && <p className="text-amber-300">{duplicate ? '已有待審申請，請移除重複地圖。' : '超過剩餘待審額度。'}</p>}
+    {message && <p role="status" className="text-blue-300">{message}</p>}
+  </section>
   return <section className="rounded-xl border border-blue-400/30 bg-mc-card p-3 space-y-2 text-sm">
     <div className="flex flex-wrap items-center gap-3"><strong>申請領圖 · 已選 {items.length}/5 張</strong><span className="text-mc-text/60">待審 {pending?.length ?? '—'}/5 張</span><a href="/map-requests" className="text-blue-300 underline">查看領圖申請</a>
       <button onClick={() => void submit()} disabled={busy || !items.length || pending === null || duplicate || over} className="rounded-lg bg-mc-highlight px-3 py-2 disabled:opacity-40">{busy ? '提交中…' : '提交申請'}</button></div>
-    {!!items.length && <div className="flex flex-wrap gap-2">{items.map(i => <button key={i.id} disabled={busy} onClick={() => onRemove(i.id)} className="rounded border border-white/10 px-2 py-1" aria-label={`取消選取${i.label}`}>{i.label} ×</button>)}</div>}
+    {!!items.length && <div className="flex max-h-20 overflow-y-auto flex-wrap gap-2">{items.map(i => <button key={i.id} disabled={busy} onClick={() => onRemove(i.id)} className="rounded border border-white/10 px-2 py-1" aria-label={`取消選取${i.label}`}>{i.label} ×</button>)}</div>}
     <p className="text-xs text-mc-text/60">每人待審合計最多 5 張；核准後才會分發。{duplicate ? '部分地圖已有待審申請，請取消重複選取。' : over ? '選取數量超過剩餘待審額度。' : ''}</p>
     {message && <p role="status" className="text-blue-300">{message}</p>}
   </section>
