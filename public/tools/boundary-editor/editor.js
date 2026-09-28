@@ -3,10 +3,12 @@
   'use strict';
   const G=window.BoundaryGeometry, $=id=>document.getElementById(id), svg=$('mapCanvas'), ns='http://www.w3.org/2000/svg';
   let doc,base,selected=null,mode='select',cut=[],undo=[],redo=[],dirty=false,version=0,cloudReady=false,busy=false;
-  let drawn=[];
+  let drawn=[],draftVertex=null,drawError=null;
+  const pointers=new Map();
+  const hasDraft=()=>drawn.length>0||cut.length>0;
   let view=[0,0,1,1],gesture=null,storageOK=true;
   let loadedGeometry='', savedGeometry='', vertex=null, pendingRecovery=null, needsReload=false;
-  const geometryKey=d=>JSON.stringify(d.candidates.map(c=>[c.candidateId,c.polygons]).sort((a,b)=>a[0].localeCompare(b[0])));
+  const geometryKey=d=>JSON.stringify(d.candidates.map(c=>[c.candidateId,c.polygons,c.manualNumber??null]).sort((a,b)=>a[0].localeCompare(b[0])));
   const editingBlocked=()=>busy||!doc||!cloudReady||!!pendingRecovery;
   function offerRecovery(){
     const saved=readBackup(doc.mapId);
@@ -36,20 +38,25 @@
     $('vertexCount').textContent=`已選 ${selectedVertices.length} 點`;
     for(const id of ['smoothVertices','deleteVertices','clearVertices'])$(id).disabled=editingBlocked()||!!gesture||!selectedVertices.length;
     $('smoothStrength').disabled=editingBlocked()||!!gesture;
-    $('deleteBlock').disabled=editingBlocked()||!!gesture||!selected||cut.length>0;
+    $('deleteBlock').disabled=editingBlocked()||!!gesture||!selected||hasDraft();
     $('deleteVertex').disabled=editingBlocked()||!!gesture||mode!=='vertex'||!vertex||vertex.id!==selected;
-    $('save').disabled=editingBlocked()||!dirty||cut.length>0;
+    $('save').disabled=editingBlocked()||!!gesture||!dirty||hasDraft();
     $('map').disabled=busy; $('loadCloud').disabled=busy||!doc; $('restore').disabled=busy; $('restore').hidden=!pendingRecovery; $('skipRestore').hidden=!pendingRecovery||!cloudReady; $('skipRestore').disabled=busy; $('loadCloud').hidden=!needsReload;
-    $('export').disabled=busy||!doc; $('import').disabled=editingBlocked();
-    $('undo').disabled=editingBlocked()||!undo.length; $('redo').disabled=editingBlocked()||!redo.length;
+    $('export').disabled=busy||!doc; $('import').disabled=editingBlocked()||hasDraft()||!!gesture;
+    $('undo').disabled=editingBlocked()||hasDraft()||!!gesture||!undo.length; $('redo').disabled=editingBlocked()||hasDraft()||!!gesture||!redo.length;
     $('finish').disabled=busy||cut.length<2; $('cancel').disabled=busy||!cut.length; $('focus').disabled=!selected||busy;
-    $('finishDraw').disabled=busy||drawn.length<3; $('cancelDraw').disabled=busy||!drawn.length;
+    $('finishDraw').disabled=editingBlocked()||!!gesture||drawn.length<3||!!drawError; $('cancelDraw').disabled=editingBlocked()||!!gesture||!drawn.length;
+    $('backPoint').disabled=editingBlocked()||!!gesture||!drawn.length; $('deleteDraftPoint').disabled=editingBlocked()||!!gesture||draftVertex===null;
+    $('touchDrawActions').hidden=mode!=='draw'; $('touchVertexActions').hidden=mode!=='vertex'; $('touchBoxActions').hidden=mode!=='box';
     const sel=selectedBlock();
-    $('setNumber').disabled=editingBlocked()||!selected; $('applyNumber').disabled=editingBlocked()||!selected||!$('setNumber').value; $('clearNumber').disabled=editingBlocked()||!selected||sel?.manualNumber==null;
+    const number=Number($('setNumber').value);
+    $('setNumber').disabled=editingBlocked()||hasDraft()||!selected; $('applyNumber').disabled=editingBlocked()||hasDraft()||!selected||!Number.isInteger(number)||number<1||number>999; $('clearNumber').disabled=editingBlocked()||hasDraft()||!selected||sel?.manualNumber==null;
     if(selected&&sel&&document.activeElement!==$('setNumber'))$('setNumber').value=sel.manualNumber!=null?String(sel.manualNumber):'';
-    document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked();b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
-    $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':dirty?'尚未儲存':version?'已儲存':'尚無修改';
-    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='draw'?(drawn.length?(liveBlockId?`已放 ${drawn.length} 點（即時更新中）｜點最後的藍點退一點｜按 Enter 或「完成新區塊」定案；Esc 丟棄。`:`已放 ${drawn.length} 點｜滿 3 點自動儲存｜點藍點退一點。`):'點擊放置頂點：滿 3 點自動儲存，繼續點即時擴充同一塊；點藍點退一點；按 Enter 定案。'):mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
+    document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked()||!!gesture;b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
+    $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':hasDraft()?'繪製預覽，尚未完成':dirty?'尚未儲存到雲端':version?'已儲存到雲端':'尚無修改';
+    $('hint').textContent=mode==='box'?'單指框選目前區塊的頂點；可勾選追加選取。雙指平移／縮放。':mode==='cut'?'逐點補線後按完成補線；雙指可移動畫面。':mode==='draw'?(drawn.length?`${drawn.length} 點預覽${draftVertex===null?'':` · 已選第 ${draftVertex+1} 點`}｜${drawError||'按「完成區塊」套用，再儲存到雲端。'}`:'單指點一下放頂點，雙指平移／縮放；滿三點顯示預覽，完成後再儲存。'):mode==='vertex'?'觸控：先點選頂點，再拖曳調整；雙指平移／縮放。可刪除所選頂點。':mode==='pan'?'單指移動畫面，雙指平移／縮放。':'點選區塊；單指拖曳移動，雙指平移／縮放。';
+    document.querySelectorAll('[data-action]').forEach(b=>{b.disabled=$(b.dataset.action).disabled;});
+
   }
   function render() {
     if(!doc){controls();return;}
@@ -70,7 +77,7 @@
   function drawHandles() {
     const group=$('vertices');group.replaceChildren();if(!['vertex','box'].includes(mode))return;
     const c=doc.candidates.find(c=>c.candidateId===selected);if(!c)return;
-    const r=view[2]/Math.max(svg.clientWidth,1)*(mode==='box'?3.5:5),chosen=new Set(selectedVertices.map(vertexKey));
+    const r=view[2]/Math.max(svg.clientWidth,1)*(mode==='box'?3.5:(window.matchMedia?.('(pointer:coarse)').matches?12:5)),chosen=new Set(selectedVertices.map(vertexKey));
     c.polygons.forEach((poly,pi)=>poly.forEach((ring,ri)=>ring.slice(0,-1).forEach(([x,y],vi)=>{
       if(x<view[0]-r||x>view[0]+view[2]+r||y<view[1]-r||y>view[1]+view[3]+r)return;
       group.append(element('circle',{cx:x,cy:y,r,class:'handle'+((mode==='box'?chosen.has(vertexKey({pi,ri,vi})):vertex?.id===selected&&vertex.pi===pi&&vertex.ri===ri&&vertex.vi===vi)?' active-vertex':''),'data-pi':pi,'data-ri':ri,'data-vi':vi}));
@@ -82,18 +89,22 @@
     for(const [x,y] of cut)$('cutLine').append(element('circle',{cx:x,cy:y,r:view[2]/Math.max(svg.clientWidth,1)*4,fill:'#e11d48','pointer-events':'none'}));
   }
   function drawDraft() {
-    $('cutLine').replaceChildren();if(!drawn.length)return;
-    if(drawn.length>1)$('cutLine').append(element('polyline',{points:drawn.map(p=>p.join(',')).join(' '),class:'cut'}));
-    if(drawn.length>2)$('cutLine').append(element('polygon',{points:drawn.map(p=>p.join(',')).join(' '),fill:'#38bdf833',stroke:'#38bdf8','stroke-width':2,'vector-effect':'non-scaling-stroke','pointer-events':'none'}));
-    for(const [x,y] of drawn)$('cutLine').append(element('circle',{cx:x,cy:y,r:view[2]/Math.max(svg.clientWidth,1)*9,fill:'#38bdf8',opacity:.85,class:'drawDot',style:'cursor:pointer;pointer-events:all;touch-action:none'}));
+    const group=$('cutLine');group.replaceChildren();if(!drawn.length)return;
+    const color=drawError&&drawn.length>=3?'#f87171':'#38bdf8';
+    if(drawn.length>1)group.append(element('polyline',{points:drawn.map(p=>p.join(',')).join(' '),fill:'none',stroke:color,'stroke-width':3,'vector-effect':'non-scaling-stroke','pointer-events':'none'}));
+    if(drawn.length>2){
+      group.append(element('polygon',{points:drawn.map(p=>p.join(',')).join(' '),fill:color+'22',stroke:color,'stroke-width':2,'vector-effect':'non-scaling-stroke','pointer-events':'none'}));
+      const shape=G.draftShape(drawn,doc.imageSize);
+      for(const i of shape.invalidEdges)group.append(element('line',{x1:shape.ring[i][0],y1:shape.ring[i][1],x2:shape.ring[i+1][0],y2:shape.ring[i+1][1],stroke:'#ef4444','stroke-width':5,'vector-effect':'non-scaling-stroke','pointer-events':'none'}));
+    }
+    drawn.forEach(([x,y],i)=>group.append(element('circle',{cx:x,cy:y,r:view[2]/Math.max(svg.clientWidth,1)*(draftVertex===i?11:9),fill:draftVertex===i?'#facc15':'#38bdf8',class:'drawDot','data-index':i,style:'cursor:pointer;touch-action:none'})));
   }
-  function setView(next) {view=next;svg.setAttribute('viewBox',view.join(' '));if(doc){drawHandles();drawCut();}}
+  function setView(next) {view=next;svg.setAttribute('viewBox',view.join(' '));if(doc){drawHandles();if(mode==='draw')drawDraft();else drawCut();}}
   function fit() {if(!doc)return;const [w,h]=doc.imageSize;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1);const vw=Math.max(w,h*ratio),vh=vw/ratio;setView([(w-vw)/2,(h-vh)/2,vw,vh]);}
   function zoom(factor,center=[view[0]+view[2]/2,view[1]+view[3]/2]) {if(!doc)return;const w=view[2]*factor;if(w<40||w>doc.imageSize[0]*5)return;setView([center[0]+(view[0]-center[0])*factor,center[1]+(view[1]-center[1])*factor,w,view[3]*factor]);}
   function point(event) {const p=svg.createSVGPoint();p.x=event.clientX;p.y=event.clientY;const v=p.matrixTransform(svg.getScreenCTM().inverse());return [v.x,v.y];}
   function commit(next) {undo.push(G.clone(doc));if(undo.length>20)undo.shift();redo=[];doc=next;dirty=geometryKey(doc)!==savedGeometry;cut=[];backup();render();}
-  function commitQuiet(next) {doc=next;dirty=geometryKey(doc)!==savedGeometry;backup();render();}
-  function applyDocument(next) {doc=G.independentBlocks(G.validate(next,base));selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];render();}
+  function applyDocument(next) {resetDraft();pointers.clear();gesture=null;doc=G.independentBlocks(G.validate(next,base));selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];render();}
   async function cloudRequest(id,options) {
     const response=await fetch(api(id),{cache:'no-store',...options});
     const contentType=response.headers.get('content-type')||'';
@@ -109,11 +120,12 @@
     return data;
   }
   async function openMap(id) {
+    if(hasDraft()&&!confirm('切換地圖會放棄尚未完成的繪製，確定切換？')){$('map').value=doc.mapId;return;}
     if(doc&&dirty&&!backup()){ $('map').value=doc.mapId;return; }
     busy=true;controls();message('');
     try {
       const response=await fetch(`/maps/reconstruction-v1/${id}.json`);if(!response.ok){needsReload=true;throw new Error('無法載入原始候選。');}
-      base=await response.json();loadedGeometry=geometryKey(base);doc=G.independentBlocks(base);selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];drawn=[];liveBlockId=null;dirty=false;version=0;cloudReady=false;pendingRecovery=null;needsReload=false;
+      base=await response.json();loadedGeometry=geometryKey(base);doc=G.independentBlocks(base);selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];drawn=[];draftVertex=null;drawError=null;dirty=false;version=0;cloudReady=false;pendingRecovery=null;needsReload=false;
       $('background').setAttribute('href','/maps/'+base.sourceImage);$('background').setAttribute('width',base.imageSize[0]);$('background').setAttribute('height',base.imageSize[1]);
       try {const result=await cloudRequest(id);if(result.draft){loadedGeometry=geometryKey(result.draft.document);applyDocument(result.draft.document);version=result.draft.version;message('');}cloudReady=true;}
       catch(error){cloudReady=false;needsReload=true;message('載入失敗，目前顯示原始候選，尚未取得已儲存修改。'+error.message);}
@@ -126,25 +138,28 @@
   $('map').onchange=()=>openMap($('map').value);
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{
     if(editingBlocked())return;
-    if(b.dataset.mode!=='select'&&b.dataset.mode!=='draw'&&!selected){message('請先點選一塊要修正的色塊。');return;}
-    if(mode==='draw'&&liveBlockId)endLiveBlock();mode=b.dataset.mode;vertex=null;selectedVertices=[];cut=[];drawn=[];liveBlockId=null;message('');render();
+    if(!['select','pan','draw'].includes(b.dataset.mode)&&!selected){message('請先點選一塊要修正的色塊。');return;}
+    if(hasDraft()){message('請先完成或放棄目前繪製，再切換工具。');return;}
+    mode=b.dataset.mode;vertex=null;selectedVertices=[];cut=[];resetDraft();message('');render();
+
   });
   $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';message('已切開區塊並重新配對編號，請核對後儲存。');render();}catch(error){message(error.message);}};
   $('cancel').onclick=()=>{cut=[];render();};
-  let liveBlockId=null;
-  function G_removeLive(){if(undo.length){doc=undo.pop();dirty=geometryKey(doc)!==savedGeometry;liveBlockId=null;backup();render();}}
-  function updateLiveBlock(){
-    try{
-      if(!liveBlockId){const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);liveBlockId=doc.candidates[doc.candidates.length-1].candidateId;message('已自動儲存區塊；繼續點可加頂點即時更新，完成後按 Enter 或切換模式結束。');}
-      else{const next=G.updateBlock(doc,liveBlockId,drawn);commitQuiet(next);}
-    }catch(error){/* 自交等無效形狀：保留頂點，不彈錯 */}
-  }
-  function endLiveBlock(){if(liveBlockId){selected=liveBlockId;liveBlockId=null;drawn=[];message('區塊已定案；可指定號碼後儲存。');render();}}
-  $('finishDraw').onclick=()=>{if(liveBlockId){endLiveBlock();return;}if(drawn.length<3){message('至少需要 3 個頂點。');return;}try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);const log=next.correctionLog[next.correctionLog.length-1];drawn=[];mode='select';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message(`已建立新區塊${log.carved?`，${log.carved} 塊舊區塊已自動讓位`:''}${log.removed?`，${log.removed} 塊被完全覆蓋而移除`:''}；可指定號碼後儲存（可復原）。`);render();}catch(error){message(error.message);}};
-  $('cancelDraw').onclick=()=>{if(liveBlockId)endLiveBlock();drawn=[];liveBlockId=null;mode='select';render();};
+  function resetDraft(){drawn=[];draftVertex=null;drawError=null;}
+  function updateDraft(){drawError=drawn.length>=3?G.draftShape(drawn,doc.imageSize).error:null;drawDraft();controls();message(drawError||'預覽尚未完成；完成區塊後才能儲存到雲端。');}
+  function discardDraft(){resetDraft();mode='select';message('已放棄本次繪製，先前完成的修改保留。');render();}
+  $('finishDraw').onclick=()=>{
+    if(editingBlocked()||gesture||drawn.length<3)return;
+    const shape=G.draftShape(drawn,doc.imageSize);
+    if(shape.error){drawError=shape.error;updateDraft();return;}
+    try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));const id=next.candidates[next.candidates.length-1].candidateId;resetDraft();mode='select';selected=id;commit(next);message('區塊已完成，尚未儲存到雲端。');}catch(error){drawError=error.message;drawDraft();controls();message(error.message);}
+  };
+  $('cancelDraw').onclick=()=>{if(!editingBlocked()&&!gesture)discardDraft();};
+  $('backPoint').onclick=()=>{if(editingBlocked()||gesture||!drawn.length)return;drawn.pop();draftVertex=null;updateDraft();};
+  $('deleteDraftPoint').onclick=()=>{if(editingBlocked()||gesture||draftVertex===null)return;drawn.splice(draftVertex,1);draftVertex=null;updateDraft();};
   $('applyNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}const n=Number($('setNumber').value);try{commit(G.setNumber(doc,selected,n));message(`已指定號碼 ${n}，儲存後生效。`);}catch(error){message(error.message);}};
   $('clearNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}try{commit(G.setNumber(doc,selected,null));message('已改回自動配對。');}catch(error){message(error.message);}};
-  $('setNumber').addEventListener('input',()=>{const n=Number($('setNumber').value);$('applyNumber').disabled=editingBlocked()||!selected||!Number.isInteger(n)||n<1||n>999;});
+  $('setNumber').addEventListener('input',()=>{const n=Number($('setNumber').value);$('applyNumber').disabled=editingBlocked()||hasDraft()||!selected||!Number.isInteger(n)||n<1||n>999;});
   $('setNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(!$('applyNumber').disabled)$('applyNumber').click();}});
   function deleteVertex(){if(editingBlocked()||gesture||mode!=='vertex'||!vertex||vertex.id!==selected)return;try{const v=vertex;const next=G.removeVertex(doc,selected,v.pi,v.ri,v.vi);vertex=null;commit(next);message('頂點已刪除，前後頂點已連接；可復原，尚未儲存。');}catch(error){message(error.message);}}
   $('deleteVertex').onclick=deleteVertex;
@@ -165,7 +180,7 @@
     if(editingBlocked()||gesture||!selected||cut.length)return;
     try{const next=G.removeCandidate(doc,selected);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';commit(next);message('區塊已刪除，可按「復原」恢復；尚未儲存。');}catch(error){message(error.message);}
   };
-  function history(back) {if(editingBlocked())return;const from=back?undo:redo,to=back?redo:undo;if(!from.length)return;to.push(G.clone(doc));doc=from.pop();dirty=geometryKey(doc)!==savedGeometry;selected=null;mode='select';vertex=null;selectedVertices=[];cut=[];backup();render();}
+  function history(back) {if(editingBlocked()||hasDraft()||gesture)return;resetDraft();const from=back?undo:redo,to=back?redo:undo;if(!from.length)return;to.push(G.clone(doc));doc=from.pop();dirty=geometryKey(doc)!==savedGeometry;selected=null;mode='select';vertex=null;selectedVertices=[];cut=[];backup();render();}
   $('undo').onclick=()=>history(true);$('redo').onclick=()=>history(false);
   $('overlay').onchange=render;$('anchors').onchange=render;
   $('plus').onclick=()=>zoom(.7);$('minus').onclick=()=>zoom(1/.7);$('fit').onclick=fit;
@@ -173,32 +188,73 @@
   $('toolToggle').onclick=()=>{const h=document.querySelector('header'),open=h.classList.toggle('open');$('toolToggle').setAttribute('aria-expanded',String(open));$('toolToggle').textContent=open?'工具 ▲':'工具 ▼';};
   $('focus').onclick=()=>{const c=selectedBlock();if(!c)return;const pts=c.polygons.flat(2);const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);const x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1),vw=Math.max(w,h*ratio)*1.15;setView([x+w/2-vw/2,y+h/2-vw/ratio/2,vw,vw/ratio]);};
   svg.addEventListener('wheel',e=>{e.preventDefault();if(!busy)zoom(e.deltaY>0?1.15:1/1.15,point(e));},{passive:false});
+  function beginPinch(){
+    const pts=[...pointers.values()].slice(0,2),a=pts[0],b=pts[1];
+    // Discard any single-pointer preview; the document has not been changed yet.
+    gesture=null;$('boxSelection').replaceChildren();render();
+    const center={clientX:(a.x+b.x)/2,clientY:(a.y+b.y)/2};
+    gesture={kind:'pinch',view:view.slice(),distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),anchor:point(center)};
+    controls();
+  }
   svg.addEventListener('pointerdown',e=>{
     if(editingBlocked()||e.button!==0)return;
-    const p=point(e),target=e.target;
-    if(mode==='box'){if(!selected){message('請先選取區塊。');return;}gesture={kind:'box',start:p,append:e.shiftKey};drawBox(p,p);svg.setPointerCapture(e.pointerId);controls();return;}
-    if(mode==='cut') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;cut.push(p);drawCut();controls();return;}
-    if(mode==='draw'&&target.classList&&target.classList.contains('drawDot')) {drawn.pop();if(liveBlockId&&drawn.length<3){/* 退到 3 以下：拆掉 live block，回復純畫線 */G_removeLive();}else if(liveBlockId&&drawn.length>=3){try{const next=G.updateBlock(doc,liveBlockId,drawn);commitQuiet(next);}catch(e){}}drawDraft();controls();return;}
-    if(mode==='draw') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;drawn.push(p);if(drawn.length>=3)updateLiveBlock();drawDraft();controls();return;}
-    if(target.classList.contains('handle')) {
-      const pi=Number(target.dataset.pi),ri=Number(target.dataset.ri),vi=Number(target.dataset.vi),c=doc.candidates.find(c=>c.candidateId===selected);
-      vertex={id:selected,pi,ri,vi};
-      gesture={kind:'vertex',pi,ri,vi,preview:G.clone(c.polygons),node:target,start:p};
-    }else gesture={kind:'pan',start:[e.clientX,e.clientY],view:view.slice(),id:target.dataset.id,moved:false};
-    svg.setPointerCapture(e.pointerId);controls();
+    if(e.pointerType!=='mouse'){
+      pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});svg.setPointerCapture(e.pointerId);
+      if(pointers.size>=2){if(pointers.size===2)beginPinch();return;}
+      if(gesture?.kind==='pinch')return;
+    }
+    const p=point(e),target=e.target,touch=e.pointerType==='touch';
+    if(mode==='draw'||mode==='cut'){
+      gesture={kind:'tap',start:[e.clientX,e.clientY],point:p,dot:mode==='draw'&&target.classList.contains('drawDot')?Number(target.dataset.index):null,moved:false};
+    }else if(mode==='box'){
+      if(!selected)return;gesture={kind:'box',start:p,append:e.shiftKey||$('appendVertices').checked};drawBox(p,p);
+    }else if(mode==='vertex'&&target.classList.contains('handle')){
+      const pi=Number(target.dataset.pi),ri=Number(target.dataset.ri),vi=Number(target.dataset.vi),c=selectedBlock();
+      if(!c)return;
+      const chosen=vertex?.id===selected&&vertex.pi===pi&&vertex.ri===ri&&vertex.vi===vi;
+      if(touch&&!chosen){gesture={kind:'pick',pi,ri,vi,start:[e.clientX,e.clientY],moved:false};}
+      else {vertex={id:selected,pi,ri,vi};gesture={kind:'vertex',pi,ri,vi,preview:G.clone(c.polygons),node:target,start:p};}
+    }else gesture={kind:'pan',start:[e.clientX,e.clientY],view:view.slice(),id:mode==='pan'?null:target.dataset.id,moved:false};
+    gesture.pointerId=e.pointerId;svg.setPointerCapture(e.pointerId);controls();
   });
   svg.addEventListener('pointermove',e=>{
+    if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(!gesture)return;
+    if(gesture.kind==='pinch'){
+      if(pointers.size<2||gesture.cancelled)return;
+      const [a,b]=[...pointers.values()],g=gesture;
+      const factor=g.distance/Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),w=Math.max(40,Math.min(doc.imageSize[0]*5,g.view[2]*factor)),h=w*g.view[3]/g.view[2];
+      // SVG viewBox is fitted to the viewport; use the current screen point to
+      // retain the same image anchor under the moving two-finger midpoint.
+      const mid=point({clientX:(a.x+b.x)/2,clientY:(a.y+b.y)/2});
+      const u=(mid[0]-view[0])/view[2],v=(mid[1]-view[1])/view[3];
+      setView([g.anchor[0]-u*w,g.anchor[1]-v*h,w,h]);return;
+    }
+    if(gesture.pointerId!==e.pointerId)return;
+    if(gesture.kind==='tap'||gesture.kind==='pick'){gesture.moved ||= Math.hypot(e.clientX-gesture.start[0],e.clientY-gesture.start[1])>8;return;}
     if(gesture.kind==='box'){drawBox(gesture.start,point(e));return;}
     if(gesture.kind==='pan') {const dx=e.clientX-gesture.start[0],dy=e.clientY-gesture.start[1];gesture.moved ||= Math.hypot(dx,dy)>4;const scale=gesture.view[2]/svg.clientWidth;setView([gesture.view[0]-dx*scale,gesture.view[1]-dy*scale,gesture.view[2],gesture.view[3]]);}
     else {const p=point(e),r=gesture.preview[gesture.pi][gesture.ri];r[gesture.vi]=p;if(gesture.vi===0)r[r.length-1]=p;gesture.node.setAttribute('cx',p[0]);gesture.node.setAttribute('cy',p[1]);$('regions').querySelector('.selected').setAttribute('d',path(gesture.preview));}
   });
   svg.addEventListener('pointerup',e=>{
-    if(!gesture)return;const g=gesture;gesture=null;
+    pointers.delete(e.pointerId);
     if(svg.hasPointerCapture(e.pointerId))svg.releasePointerCapture(e.pointerId);
+    if(!gesture)return;
+    if(gesture.kind==='pinch'){if(!pointers.size){gesture=null;render();}return;}
+    if(gesture.pointerId!==e.pointerId)return;
+    const g=gesture;gesture=null;
+    if(g.kind==='tap'){
+      if(!g.moved){
+        if(g.dot!==null){draftVertex=g.dot;drawDraft();}
+        else {const p=g.point;if(p[0]>=0&&p[1]>=0&&p[0]<doc.imageSize[0]&&p[1]<doc.imageSize[1]){
+          if(mode==='draw'){drawn.push(p);draftVertex=null;updateDraft();}else{cut.push(p);drawCut();}
+        }}
+      }controls();return;
+    }
+    if(g.kind==='pick'){if(!g.moved)vertex={id:selected,pi:g.pi,ri:g.ri,vi:g.vi};render();return;}
     if(g.kind==='box'){
       $('boxSelection').replaceChildren();const end=point(e),found=g.append?selectedVertices.slice():[],seen=new Set(found.map(vertexKey));
-      const c=doc.candidates.find(c=>c.candidateId===selected);
+      const c=selectedBlock();
       c.polygons.forEach((poly,pi)=>poly.forEach((ring,ri)=>ring.slice(0,-1).forEach(([x,y],vi)=>{
         if(x>=Math.min(g.start[0],end[0])&&x<=Math.max(g.start[0],end[0])&&y>=Math.min(g.start[1],end[1])&&y<=Math.max(g.start[1],end[1])){
           const v={pi,ri,vi};if(!seen.has(vertexKey(v))){found.push(v);seen.add(vertexKey(v));}
@@ -206,12 +262,28 @@
       })));
       selectedVertices=found;message(found.length?'已框選頂點，可平滑化或刪除。':'框內沒有目前區塊的頂點。');render();return;
     }
-    if(g.kind==='pan'){if(!g.moved&&g.id){selected=g.id;vertex=null;selectedVertices=[];cut=[];message('');render();}}
-    else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存。');}catch(error){message(error.message);render();}}
+    if(g.kind==='pan'){if(!g.moved&&g.id){selected=g.id;vertex=null;selectedVertices=[];cut=[];message('');}render();}
+    else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存到雲端。');}catch(error){message(error.message);render();}}
   });
-  svg.addEventListener('pointercancel',()=>{gesture=null;$('boxSelection').replaceChildren();render();});
-  document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;if(e.key==='Delete'&&mode==='box'){e.preventDefault();batchEdit('delete');}if(e.key==='Delete'&&mode==='vertex'&&vertex){e.preventDefault();deleteVertex();}if(e.key==='Escape'){selectedVertices=[];$('boxSelection').replaceChildren();cut=[];drawn=[];liveBlockId=null;gesture=null;render();}if(e.key==='Enter'&&mode==='draw'&&liveBlockId){e.preventDefault();endLiveBlock();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();if(e.key==='Enter'&&mode==='draw'&&drawn.length>=3)$('finishDraw').click();});
+  svg.addEventListener('pointercancel',e=>{
+    pointers.delete(e.pointerId);
+    if(svg.hasPointerCapture(e.pointerId))svg.releasePointerCapture(e.pointerId);
+    // Remaining fingers must lift before a new editing gesture can begin.
+    gesture=pointers.size?{kind:'pinch',cancelled:true}:null;$('boxSelection').replaceChildren();render();
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;
+    if(e.key==='Delete'&&mode==='draw')$('deleteDraftPoint').click();
+    if(e.key==='Delete'&&mode==='box')batchEdit('delete');
+    if(e.key==='Delete'&&mode==='vertex'&&vertex)deleteVertex();
+    if(e.key==='Escape'){e.preventDefault();if(mode==='draw')discardDraft();else{selectedVertices=[];$('boxSelection').replaceChildren();cut=[];render();}}
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}
+    if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();
+    if(e.key==='Enter'&&mode==='draw')$('finishDraw').click();
+  });
+  document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>$(b.dataset.action).click());
   $('save').onclick=async()=>{
+    if(editingBlocked()||gesture||hasDraft()||!dirty)return;
     busy=true;controls();message('');const snapshot=G.clone(doc);
     try {
       const result=await cloudRequest(doc.mapId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:version,document:snapshot})});
@@ -221,13 +293,13 @@
       G.validate(check.draft.document,base);
       const signature=geometryKey;
       if(signature(check.draft.document)!==signature(snapshot))throw new Error('儲存後讀回的邊界與送出內容不同，已保留本機修正，請勿以原圖覆蓋。');
-      dirty=false;needsReload=false;pendingRecovery=null;savedGeometry=geometryKey(doc);backup();message('已儲存，並確認可重新載入。');
+      dirty=false;needsReload=false;pendingRecovery=null;savedGeometry=geometryKey(doc);backup();message('已儲存到雲端，並確認可重新載入。');
     }
     catch(error){needsReload=true;backup();message('儲存未完成，修改已暫時保留。'+error.message);}
     finally{busy=false;controls();}
   };
   $('loadCloud').onclick=async()=>{
-    if((dirty||cut.length)&&!confirm('重新載入會取代目前畫面，尚未儲存的修改會暫時保留供恢復。繼續？'))return;
+    if((dirty||hasDraft())&&!confirm('重新載入會取代目前畫面並放棄繪製預覽；已完成但未儲存的修改會保留備份。繼續？'))return;
     if(dirty&&!backup())return;busy=true;controls();
     try {const result=await cloudRequest(doc.mapId);applyDocument(result.draft?.document||base);version=result.draft?.version||0;dirty=geometryKey(doc)!==geometryKey(result.draft?.document||base);savedGeometry=geometryKey(result.draft?.document||base);cloudReady=true;needsReload=false;message('已載入儲存內容。');offerRecovery();}
     catch(error){message(error.message);}finally{busy=false;controls();}
@@ -238,11 +310,11 @@
     try {applyDocument(saved.document);version=saved.baseVersion;dirty=geometryKey(doc)!==savedGeometry;pendingRecovery=null;backup();message(cloudReady?'已恢復修改，確認後請按「儲存」。':'已恢復修改供查看及匯出；連線恢復後請重新載入，再恢復修改並儲存。');controls();}catch(error){message(error.message);}
   };
   $('skipRestore').onclick=()=>{if(!cloudReady||!pendingRecovery||!confirm('放棄先前未儲存的修改，保留目前已儲存內容？'))return;pendingRecovery=null;backup();message('已保留儲存內容。');controls();};
-  $('export').onclick=()=>{const blob=new Blob([JSON.stringify({...doc,editorBackup:{baseVersion:version}},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${doc.mapId}-corrections-v${version}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message(cut.length?'已匯出已完成修正；正在繪製的補線尚未包含。':'已匯出修正 JSON。');};
+  $('export').onclick=()=>{const blob=new Blob([JSON.stringify({...doc,editorBackup:{baseVersion:version}},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${doc.mapId}-corrections-v${version}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message(hasDraft()?'已匯出已完成修正；尚未完成的繪製預覽不包含在內。':'已匯出修正 JSON。');};
   $('import').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;if(file.size>2_000_000){message('檔案超過 2 MB。');return;}if(dirty&&!confirm('匯入將取代目前修正，請先確認已備份。'))return;
     busy=true;controls();try{const next=JSON.parse(await file.text());G.validate(next,base);if(next.editorBackup && (!Number.isSafeInteger(next.editorBackup.baseVersion)||next.editorBackup.baseVersion<0))throw new Error('備份版本無效。');const previousVersion=version;commit(G.independentBlocks(next));version=next.editorBackup?.baseVersion??previousVersion;backup();message('已匯入修正，請核對後儲存。');}catch(error){message(error.message);}finally{busy=false;controls();}};
-  window.addEventListener('beforeunload',e=>{if(dirty||cut.length){e.preventDefault();e.returnValue='';}});
-  new ResizeObserver(()=>{if(doc)drawHandles();}).observe(svg);
+  window.addEventListener('beforeunload',e=>{if(dirty||hasDraft()){e.preventDefault();e.returnValue='';}});
+  new ResizeObserver(()=>{if(doc){drawHandles();if(mode==='draw')drawDraft();}}).observe(svg);
   if(location.port==='18832')$('login').href='https://congregation-management-system.vercel.app/map/boundary-editor';
   const requested=new URLSearchParams(location.search).get('map');if(requested&&ids[requested])$('map').value=requested;
   openMap($('map').value);

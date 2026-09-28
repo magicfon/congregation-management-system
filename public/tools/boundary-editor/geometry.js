@@ -125,6 +125,21 @@
     record(next,{type:'set-number',candidateId:id,number});
     return refresh(next);
   }
+  // Lightweight validation for the uncommitted drawing preview.
+  function draftShape(points,imageSize) {
+    const ring=points.map(p=>p.map(v=>Math.round(v*100)/100));
+    const invalidEdges=[];
+    if(ring.length<3)return {ring,error:'至少需要 3 個頂點。',invalidEdges};
+    ring.push(ring[0].slice());
+    if(ring.length>5000)return {ring,error:'頂點過多，請分成較小區塊。',invalidEdges};
+    if(ring.some(p=>p.length!==2||!p.every(Number.isFinite)||p[0]<0||p[1]<0||p[0]>=imageSize[0]||p[1]>=imageSize[1]))return {ring,error:'頂點不可超出圖片範圍。',invalidEdges};
+    for(let i=0;i<ring.length-1;i++)for(let j=i+2;j<ring.length-1;j++){
+      if(i===0&&j===ring.length-2)continue;
+      if(intersects(ring[i],ring[i+1],ring[j],ring[j+1]))invalidEdges.push(i,j);
+    }
+    const error=invalidEdges.length?'邊界交叉，請退回或刪除頂點後再完成。':ringArea(ring)<25?'區塊太小，請畫大一點。':null;
+    return {ring,error,invalidEdges:[...new Set(invalidEdges)]};
+  }
   function addBlock(doc,ring,nonce) {
     if(!Array.isArray(ring)||ring.length<3)throw new Error('新區塊至少需要 3 個頂點。');
     const closed=[...ring.map(p=>[Math.round(p[0]*100)/100,Math.round(p[1]*100)/100])];
@@ -235,5 +250,5 @@
     for(let i=1;i<poly.length;i++)for(let j=i+1;j<poly.length;j++)if(insideRing(poly[i][0],poly[j])||insideRing(poly[j][0],poly[i]))throw new Error('內洞不可重疊。');
 
   }
-  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,batchVertexEdit,independentBlocks,setNumber,addBlock,updateBlock};
+  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,batchVertexEdit,independentBlocks,setNumber,addBlock,updateBlock,draftShape};
 });

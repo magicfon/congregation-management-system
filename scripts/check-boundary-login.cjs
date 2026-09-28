@@ -70,7 +70,7 @@ async function check(status, draft=null, backup=null, corruptAfterSave=false, pu
   const empty=G.clone(base);empty.candidates=[]
   await emptyEditor.get('import').onchange({target:{files:[{size:1000,text:async()=>JSON.stringify(empty)}],value:''}})
   await emptyEditor.get('save').onclick()
-  assert.equal(emptyEditor.get('saveState').textContent,'已儲存','刪除全部候選仍須可儲存並讀回')
+  assert.equal(emptyEditor.get('saveState').textContent,'已儲存到雲端','刪除全部候選仍須可儲存並讀回')
   emptyEditor.get('undo').onclick()
   assert.equal(emptyEditor.get('save').disabled,false,'復原刪除後應可再次儲存')
   emptyEditor.get('redo').onclick()

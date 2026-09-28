@@ -8,7 +8,7 @@
   <div id="editorHeaderRows">
   <div class="row">
     <select id="map" aria-label="地圖"><option value="nanzih">楠梓 1–89</option><option value="chiaotou">橋頭 90–148</option><option value="tzuguan">梓官 149–213</option></select>
-    <button id="save" class="primary" disabled>儲存</button><button id="loadCloud" hidden>重新載入</button>
+    <button id="save" class="primary" disabled>儲存到雲端</button><button id="loadCloud" hidden>重新載入</button>
     <button id="restore" hidden>恢復修改</button><button id="skipRestore" hidden>保留已儲存內容</button>
     <details><summary>更多工具</summary><div class="row">
     <button id="export">匯出檔案</button><label class="button">匯入檔案<input id="import" type="file" accept=".json,application/json" hidden></label>
@@ -17,7 +17,7 @@
   <div class="row tools" role="group" aria-label="編輯模式">
     <button data-mode="select" aria-pressed="true">選取／移動地圖</button><button data-mode="cut" aria-pressed="false">補線切割</button><button data-mode="vertex" aria-pressed="false">調整頂點</button>
     <button data-mode="box" aria-pressed="false">框選頂點</button>
-    <button data-mode="draw" aria-pressed="false">新增區塊</button><button id="finishDraw" disabled>完成新區塊</button><button id="cancelDraw" disabled>取消繪製</button>
+    <button data-mode="draw" aria-pressed="false">新增區塊</button><button id="finishDraw" disabled>完成區塊</button><button id="cancelDraw" disabled>放棄繪製</button><button id="backPoint" disabled>退回上一點</button><button id="deleteDraftPoint" disabled>刪除選取點</button>
     <button id="finish" disabled>完成補線</button><button id="cancel" disabled>取消補線</button>
     <button id="deleteBlock" class="danger" disabled>刪除區塊</button>
     <button id="deleteVertex" disabled>刪除頂點</button>
@@ -25,7 +25,7 @@
     <label>指定號碼 <input id="setNumber" type="number" min="1" max="999" inputmode="numeric" style="width:5.5em" disabled><button id="applyNumber" disabled>套用</button><button id="clearNumber" disabled>改回自動</button></label>
   </div>
   <div class="row" id="batchTools" hidden>
-    <span id="vertexCount" role="status">已選 0 點</span>
+    <label><input id="appendVertices" type="checkbox">追加選取</label><span id="vertexCount" role="status">已選 0 點</span>
     <label>強度 <select id="smoothStrength"><option value="1">輕微</option><option value="3" selected>標準</option><option value="6">較強</option></select></label>
     <button id="smoothVertices" disabled>平滑化</button><button id="deleteVertices" class="danger" disabled>刪除所選頂點</button><button id="clearVertices" disabled>清除選取</button>
   </div>
@@ -34,10 +34,16 @@
     <label><input id="overlay" type="checkbox" checked>色塊</label><label><input id="anchors" type="checkbox" checked>編號位置</label>
     <span id="summary"></span>
   </div>
+  </div>
   <p id="hint">點選色塊開始修正；拖曳空白處平移，滾輪縮放。</p>
   <p id="message" role="alert"></p>
-  </div>
 </header>
+<div class="touchTools" role="toolbar" aria-label="觸控常用工具">
+  <div class="touchModes"><button data-mode="pan">移動</button><button data-mode="select">選取</button><button data-mode="draw">畫區塊</button><button data-mode="vertex">頂點</button><button data-mode="box">框選</button><button data-action="undo">復原</button><button data-action="save" class="primary">存雲端</button></div>
+  <div id="touchDrawActions" hidden><button data-action="backPoint">退回一點</button><button data-action="deleteDraftPoint">刪選取點</button><button data-action="finishDraw" class="primary">完成區塊</button><button data-action="cancelDraw">放棄繪製</button></div>
+  <div id="touchVertexActions" hidden><button data-action="deleteVertex">刪除頂點</button><button data-action="redo">重做</button></div>
+  <div id="touchBoxActions" hidden><button data-action="smoothVertices">平滑化</button><button data-action="deleteVertices">刪除所選點</button><button data-action="clearVertices">清除選取</button></div>
+</div>
 <main>
   <svg id="mapCanvas" aria-label="可編輯分區地圖" tabindex="0"><image id="background"/><g id="regions"></g><g id="labels"></g><g id="vertices"></g><g id="cutLine"></g><g id="boxSelection"></g></svg>
   <p id="selection" aria-live="polite">尚未選取區塊</p>
