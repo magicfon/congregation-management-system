@@ -3,7 +3,7 @@ const G=require('../public/tools/boundary-editor/geometry.js');
 const base=G.independentBlocks(require('../public/maps/reconstruction-v1/nanzih.json'));
 async function editor(){
  const nodes=new Map(),docEvents={},events={};
- function node(){const n={hidden:false,disabled:false,checked:true,value:'nanzih',clientWidth:1000,clientHeight:600,children:[],attrs:{},dataset:{},textContent:'',listeners:{},classList:{contains(c){return (n.attrs.class||'').split(' ').includes(c)},toggle(){return false}},setAttribute(k,v){n.attrs[k]=String(v);if(k.startsWith('data-'))n.dataset[k.slice(5)]=String(v)},getAttribute(k){return n.attrs[k]},replaceChildren(...c){n.children=c},append(...c){n.children.push(...c)},addEventListener(k,f){n.listeners[k]=f},setPointerCapture(){},hasPointerCapture(){return false},releasePointerCapture(){},getBoundingClientRect(){return{left:0,top:0,width:1000,height:600}},matches(){return false},querySelector(s){return n.children.find(c=>c.classList?.contains(s.slice(1)))},click(){if(!n.disabled)return n.onclick?.()}};return n}
+ function node(){const n={hidden:false,disabled:false,checked:true,value:'nanzih',clientWidth:1000,clientHeight:600,children:[],attrs:{},dataset:{},textContent:'',listeners:{},classList:{contains(c){return (n.attrs.class||'').split(' ').includes(c)},toggle(){return false}},setAttribute(k,v){n.attrs[k]=String(v);if(k.startsWith('data-'))n.dataset[k.slice(5)]=String(v)},getAttribute(k){return n.attrs[k]},replaceChildren(...c){n.children=c},append(...c){n.children.push(...c)},addEventListener(k,f){n.listeners[k]=f},setPointerCapture(){},hasPointerCapture(){return false},releasePointerCapture(){},getBoundingClientRect(){return{left:0,top:0,width:1000,height:600}},matches(){return false},focus(){document.activeElement=n},querySelector(s){return n.children.find(c=>c.classList?.contains(s.slice(1)))},click(){if(!n.disabled)return n.onclick?.()}};return n}
  const get=id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id)};
  const modes=['select','draw','cut','vertex','box','pan'].map(mode=>{const n=node();n.dataset.mode=mode;return n});
  const svg=get('mapCanvas');svg.createSVGPoint=()=>({x:0,y:0,matrixTransform(){return{x:this.x,y:this.y}}});svg.getScreenCTM=()=>({inverse:()=>({})});
@@ -64,5 +64,11 @@ if(require.main===module)(async()=>{
  // Manual numbers are edits even when polygon geometry is unchanged.
  const region=ui.get('regions').children[0];ui.event('pointerdown',100,100,1,'mouse',region);ui.event('pointerup',100,100,1,'mouse',region);
  ui.get('setNumber').value='58';ui.get('setNumber').listeners.input();ui.get('applyNumber').click();assert.equal(ui.get('save').disabled,false);
- console.log('PASS: cancel/Escape preserve prior work, preview cannot save, invalid boundary rejects, undo/redo, selected point deletion, multitouch/cancel without edits, manual-number dirty detection.');
+ ui.get('touchNumberToggle').click();assert.equal(ui.get('touchNumberPanel').hidden,false);
+ ui.get('touchNumber').value='1000';ui.get('touchNumber').listeners.input();assert.equal(ui.get('touchApplyNumber').disabled,true);
+ ui.get('touchNumber').value='59';ui.get('touchNumber').listeners.input();ui.get('touchApplyNumber').click();
+ await ui.get('save').click();assert.equal(ui.saved().candidates.find(c=>c.candidateId===region.dataset.id).manualNumber,59);
+ ui.get('touchClearNumber').click();assert.equal(ui.get('save').disabled,false);ui.get('undo').click();assert.equal(ui.get('save').disabled,true);
+ assert.equal(ui.get('touchNumberToggle').disabled,true,'undo clears selection and disables number tool');
+ console.log('PASS: tablet number assignment/validation/save/clear/undo; cancel/Escape preserve prior work, preview cannot save, invalid boundary rejects, undo/redo, selected point deletion, multitouch/cancel without edits, manual-number dirty detection.');
 })().catch(e=>{console.error(e);process.exitCode=1});

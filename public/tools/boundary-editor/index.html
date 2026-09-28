@@ -39,7 +39,11 @@
   <p id="message" role="alert"></p>
 </header>
 <div class="touchTools" role="toolbar" aria-label="觸控常用工具">
-  <div class="touchModes"><button data-mode="pan">移動</button><button data-mode="select">選取</button><button data-mode="draw">畫區塊</button><button data-mode="vertex">頂點</button><button data-mode="box">框選</button><button data-action="undo">復原</button><button data-action="save" class="primary">存雲端</button></div>
+  <div class="touchModes"><button data-mode="pan">移動</button><button data-mode="select">選取</button><button data-mode="draw">畫區塊</button><button data-mode="vertex">頂點</button><button data-mode="box">框選</button><button id="touchNumberToggle" aria-expanded="false" aria-controls="touchNumberPanel" disabled>指定區域號碼</button><button data-action="undo">復原</button><button data-action="save" class="primary">存雲端</button></div>
+  <div id="touchNumberPanel" hidden>
+    <label for="touchNumber">區域號碼</label><input id="touchNumber" type="number" min="1" max="999" inputmode="numeric" placeholder="1–999" disabled>
+    <button id="touchApplyNumber" class="primary" disabled>套用號碼</button><button id="touchClearNumber" disabled>改回自動</button><button id="touchNumberClose">收合</button>
+  </div>
   <div id="touchDrawActions" hidden><button data-action="backPoint">退回一點</button><button data-action="deleteDraftPoint">刪選取點</button><button data-action="finishDraw" class="primary">完成區塊</button><button data-action="cancelDraw">放棄繪製</button></div>
   <div id="touchVertexActions" hidden><button data-action="deleteVertex">刪除頂點</button><button data-action="redo">重做</button></div>
   <div id="touchBoxActions" hidden><button data-action="smoothVertices">平滑化</button><button data-action="deleteVertices">刪除所選點</button><button data-action="clearVertices">清除選取</button></div>

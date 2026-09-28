@@ -3,7 +3,7 @@
   'use strict';
   const G=window.BoundaryGeometry, $=id=>document.getElementById(id), svg=$('mapCanvas'), ns='http://www.w3.org/2000/svg';
   let doc,base,selected=null,mode='select',cut=[],undo=[],redo=[],dirty=false,version=0,cloudReady=false,busy=false;
-  let drawn=[],draftVertex=null,drawError=null;
+  let drawn=[],draftVertex=null,drawError=null,numberPanelOpen=false,numberSelection=null;
   const pointers=new Map();
   const hasDraft=()=>drawn.length>0||cut.length>0;
   let view=[0,0,1,1],gesture=null,storageOK=true;
@@ -48,10 +48,16 @@
     $('finishDraw').disabled=editingBlocked()||!!gesture||drawn.length<3||!!drawError; $('cancelDraw').disabled=editingBlocked()||!!gesture||!drawn.length;
     $('backPoint').disabled=editingBlocked()||!!gesture||!drawn.length; $('deleteDraftPoint').disabled=editingBlocked()||!!gesture||draftVertex===null;
     $('touchDrawActions').hidden=mode!=='draw'; $('touchVertexActions').hidden=mode!=='vertex'; $('touchBoxActions').hidden=mode!=='box';
-    const sel=selectedBlock();
-    const number=Number($('setNumber').value);
-    $('setNumber').disabled=editingBlocked()||hasDraft()||!selected; $('applyNumber').disabled=editingBlocked()||hasDraft()||!selected||!Number.isInteger(number)||number<1||number>999; $('clearNumber').disabled=editingBlocked()||hasDraft()||!selected||sel?.manualNumber==null;
-    if(selected&&sel&&document.activeElement!==$('setNumber'))$('setNumber').value=sel.manualNumber!=null?String(sel.manualNumber):'';
+    const sel=selectedBlock(),numberBlocked=editingBlocked()||!!gesture||hasDraft()||!sel;
+    if(numberSelection!==selected){numberSelection=selected;numberPanelOpen=false;for(const id of ['setNumber','touchNumber'])$(id).value=sel?.manualNumber!=null?String(sel.manualNumber):'';}
+    for(const [input,apply,clear] of [['setNumber','applyNumber','clearNumber'],['touchNumber','touchApplyNumber','touchClearNumber']]){
+      if(document.activeElement!==$(input))$(input).value=sel?.manualNumber!=null?String(sel.manualNumber):'';
+      const n=Number($(input).value);
+      $(input).disabled=numberBlocked;$(apply).disabled=numberBlocked||!Number.isInteger(n)||n<1||n>999;$(clear).disabled=numberBlocked||sel?.manualNumber==null;
+    }
+    $('touchNumberToggle').disabled=numberBlocked;
+    $('touchNumberToggle').setAttribute('aria-expanded',String(numberPanelOpen&&!numberBlocked));
+    $('touchNumberPanel').hidden=!numberPanelOpen||numberBlocked;
     document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked()||!!gesture;b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
     $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':hasDraft()?'繪製預覽，尚未完成':dirty?'尚未儲存到雲端':version?'已儲存到雲端':'尚無修改';
     $('hint').textContent=mode==='box'?'單指框選目前區塊的頂點；可勾選追加選取。雙指平移／縮放。':mode==='cut'?'逐點補線後按完成補線；雙指可移動畫面。':mode==='draw'?(drawn.length?`${drawn.length} 點預覽${draftVertex===null?'':` · 已選第 ${draftVertex+1} 點`}｜${drawError||'按「完成區塊」套用，再儲存到雲端。'}`:'單指點一下放頂點，雙指平移／縮放；滿三點顯示預覽，完成後再儲存。'):mode==='vertex'?'觸控：先點選頂點，再拖曳調整；雙指平移／縮放。可刪除所選頂點。':mode==='pan'?'單指移動畫面，雙指平移／縮放。':'點選區塊；單指拖曳移動，雙指平移／縮放。';
@@ -157,10 +163,19 @@
   $('cancelDraw').onclick=()=>{if(!editingBlocked()&&!gesture)discardDraft();};
   $('backPoint').onclick=()=>{if(editingBlocked()||gesture||!drawn.length)return;drawn.pop();draftVertex=null;updateDraft();};
   $('deleteDraftPoint').onclick=()=>{if(editingBlocked()||gesture||draftVertex===null)return;drawn.splice(draftVertex,1);draftVertex=null;updateDraft();};
-  $('applyNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}const n=Number($('setNumber').value);try{commit(G.setNumber(doc,selected,n));message(`已指定號碼 ${n}，儲存後生效。`);}catch(error){message(error.message);}};
-  $('clearNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}try{commit(G.setNumber(doc,selected,null));message('已改回自動配對。');}catch(error){message(error.message);}};
-  $('setNumber').addEventListener('input',()=>{const n=Number($('setNumber').value);$('applyNumber').disabled=editingBlocked()||hasDraft()||!selected||!Number.isInteger(n)||n<1||n>999;});
-  $('setNumber').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(!$('applyNumber').disabled)$('applyNumber').click();}});
+  function assignNumber(input){
+    if(editingBlocked()||gesture||hasDraft()||!selected)return;
+    const n=Number($(input).value);
+    try{commit(G.setNumber(doc,selected,n));message(`已指定區域號碼 ${n}，尚未儲存到雲端。`);}catch(error){message(error.message);}
+  }
+  function clearNumber(){if(editingBlocked()||gesture||hasDraft()||!selected)return;try{commit(G.setNumber(doc,selected,null));message('已改回自動配對，尚未儲存到雲端。');}catch(error){message(error.message);}}
+  for(const [input,apply,clear] of [['setNumber','applyNumber','clearNumber'],['touchNumber','touchApplyNumber','touchClearNumber']]){
+    $(apply).onclick=()=>assignNumber(input);$(clear).onclick=clearNumber;
+    $(input).addEventListener('input',()=>{const n=Number($(input).value);$(apply).disabled=editingBlocked()||!!gesture||hasDraft()||!selected||!Number.isInteger(n)||n<1||n>999;});
+    $(input).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(!$(apply).disabled)$(apply).click();}});
+  }
+  $('touchNumberToggle').onclick=()=>{if($('touchNumberToggle').disabled)return;numberPanelOpen=!numberPanelOpen;controls();if(numberPanelOpen)$('touchNumber').focus();};
+  $('touchNumberClose').onclick=()=>{numberPanelOpen=false;controls();};
   function deleteVertex(){if(editingBlocked()||gesture||mode!=='vertex'||!vertex||vertex.id!==selected)return;try{const v=vertex;const next=G.removeVertex(doc,selected,v.pi,v.ri,v.vi);vertex=null;commit(next);message('頂點已刪除，前後頂點已連接；可復原，尚未儲存。');}catch(error){message(error.message);}}
   $('deleteVertex').onclick=deleteVertex;
   function batchEdit(operation){
