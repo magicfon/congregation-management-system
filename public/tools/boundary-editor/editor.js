@@ -81,6 +81,33 @@
     const issueNames={'image-edge':'碰圖片邊緣','multiple-numbers':'多個編號合併','no-number':'尚未配對編號'};
     $('selection').textContent=c?`選取：${c.numberCandidates.join('、')||'未配對編號'}${c.manualNumber!=null?'（手動指定）':''}｜${c.issues.map(i=>issueNames[i]||i).join('、')||'單一編號'}｜仍待核對｜可用「指定號碼」改號`:'尚未選取區塊';
     if($('summary'))$('summary').textContent=`${doc.candidates.length} 塊候選 · ${doc.summary.singleNumberInteriorCandidates} 塊單一編號`;
+    updateNumberAudit();
+  }
+  function blockNumber(c){
+    if(c.manualNumber!=null)return c.manualNumber;
+    const u=[...new Set(c.numberCandidates)].sort((a,b)=>a-b);
+    return u.length===1?u[0]:null;
+  }
+  function updateNumberAudit(){
+    const box=$('numberAudit');if(!box)return;
+    const all=[...new Set(doc.labelAnchors.map(a=>a.number))].sort((a,b)=>a-b);
+    const used=new Map();
+    for(const c of doc.candidates){
+      const n=blockNumber(c);
+      if(n==null)continue;
+      used.set(n,(used.get(n)||0)+1);
+    }
+    const missing=all.filter(n=>!used.has(n));
+    const dup=[...used.entries()].filter(([,k])=>k>1);
+    const parts=[];
+    if(missing.length)parts.push(`未指定區域的號碼（${missing.length}）：${missing.join('、')}`);
+    if(dup.length)parts.push(`指定到多個區塊的號碼（${dup.length}）：${dup.map(([n,k])=>`${n}×${k}`).join('、')}`);
+    box.replaceChildren();
+    if(!parts.length){box.append(new Text('號碼稽核：全部號碼都已指定區域 ✓'));return;}
+    for(const p of parts){
+      const div=document.createElement('div');div.className='auditLine';div.textContent=p;
+      box.append(div);
+    }
   }
   function drawHandles() {
     const group=$('vertices');group.replaceChildren();if(!['vertex','box'].includes(mode))return;

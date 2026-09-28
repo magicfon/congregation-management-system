@@ -4,6 +4,9 @@
 #message{bottom:2.4rem;left:8px;right:8px;color:#fcd34d;text-shadow:0 1px 3px #000c}
 #hint:empty,#message:empty{display:none}main{position:relative;flex:1;min-height:190px;background:#334155}#mapCanvas{display:block;width:100%;height:100%;touch-action:none;user-select:none}#mapCanvas .region{cursor:pointer;vector-effect:non-scaling-stroke;stroke-width:1}#mapCanvas .selected{stroke:#38bdf8;stroke-width:3;fill-opacity:.26}.handle{fill:white;stroke:#0284c7;stroke-width:2;vector-effect:non-scaling-stroke;cursor:grab}.cut{stroke:#e11d48;stroke-width:3;vector-effect:non-scaling-stroke;fill:none;pointer-events:none}#selection{position:absolute;bottom:0;left:0;right:0;padding:6px 10px;background:#101827e8;pointer-events:none;max-height:4em;overflow:hidden}footer{font-size:12px;padding:5px 12px;color:#94a3b8}a{color:#7dd3fc}#background,#labels{pointer-events:none}
 #toolToggle,.touchTools{display:none}
+#numberAudit{margin-top:auto;padding:8px 10px;border-top:1px solid #3f3f46;font-size:11px;line-height:1.5;color:#a1a1aa;max-height:32dvh;overflow:auto}
+.auditLine{margin-bottom:4px;word-break:break-all}
+.auditLine:first-child{color:#fca5a5}
 /* 桌機寬螢幕：工具列改左側直欄，地圖滿高（上下貼齊視窗） */
 @media (min-width:640px){
   body{flex-direction:row}
