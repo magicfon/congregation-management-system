@@ -35,6 +35,8 @@
   function readBackup(id) {try {return JSON.parse(localStorage.getItem(key(id))||'null');}catch{return null;}}
   function controls() {
     $('batchTools').hidden=mode!=='box';
+    if($('numberRow'))$('numberRow').hidden=!(mode==='select'&&!!selected);
+    if($('deleteBlock'))$('deleteBlock').hidden=!(mode==='select'&&!!selected&&!hasDraft());
     $('vertexCount').textContent=`已選 ${selectedVertices.length} 點`;
     for(const id of ['smoothVertices','deleteVertices','clearVertices'])$(id).disabled=editingBlocked()||!!gesture||!selectedVertices.length;
     $('smoothStrength').disabled=editingBlocked()||!!gesture;
@@ -60,7 +62,7 @@
     $('touchNumberPanel').hidden=!numberPanelOpen||numberBlocked;
     document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked()||!!gesture;b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
     $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':hasDraft()?'繪製預覽，尚未完成':dirty?'尚未儲存到雲端':version?'已儲存到雲端':'尚無修改';
-    $('hint').textContent=mode==='box'?'單指框選目前區塊的頂點；可勾選追加選取。雙指平移／縮放。':mode==='cut'?'逐點補線後按完成補線；雙指可移動畫面。':mode==='draw'?(drawn.length?`${drawn.length} 點預覽${draftVertex===null?'':` · 已選第 ${draftVertex+1} 點`}｜${drawError||'按「完成區塊」套用，再儲存到雲端。'}`:'單指點一下放頂點，雙指平移／縮放；滿三點顯示預覽，完成後再儲存。'):mode==='vertex'?'觸控：先點選頂點，再拖曳調整；雙指平移／縮放。可刪除所選頂點。':mode==='pan'?'單指移動畫面，雙指平移／縮放。':'點選區塊；單指拖曳移動，雙指平移／縮放。';
+    $('hint').textContent=mode==='draw'?(drawn.length?`${drawn.length} 點｜${drawError||'滿3點自動成塊，Enter 定案'}`:'點擊放頂點（滿3點自動成塊）'):mode==='box'?'框選頂點後可批次平滑/刪除':mode==='cut'?'逐點補線，完成後按「完成補線」':mode==='vertex'?'先點頂點再拖曳調整':'點選區塊；Delete 刪除、Ctrl+Z 復原';
     document.querySelectorAll('[data-action]').forEach(b=>{b.disabled=$(b.dataset.action).disabled;});
 
   }
@@ -78,7 +80,7 @@
     const c=selectedBlock();
     const issueNames={'image-edge':'碰圖片邊緣','multiple-numbers':'多個編號合併','no-number':'尚未配對編號'};
     $('selection').textContent=c?`選取：${c.numberCandidates.join('、')||'未配對編號'}${c.manualNumber!=null?'（手動指定）':''}｜${c.issues.map(i=>issueNames[i]||i).join('、')||'單一編號'}｜仍待核對｜可用「指定號碼」改號`:'尚未選取區塊';
-    $('summary').textContent=`${doc.candidates.length} 塊候選 · ${doc.summary.singleNumberInteriorCandidates} 塊單一編號`;
+    if($('summary'))$('summary').textContent=`${doc.candidates.length} 塊候選 · ${doc.summary.singleNumberInteriorCandidates} 塊單一編號`;
   }
   function drawHandles() {
     const group=$('vertices');group.replaceChildren();if(!['vertex','box'].includes(mode))return;
@@ -212,7 +214,7 @@
   function history(back) {if(editingBlocked()||hasDraft()||gesture)return;resetDraft();const from=back?undo:redo,to=back?redo:undo;if(!from.length)return;to.push(G.clone(doc));doc=from.pop();dirty=geometryKey(doc)!==savedGeometry;selected=null;mode='select';vertex=null;selectedVertices=[];cut=[];backup();render();}
   $('undo').onclick=()=>history(true);$('redo').onclick=()=>history(false);
   $('overlay').onchange=render;$('anchors').onchange=render;
-  $('plus').onclick=()=>zoom(.7);$('minus').onclick=()=>zoom(1/.7);$('fit').onclick=fit;
+  if($('plus'))$('plus').onclick=()=>zoom(.7);if($('minus'))$('minus').onclick=()=>zoom(1/.7);$('fit').onclick=fit;
   $('plus2').onclick=()=>zoom(.7);$('minus2').onclick=()=>zoom(1/.7);$('fit2').onclick=fit;
   $('toolToggle').onclick=()=>{const h=document.querySelector('header'),open=h.classList.toggle('open');$('toolToggle').setAttribute('aria-expanded',String(open));$('toolToggle').textContent=open?'工具 ▲':'工具 ▼';};
   $('focus').onclick=()=>{const c=selectedBlock();if(!c)return;const pts=c.polygons.flat(2);const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);const x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y;const ratio=svg.clientWidth/Math.max(svg.clientHeight,1),vw=Math.max(w,h*ratio)*1.15;setView([x+w/2-vw/2,y+h/2-vw/ratio/2,vw,vw/ratio]);};
