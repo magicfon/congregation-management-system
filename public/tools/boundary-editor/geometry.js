@@ -48,7 +48,6 @@
     return d;
   }
   function refresh(doc) {
-    const [w,h]=doc.imageSize;
     for(const c of doc.candidates) {
       // manualNumber wins over anchor auto-pairing
       if(c.manualNumber==null) {
@@ -57,7 +56,6 @@
         c.numberCandidates=[c.manualNumber];
       }
       c.issues=[];
-      if(c.polygons.some(p=>p[0].some(([x,y])=>x<5||y<5||x>w-5||y>h-5))) c.issues.push('image-edge');
       if(!c.numberCandidates.length)c.issues.push('no-number');
       if(c.numberCandidates.length>1)c.issues.push('multiple-numbers');
       c.status='needs-review'; c.pixelArea=Math.round(area(c.polygons));
@@ -66,7 +64,7 @@
     doc.summary={...doc.summary,candidateCount:doc.candidates.length,approvedCount:0,
       singleNumberInteriorCandidates:doc.candidates.filter(c=>!c.issues.length).length,
       mergedNumberGroups:doc.candidates.filter(c=>c.numberCandidates.length>1).map(c=>c.numberCandidates),
-      edgeCandidates:doc.candidates.filter(c=>c.issues.includes('image-edge')).length,
+      edgeCandidates:0,
       unmatchedLabelNumbers:[...new Set(doc.labelAnchors.map(a=>a.number))].filter(n=>!covered.has(n))};
     return doc;
   }

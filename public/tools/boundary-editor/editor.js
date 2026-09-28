@@ -83,7 +83,7 @@
     if($('anchors').checked)for(const a of doc.labelAnchors)labels.append(element('circle',{cx:a.point[0],cy:a.point[1],r:view[2]/Math.max(svg.clientWidth,1)*2.5,fill:'#e11d48'}));
     drawHandles();drawCut();if(mode==='draw')drawDraft();controls();
     const c=selectedBlock();
-    const issueNames={'image-edge':'碰圖片邊緣','multiple-numbers':'多個編號合併','no-number':'尚未配對編號'};
+    const issueNames={'multiple-numbers':'多個編號合併','no-number':'尚未配對編號'};
     $('selection').textContent=c?`選取：${c.numberCandidates.join('、')||'未配對編號'}${c.manualNumber!=null?'（手動指定）':''}｜${c.issues.map(i=>issueNames[i]||i).join('、')||'單一編號'}｜仍待核對｜可用「指定號碼」改號`:'尚未選取區塊';
     if($('summary'))$('summary').textContent=`${doc.candidates.length} 塊候選 · ${doc.summary.singleNumberInteriorCandidates} 塊單一編號`;
     updateNumberAudit();
