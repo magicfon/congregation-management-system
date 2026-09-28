@@ -49,7 +49,7 @@
     if(selected&&sel&&document.activeElement!==$('setNumber'))$('setNumber').value=sel.manualNumber!=null?String(sel.manualNumber):'';
     document.querySelectorAll('[data-mode]').forEach(b=>{b.disabled=editingBlocked();b.setAttribute('aria-pressed',String(mode===b.dataset.mode));});
     $('saveState').textContent=busy?'處理中…':!doc?'未載入':!cloudReady?'無法載入，請重試':dirty?'尚未儲存':version?'已儲存':'尚無修改';
-    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='draw'?(drawn.length?`已放 ${drawn.length} 點｜點最後的藍點可退一點｜滿 3 點自動成塊；Esc 結束畫圖。`:'點擊放置頂點（滿 3 點自動建立區塊，可連續畫多塊）；點錯點藍點退一點；Esc 結束。'):mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
+    $('hint').textContent=mode==='box'?'拖曳框選目前區塊的頂點；Shift 可追加選取。黃色為所選點，可平滑化或批次刪除；Esc 清除。':mode==='cut'?'逐點補線：由選取區塊邊界外開始，沿缺口畫到另一側邊界外，再按「完成補線」。Esc 取消。':mode==='draw'?(drawn.length?(liveBlockId?`已放 ${drawn.length} 點（即時更新中）｜點最後的藍點退一點｜按 Enter 或「完成新區塊」定案；Esc 丟棄。`:`已放 ${drawn.length} 點｜滿 3 點自動儲存｜點藍點退一點。`):'點擊放置頂點：滿 3 點自動儲存，繼續點即時擴充同一塊；點藍點退一點；按 Enter 定案。'):mode==='vertex'?'拖曳白色頂點調整邊界；點選頂點變黃後，可按「刪除頂點」或 Delete。每環至少保留 3 點，可復原。':'點選色塊；拖曳可平移，滾輪可縮放。Ctrl / ⌘ + Z 復原。';
   }
   function render() {
     if(!doc){controls();return;}
@@ -92,6 +92,7 @@
   function zoom(factor,center=[view[0]+view[2]/2,view[1]+view[3]/2]) {if(!doc)return;const w=view[2]*factor;if(w<40||w>doc.imageSize[0]*5)return;setView([center[0]+(view[0]-center[0])*factor,center[1]+(view[1]-center[1])*factor,w,view[3]*factor]);}
   function point(event) {const p=svg.createSVGPoint();p.x=event.clientX;p.y=event.clientY;const v=p.matrixTransform(svg.getScreenCTM().inverse());return [v.x,v.y];}
   function commit(next) {undo.push(G.clone(doc));if(undo.length>20)undo.shift();redo=[];doc=next;dirty=geometryKey(doc)!==savedGeometry;cut=[];backup();render();}
+  function commitQuiet(next) {doc=next;dirty=geometryKey(doc)!==savedGeometry;backup();render();}
   function applyDocument(next) {doc=G.independentBlocks(G.validate(next,base));selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];render();}
   async function cloudRequest(id,options) {
     const response=await fetch(api(id),{cache:'no-store',...options});
@@ -112,7 +113,7 @@
     busy=true;controls();message('');
     try {
       const response=await fetch(`/maps/reconstruction-v1/${id}.json`);if(!response.ok){needsReload=true;throw new Error('無法載入原始候選。');}
-      base=await response.json();loadedGeometry=geometryKey(base);doc=G.independentBlocks(base);selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];drawn=[];dirty=false;version=0;cloudReady=false;pendingRecovery=null;needsReload=false;
+      base=await response.json();loadedGeometry=geometryKey(base);doc=G.independentBlocks(base);selected=null;mode='select';vertex=null;selectedVertices=[];undo=[];redo=[];cut=[];drawn=[];liveBlockId=null;dirty=false;version=0;cloudReady=false;pendingRecovery=null;needsReload=false;
       $('background').setAttribute('href','/maps/'+base.sourceImage);$('background').setAttribute('width',base.imageSize[0]);$('background').setAttribute('height',base.imageSize[1]);
       try {const result=await cloudRequest(id);if(result.draft){loadedGeometry=geometryKey(result.draft.document);applyDocument(result.draft.document);version=result.draft.version;message('');}cloudReady=true;}
       catch(error){cloudReady=false;needsReload=true;message('載入失敗，目前顯示原始候選，尚未取得已儲存修改。'+error.message);}
@@ -126,13 +127,21 @@
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{
     if(editingBlocked())return;
     if(b.dataset.mode!=='select'&&b.dataset.mode!=='draw'&&!selected){message('請先點選一塊要修正的色塊。');return;}
-    mode=b.dataset.mode;vertex=null;selectedVertices=[];cut=[];drawn=[];message('');render();
+    if(mode==='draw'&&liveBlockId)endLiveBlock();mode=b.dataset.mode;vertex=null;selectedVertices=[];cut=[];drawn=[];liveBlockId=null;message('');render();
   });
   $('finish').onclick=()=>{try {const next=G.split(doc,selected,cut,crypto.randomUUID());commit(next);selected=null;mode='select';vertex=null;selectedVertices=[];mode='select';message('已切開區塊並重新配對編號，請核對後儲存。');render();}catch(error){message(error.message);}};
   $('cancel').onclick=()=>{cut=[];render();};
-  function finishDrawAuto(){try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);const log=next.correctionLog[next.correctionLog.length-1];drawn=[];mode='draw';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message(`已自動建立新區塊${log.carved?`，${log.carved} 塊舊區塊已自動讓位`:''}${log.removed?`，${log.removed} 塊被完全覆蓋而移除`:''}；繼續點可畫下一塊，或指定號碼後儲存（可復原）。`);render();}catch(error){/* 3 點階段可能自交：保留頂點讓使用者繼續修正，不彈錯 */}}
-  $('finishDraw').onclick=()=>{if(drawn.length<3){message('至少需要 3 個頂點。');return;}try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);const log=next.correctionLog[next.correctionLog.length-1];drawn=[];mode='select';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message(`已建立新區塊${log.carved?`，${log.carved} 塊舊區塊已自動讓位`:''}${log.removed?`，${log.removed} 塊被完全覆蓋而移除`:''}；可指定號碼後儲存（可復原）。`);render();}catch(error){message(error.message);}};
-  $('cancelDraw').onclick=()=>{drawn=[];mode='select';render();};
+  let liveBlockId=null;
+  function G_removeLive(){if(undo.length){doc=undo.pop();dirty=geometryKey(doc)!==savedGeometry;liveBlockId=null;backup();render();}}
+  function updateLiveBlock(){
+    try{
+      if(!liveBlockId){const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);liveBlockId=doc.candidates[doc.candidates.length-1].candidateId;message('已自動儲存區塊；繼續點可加頂點即時更新，完成後按 Enter 或切換模式結束。');}
+      else{const next=G.updateBlock(doc,liveBlockId,drawn);commitQuiet(next);}
+    }catch(error){/* 自交等無效形狀：保留頂點，不彈錯 */}
+  }
+  function endLiveBlock(){if(liveBlockId){selected=liveBlockId;liveBlockId=null;drawn=[];message('區塊已定案；可指定號碼後儲存。');render();}}
+  $('finishDraw').onclick=()=>{if(liveBlockId){endLiveBlock();return;}if(drawn.length<3){message('至少需要 3 個頂點。');return;}try{const next=G.addBlock(doc,drawn,crypto.randomUUID().slice(0,8));commit(next);const log=next.correctionLog[next.correctionLog.length-1];drawn=[];mode='select';const last=doc.candidates[doc.candidates.length-1];selected=last?last.candidateId:null;message(`已建立新區塊${log.carved?`，${log.carved} 塊舊區塊已自動讓位`:''}${log.removed?`，${log.removed} 塊被完全覆蓋而移除`:''}；可指定號碼後儲存（可復原）。`);render();}catch(error){message(error.message);}};
+  $('cancelDraw').onclick=()=>{if(liveBlockId)endLiveBlock();drawn=[];liveBlockId=null;mode='select';render();};
   $('applyNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}const n=Number($('setNumber').value);try{commit(G.setNumber(doc,selected,n));message(`已指定號碼 ${n}，儲存後生效。`);}catch(error){message(error.message);}};
   $('clearNumber').onclick=()=>{if(!selected){message('請先點選區塊。');return;}try{commit(G.setNumber(doc,selected,null));message('已改回自動配對。');}catch(error){message(error.message);}};
   $('setNumber').addEventListener('input',()=>{const n=Number($('setNumber').value);$('applyNumber').disabled=editingBlocked()||!selected||!Number.isInteger(n)||n<1||n>999;});
@@ -169,8 +178,8 @@
     const p=point(e),target=e.target;
     if(mode==='box'){if(!selected){message('請先選取區塊。');return;}gesture={kind:'box',start:p,append:e.shiftKey};drawBox(p,p);svg.setPointerCapture(e.pointerId);controls();return;}
     if(mode==='cut') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;cut.push(p);drawCut();controls();return;}
-    if(mode==='draw'&&target.classList&&target.classList.contains('drawDot')) {drawn.pop();drawDraft();controls();return;}
-    if(mode==='draw') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;drawn.push(p);if(drawn.length>=3)finishDrawAuto();drawDraft();controls();return;}
+    if(mode==='draw'&&target.classList&&target.classList.contains('drawDot')) {drawn.pop();if(liveBlockId&&drawn.length<3){/* 退到 3 以下：拆掉 live block，回復純畫線 */G_removeLive();}else if(liveBlockId&&drawn.length>=3){try{const next=G.updateBlock(doc,liveBlockId,drawn);commitQuiet(next);}catch(e){}}drawDraft();controls();return;}
+    if(mode==='draw') {if(p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])return;drawn.push(p);if(drawn.length>=3)updateLiveBlock();drawDraft();controls();return;}
     if(target.classList.contains('handle')) {
       const pi=Number(target.dataset.pi),ri=Number(target.dataset.ri),vi=Number(target.dataset.vi),c=doc.candidates.find(c=>c.candidateId===selected);
       vertex={id:selected,pi,ri,vi};
@@ -201,7 +210,7 @@
     else {const p=point(e);if(Math.hypot(p[0]-g.start[0],p[1]-g.start[1])<.01){render();return;}try{commit(G.move(doc,selected,g.pi,g.ri,g.vi,p));message('頂點已調整，尚未儲存。');}catch(error){message(error.message);render();}}
   });
   svg.addEventListener('pointercancel',()=>{gesture=null;$('boxSelection').replaceChildren();render();});
-  document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;if(e.key==='Delete'&&mode==='box'){e.preventDefault();batchEdit('delete');}if(e.key==='Delete'&&mode==='vertex'&&vertex){e.preventDefault();deleteVertex();}if(e.key==='Escape'){selectedVertices=[];$('boxSelection').replaceChildren();cut=[];drawn=[];gesture=null;render();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();if(e.key==='Enter'&&mode==='draw'&&drawn.length>=3)$('finishDraw').click();});
+  document.addEventListener('keydown',e=>{if(e.target.matches('input,select,textarea')||e.target.isContentEditable||busy||gesture)return;if(e.key==='Delete'&&mode==='box'){e.preventDefault();batchEdit('delete');}if(e.key==='Delete'&&mode==='vertex'&&vertex){e.preventDefault();deleteVertex();}if(e.key==='Escape'){selectedVertices=[];$('boxSelection').replaceChildren();cut=[];drawn=[];liveBlockId=null;gesture=null;render();}if(e.key==='Enter'&&mode==='draw'&&liveBlockId){e.preventDefault();endLiveBlock();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();history(!e.shiftKey);}if(e.key==='Enter'&&mode==='cut'&&cut.length>=2)$('finish').click();if(e.key==='Enter'&&mode==='draw'&&drawn.length>=3)$('finishDraw').click();});
   $('save').onclick=async()=>{
     busy=true;controls();message('');const snapshot=G.clone(doc);
     try {

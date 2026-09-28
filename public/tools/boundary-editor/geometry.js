@@ -142,6 +142,18 @@
     record(next,{type:'add-block',candidateId:`${doc.mapId}-draw-${nonce}`,vertices:closed.length-1,carved,removed,overlapped});
     return refresh(next);
   }
+  function updateBlock(doc,id,ring) {
+    const next=clone(doc),c=next.candidates.find(c=>c.candidateId===id);
+    if(!c)throw new Error('區塊不存在。');
+    if(!Array.isArray(ring)||ring.length<3)throw new Error('新區塊至少需要 3 個頂點。');
+    const closed=[...ring.map(p=>[Math.round(p[0]*100)/100,Math.round(p[1]*100)/100])];
+    closed.push(closed[0].slice());
+    for(const p of closed) if(!p.every(Number.isFinite)||p[0]<0||p[1]<0||p[0]>=doc.imageSize[0]||p[1]>=doc.imageSize[1])throw new Error('頂點不可超出圖片範圍。');
+    if(!simple(closed))throw new Error('邊界交叉，無法建立區塊。');
+    if(area([[closed]])<25)throw new Error('區塊太小，請畫大一點。');
+    c.polygons=[[closed]];
+    return refresh(next);
+  }
   function removeCandidate(doc,id) {
     if(!doc.candidates.some(c=>c.candidateId===id))throw new Error('請先選取要刪除的區塊。');
     const next=clone(doc);
@@ -223,5 +235,5 @@
     for(let i=1;i<poly.length;i++)for(let j=i+1;j<poly.length;j++)if(insideRing(poly[i][0],poly[j])||insideRing(poly[j][0],poly[i]))throw new Error('內洞不可重疊。');
 
   }
-  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,batchVertexEdit,independentBlocks,setNumber,addBlock};
+  return {clone,area,inside,validate,refresh,split,move,removeVertex,removeCandidate,batchVertices,batchVertexEdit,independentBlocks,setNumber,addBlock,updateBlock};
 });
