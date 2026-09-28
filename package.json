@@ -19,7 +19,8 @@
     "check:map-allocation": "node scripts/check-map-allocation.cjs",
     "check:map-requests": "node scripts/check-map-requests.cjs",
     "db:area-dispatch-enabled": "prisma db execute --file prisma/area-dispatch-enabled.sql --schema prisma/schema.prisma",
-    "check:area-properties": "node scripts/check-area-properties.cjs"
+    "check:area-properties": "node scripts/check-area-properties.cjs",
+    "check:boundary-insert": "node scripts/check-boundary-insert.cjs"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",

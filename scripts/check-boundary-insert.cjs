@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),G=require('../public/tools/boundary-editor/geometry.js');
+const {editor,base}=require('./check-boundary-interaction.cjs');
+(async()=>{
+ const seed=G.clone(base);seed.candidates=[{candidateId:'test-square',polygons:[[[[100,100],[1000,100],[1000,1000],[100,1000],[100,100]]]],issues:[],numberCandidates:[],pixelArea:810000}];G.refresh(seed);
+ const ui=await editor(seed),region=ui.get('regions').children[0];
+ ui.event('pointerdown',500,500,1,'mouse',region);ui.event('pointerup',500,500,1,'mouse',region);ui.modes.find(n=>n.dataset.mode==='vertex').click();
+ assert.equal(ui.get('vertices').children.length,4);assert.equal(ui.get('addVertex').disabled,false);
+ ui.get('addVertex').click();ui.click(550,105);assert.equal(ui.get('vertices').children.length,5);assert.match(ui.get('message').textContent,/新增並選取/);
+ const added=ui.get('vertices').children.find(n=>n.classList.contains('active-vertex'));assert.equal(added.attrs.cx,'550');assert.equal(added.attrs.cy,'100');
+ assert.equal(ui.get('addVertex').attrs['aria-pressed'],'false');assert.equal(ui.get('deleteVertex').disabled,false);
+ await ui.get('save').click();assert.equal(ui.saved().candidates[0].polygons[0][0].length,6);
+ ui.get('undo').click();assert.equal(ui.backup().document.candidates[0].polygons[0][0].length,5);ui.get('redo').click();assert.equal(ui.backup().document.candidates[0].polygons[0][0].length,6);
+ const r=ui.get('regions').children[0];ui.event('pointerdown',500,500,1,'mouse',r);ui.event('pointerup',500,500,1,'mouse',r);ui.modes.find(n=>n.dataset.mode==='vertex').click();ui.get('addVertex').click();
+ ui.click(500,500);assert.equal(ui.get('vertices').children.length,5);assert.match(ui.get('message').textContent,/邊線/);
+ ui.click(550,100);assert.equal(ui.get('vertices').children.length,5);assert.match(ui.get('message').textContent,/已有頂點/);
+ ui.event('pointerdown',100,550,2,'touch');ui.event('pointerdown',300,550,3,'touch');ui.event('pointermove',350,550,3,'touch');ui.event('pointerup',350,550,3,'touch');ui.event('pointerup',100,550,2,'touch');assert.equal(ui.get('vertices').children.length,5);
+ ui.event('pointerdown',100,550,4,'touch');ui.event('pointermove',120,560,4,'touch');ui.event('pointerup',120,560,4,'touch');assert.equal(ui.get('vertices').children.length,5);
+ ui.click(100,550);assert.equal(ui.get('vertices').children.length,6);await ui.get('save').click();assert.equal(ui.saved().candidates[0].polygons[0][0].length,7);
+ console.log('PASS: explicit vertex insertion, edge projection, selected new vertex, undo/redo/save, duplicate/off-edge rejection, pinch/drag do not insert.');
+})().catch(e=>{console.error(e);process.exitCode=1});

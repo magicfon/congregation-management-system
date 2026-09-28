@@ -21,7 +21,7 @@
     <button data-mode="box" aria-pressed="false">框選頂點</button>
     <button id="finishDraw" disabled>完成區塊</button><button id="cancelDraw" disabled>放棄繪製</button><button id="backPoint" disabled>退回上一點</button><button id="deleteDraftPoint" disabled>刪除選取點</button>
     <button id="clearNumber" disabled>改回自動</button>
-    <button id="deleteVertex" disabled>刪除頂點</button><button id="redo" disabled>重做</button>
+    <button id="addVertex" aria-pressed="false" disabled>新增頂點</button><button id="deleteVertex" disabled>刪除頂點</button><button id="redo" disabled>重做</button>
   </div>
   <div class="row" id="batchTools" hidden>
     <label><input id="appendVertices" type="checkbox">追加選取</label><span id="vertexCount" role="status">已選 0 點</span>
@@ -42,7 +42,7 @@
     <button id="touchApplyNumber" class="primary" disabled>套用號碼</button><button id="touchClearNumber" disabled>改回自動</button><button id="touchNumberClose">收合</button>
   </div>
   <div id="touchDrawActions" hidden><button data-action="backPoint">退回一點</button><button data-action="deleteDraftPoint">刪選取點</button><button data-action="finishDraw" class="primary">完成區塊</button><button data-action="cancelDraw">放棄繪製</button></div>
-  <div id="touchVertexActions" hidden><button data-action="deleteVertex">刪除頂點</button><button data-action="redo">重做</button></div>
+  <div id="touchVertexActions" hidden><button data-action="addVertex" aria-pressed="false">新增頂點</button><button data-action="deleteVertex">刪除頂點</button><button data-action="redo">重做</button></div>
   <div id="touchBoxActions" hidden><button data-action="smoothVertices">平滑化</button><button data-action="deleteVertices">刪除所選點</button><button data-action="clearVertices">清除選取</button></div>
 </div>
 <main>
