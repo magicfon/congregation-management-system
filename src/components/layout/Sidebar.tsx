@@ -125,7 +125,13 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, cu
             <Link
               key={item.href}
               href={item.href}
-              onClick={onClose}
+              onClick={() => {
+                onClose()
+                // 桌機收合狀態下點選任一導覽按鈕 → 自動展開側欄
+                if (collapsed && typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+                  onToggleCollapse()
+                }
+              }}
               title={collapsed ? item.label : undefined}
               className={`flex items-center rounded-lg text-sm transition-all duration-150 ${
                 active
