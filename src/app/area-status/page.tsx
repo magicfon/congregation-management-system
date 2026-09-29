@@ -60,9 +60,9 @@ export default function AreaStatusPage() {
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-2">
       <h1 className="text-lg font-semibold">區域狀況</h1>
       <div className="flex items-center gap-2">
-        <select aria-label="選擇大地圖" disabled={actionBusy} value={mapId} onChange={e => setMapId(e.target.value)} className="rounded-lg border border-white/10 bg-mc-card px-2 py-1.5 text-sm">
-          {Object.entries(DISTRICT_NAMES).map(([id, name]) => <option key={id} value={id}>{name}大地圖</option>)}
-        </select>
+        <div role="group" aria-label="選擇大地圖" className="flex gap-1 rounded-lg border border-white/10 bg-mc-card p-1">
+          {Object.entries(DISTRICT_NAMES).map(([id, name]) => <button key={id} type="button" disabled={actionBusy} aria-pressed={mapId === id} onClick={() => setMapId(id)} className={`min-h-9 rounded-md px-3 py-1.5 text-sm transition-colors disabled:opacity-40 ${mapId === id ? 'bg-mc-highlight text-white' : 'text-mc-text/60 hover:bg-white/5'}`}>{name}</button>)}
+        </div>
         <button onClick={() => setRevision(v => v + 1)} disabled={loading || actionBusy} className="rounded-lg border border-white/10 px-2 py-1.5 text-xs disabled:opacity-40">重新整理</button>
       </div>
     </header>

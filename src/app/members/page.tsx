@@ -186,6 +186,7 @@ export default function MembersPage() {
   }, [fetchMembers])
 
   async function handleToggleActive(member: Member) {
+    if (!isAdmin) return
     await fetch(`/api/members/${member.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -209,6 +210,7 @@ export default function MembersPage() {
             <p className="text-mc-text/50 text-sm mt-1">管理成員帳號</p>
           </div>
           <button
+            style={isAdmin ? undefined : { display: 'none' }}
             onClick={() => setModalMember(null)}
             className="flex items-center gap-2 px-3 md:px-4 py-2.5 rounded-lg bg-mc-highlight hover:bg-blue-700 text-white text-sm font-medium transition-colors border border-blue-500/30 min-h-[44px]"
           >
@@ -275,6 +277,7 @@ export default function MembersPage() {
                   </div>
                   <div className="flex gap-1.5 flex-shrink-0">
                     <button
+                      style={isAdmin ? undefined : { display: 'none' }}
                       onClick={() => setModalMember(m)}
                       className="p-2.5 rounded-lg border border-white/10 text-mc-text/60 hover:text-mc-text hover:bg-mc-accent transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
                       aria-label="編輯"
@@ -284,6 +287,7 @@ export default function MembersPage() {
                       </svg>
                     </button>
                     <button
+                      style={isAdmin ? undefined : { display: 'none' }}
                       onClick={() => handleToggleActive(m)}
                       className={`p-2.5 rounded-lg border transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center ${
                         m.active
@@ -357,13 +361,15 @@ export default function MembersPage() {
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => setModalMember(m)}
+                            style={isAdmin ? undefined : { display: 'none' }}
+                      onClick={() => setModalMember(m)}
                             className="px-3 py-1.5 text-xs rounded-lg border border-white/10 text-mc-text/60 hover:text-mc-text hover:bg-mc-accent transition-colors"
                           >
                             編輯
                           </button>
                           <button
-                            onClick={() => handleToggleActive(m)}
+                            style={isAdmin ? undefined : { display: 'none' }}
+                      onClick={() => handleToggleActive(m)}
                             className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
                               m.active
                                 ? 'border-mc-error/20 text-mc-error/70 hover:text-mc-error hover:bg-mc-error/10'
@@ -388,7 +394,7 @@ export default function MembersPage() {
         </div>
       </div>
 
-      {modalMember !== undefined && (
+      {isAdmin && modalMember !== undefined && (
         <MemberModal
           member={modalMember}
           onClose={() => setModalMember(undefined)}
