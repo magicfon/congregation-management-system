@@ -1,96 +1,31 @@
-export const dynamic = 'force-dynamic'
+'use client'
+import { useEffect, useState } from 'react'
+import { Map, Clock3, ClipboardCheck, ArrowRight, MapPinned } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
-import { formatDistanceToNow } from 'date-fns'
-import { zhTW } from 'date-fns/locale'
-
-async function getStats() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://congregation-management-system.vercel.app'}/api/statistics`, {
-    cache: 'no-store'
-  })
-  
-  if (!res.ok) {
-    return {
-      areaCount: 0,
-      memberCount: 0,
-      scheduleCount: 0,
-      reportCount: 0,
-      recentAreas: []
-    }
-  }
-  
-  return res.json()
-}
-
-export default async function DashboardPage() {
-  const { areaCount, memberCount, scheduleCount, reportCount, recentAreas } = await getStats()
-
-  const stats = [
-    { label: '區域總數', value: areaCount, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
-    { label: '成員數', value: memberCount, color: 'text-mc-success', bg: 'bg-mc-success/10 border-mc-success/20' },
-    { label: '待執行排班', value: scheduleCount, color: 'text-mc-warning', bg: 'bg-mc-warning/10 border-mc-warning/20' },
-    { label: '待審回報', value: reportCount, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
-  ]
-
-  return (
-    <DashboardLayout>
-      <div className="p-4 md:p-8">
-        {/* Header */}
-        <div className="mb-6 md:mb-8">
-          <h1 className="text-xl md:text-2xl font-bold text-mc-text">儀表板</h1>
-          <p className="text-mc-text/50 text-sm mt-1">地圖分配總覽</p>
-        </div>
-
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
-          {stats.map((stat) => (
-            <div key={stat.label} className={`bg-mc-card border rounded-xl p-4 md:p-5 ${stat.bg}`}>
-              <div className={`text-2xl md:text-3xl font-bold ${stat.color}`}>{stat.value}</div>
-              <div className="text-mc-text/60 text-xs md:text-sm mt-1">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Recent idle areas */}
-        <div className="bg-mc-card border border-white/5 rounded-xl p-4 md:p-6">
-          <h2 className="text-base md:text-lg font-semibold text-mc-text mb-4">閒置區域警告</h2>
-          <div className="space-y-3">
-            {recentAreas.length === 0 ? (
-              <p className="text-mc-text/50 text-sm">暫無閒置區域</p>
-            ) : (
-              recentAreas.map((area: any) => {
-                const lastActivity = area.lastActivityAt ?? area.lastactivityat
-                if (!lastActivity) return null
-                const date = new Date(lastActivity)
-                if (isNaN(date.getTime())) return null
-                const daysInactive = Math.floor(
-                  (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)
-                )
-                return (
-                  <div key={area.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                    <div>
-                      <div className="text-sm text-mc-text">{area.name}</div>
-                      {area.assignedTo && (
-                        <div className="text-xs text-mc-text/50">負責人：{area.assignedTo}</div>
-                      )}
-                    </div>
-                    <div className="text-sm text-mc-warning shrink-0 ml-4">
-                      {daysInactive > 30 ? (
-                        <span className="text-red-400">已閒置 {daysInactive} 天</span>
-                      ) : (
-                        formatDistanceToNow(date, {
-                          addSuffix: true,
-                          locale: zhTW,
-                        })
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </div>
-
-      </div>
-    </DashboardLayout>
-  )
+type Dashboard = { name: string; isAdmin: boolean; maps: { id: string; label: string; sheetNo: number | null; dispatchedDate: string | null; heldDays: number | null; report: { date: string; status: string } | null }[]; pendingRequests: { id: string; label: string; date: string }[]; reviewCount: number | null }
+export default function DashboardPage() {
+  const [data, setData] = useState<Dashboard | null>(null)
+  const [error, setError] = useState('')
+  const [revision, setRevision] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    setData(null); setError('')
+    void fetch('/api/dashboard', { cache: 'no-store', signal: controller.signal }).then(async res => {
+      const value = await res.json()
+      if (!res.ok) throw new Error(value.error || '讀取失敗')
+      if (!controller.signal.aborted) setData(value)
+    }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : '讀取失敗') })
+    return () => controller.abort()
+  }, [revision])
+  return <DashboardLayout><div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8 text-mc-text">
+    <header className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">{data ? `${data.name}的地圖` : '我的地圖'}</h1><p className="mt-1 text-sm text-mc-text/50">查看領取進度與待辦事項</p></div><a href="/area-status" className="flex items-center gap-2 rounded-lg bg-mc-highlight px-3 py-2 text-sm"><MapPinned size={16} />申請領圖</a></header>
+    {error && <div role="alert" className="rounded-xl bg-red-400/10 p-4 text-red-300">{error}<button className="ml-3 underline" onClick={() => setRevision(v => v + 1)}>重試</button></div>}
+    {!data && !error && <p role="status" className="py-12 text-center text-mc-text/50">正在載入你的地圖…</p>}
+    {data && <>
+      {data.isAdmin && <a href="/map-requests" className={`flex items-center gap-3 rounded-xl border p-4 ${data.reviewCount ? 'border-amber-400/30 bg-amber-400/10' : 'border-white/10 bg-mc-card'}`}><ClipboardCheck className="text-amber-300" size={24} /><div className="flex-1"><strong>{data.reviewCount ? `${data.reviewCount} 張領圖申請待審核` : '目前沒有待審領圖申請'}</strong><p className="mt-1 text-xs text-mc-text/50">管理員待辦</p></div><ArrowRight size={18} /></a>}
+      <div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-white/10 bg-mc-card p-4"><Map className="mb-2 text-blue-300" size={20} /><strong className="text-3xl">{data.maps.length}</strong><p className="mt-1 text-sm text-mc-text/60">我持有的地圖</p></div><a href="/map-requests" className="rounded-xl border border-white/10 bg-mc-card p-4"><Clock3 className="mb-2 text-amber-300" size={20} /><strong className="text-3xl">{data.pendingRequests.length}</strong><p className="mt-1 text-sm text-mc-text/60">我的待審申請</p></a></div>
+      <section><h2 className="mb-3 font-semibold">尚待完成交回</h2>{!data.maps.length ? <div className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-mc-text/50">目前沒有持有地圖，可前往區域狀況申請。</div> : <div className="grid gap-3 md:grid-cols-2">{data.maps.map(map => <article key={map.id} className="rounded-xl border border-white/10 bg-mc-card p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-semibold">{map.label}</h3><span className="rounded-full bg-blue-400/10 px-2 py-1 text-xs text-blue-300">持有中</span></div><p className="mt-3 text-sm">{map.heldDays === null ? '領取日期未記錄' : <>已領取 <strong className="text-xl tabular-nums">{map.heldDays}</strong> 天</>}</p><p className="mt-1 text-xs text-mc-text/40">{map.dispatchedDate || '日期待確認'}</p><div className="my-3 border-t border-white/5 pt-3 text-xs">{map.report ? <p className="text-emerald-300">{map.report.date} 已提交系統回報</p> : <p className="text-amber-300">{map.dispatchedDate ? '本輪尚無系統回報' : '無領取日期，無法判斷本輪回報'}</p>}</div><div className="flex gap-2 text-sm">{map.sheetNo && map.sheetNo !== 2 && <a className="rounded-lg bg-white/5 px-3 py-2" href={`/maps/areas/${map.sheetNo}.jpg`} target="_blank" rel="noreferrer">查看小地圖 ↗</a>}<a className="rounded-lg border border-white/10 px-3 py-2 text-blue-300" href="/reports">查看／提交回報</a></div></article>)}</div>}<p className="mt-3 text-xs text-mc-text/40">系統回報不等於整張地圖已完成；完成交回後，地圖才會移出此清單。</p></section>
+      {!!data.pendingRequests.length && <section className="rounded-xl border border-white/10 bg-mc-card p-4"><h2 className="mb-3 font-semibold">我的領圖申請</h2>{data.pendingRequests.map(r => <div key={r.id} className="flex items-center justify-between border-t border-white/5 py-2 text-sm"><span>{r.label}</span><span className="text-xs text-amber-300">待審核 · {r.date}</span></div>)}</section>}
+    </>}
+  </div></DashboardLayout>
 }
