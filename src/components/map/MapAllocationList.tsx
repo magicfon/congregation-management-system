@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AllocationArea, allocationLabel, DISTRICT_NAMES } from '../../lib/allocation'
 
+import DispatchMemberPicker, { visibleDispatchMembers } from './DispatchMemberPicker'
 import RequestSubmitBar from './RequestSubmitBar'
 
 type Member = { id: string; name: string }
@@ -39,8 +40,8 @@ export default function MapAllocationList() {
       setAreas(data.areas)
       setSyncedAt(data.syncedAt)
       setIsAdmin(user.isAdmin === true)
-      setMembers(memberList)
-      setMemberId((current) => memberList.some((m: Member) => m.id === current) ? current : '')
+      setMembers(visibleDispatchMembers(memberList))
+      setMemberId((current) => visibleDispatchMembers(memberList).some((m: Member) => m.id === current) ? current : '')
     } catch (e) { setError(e instanceof Error ? e.message : '載入失敗') }
     finally { setLoading(false) }
   }, [])
@@ -140,10 +141,7 @@ export default function MapAllocationList() {
         <div className="sticky top-14 md:top-0 z-10 space-y-2 rounded-xl border border-blue-400/30 bg-mc-card p-3 shadow-lg">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm">已選 {selectedAreas.length} 張</span>
-            <select aria-label="分發給成員" value={memberId} disabled={disabled} onChange={(e) => setMemberId(e.target.value)} className="min-w-0 flex-1 rounded-lg bg-mc-accent p-2 text-sm">
-              <option value="">選擇成員</option>
-              {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-            </select>
+            <DispatchMemberPicker members={members} value={memberId} disabled={disabled} onChange={setMemberId} />
             <button type="button" onClick={() => void dispatch()} disabled={disabled || !memberId || !!error} className="rounded-lg bg-mc-highlight px-3 py-2 text-sm text-white disabled:opacity-40">{busy ? '處理中…' : '一次分發'}</button>
             <button type="button" disabled={disabled} onClick={() => setSelected(new Set())} className="px-2 py-1 text-xs text-mc-text/60">取消選取</button>
           </div>

@@ -49,6 +49,9 @@ export async function PUT(
 
   try {
     const body = await request.json()
+    if (body.showInDispatch !== undefined && typeof body.showInDispatch !== 'boolean') {
+      return NextResponse.json({ error: '派發按鈕設定必須為布林值' }, { status: 400 })
+    }
     const { name, email, phone, active } = body
 
     if (!name?.trim()) {
@@ -68,6 +71,7 @@ export async function PUT(
       select: memberLineFields,
       where: { id: params.id },
       data: {
+        ...(body.showInDispatch !== undefined ? { showInDispatch: body.showInDispatch } : {}),
         name: name.trim(),
         email: email?.trim() || existing.email,
         phone: phone?.trim() || null,

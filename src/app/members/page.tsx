@@ -13,6 +13,7 @@ interface Member {
   phone: string | null
   lineuid?: string | null
   lineDisplayName?: string | null
+  showInDispatch?: boolean
   active: boolean
   createdAt: string
   _count: { schedules: number; reports: number }
@@ -31,6 +32,7 @@ function MemberModal({
   const [email, setEmail] = useState(member?.email ?? '')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState(member?.phone ?? '')
+  const [showInDispatch, setShowInDispatch] = useState(member?.showInDispatch ?? true)
   const [active, setActive] = useState(member?.active ?? true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -42,7 +44,7 @@ function MemberModal({
     try {
       const url = member ? `/api/members/${member.id}` : '/api/members'
       const method = member ? 'PUT' : 'POST'
-      const body: Record<string, unknown> = { name, email, phone, active }
+      const body: Record<string, unknown> = { name, email, phone, active, showInDispatch }
       if (!member || password) body.password = password
       const res = await fetch(url, {
         method,
@@ -61,7 +63,7 @@ function MemberModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4">
-      <div className="bg-mc-card border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="bg-mc-card border border-white/10 rounded-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto shadow-2xl">
         <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
           <h2 className="text-base font-semibold text-mc-text">{member ? '編輯成員' : '新增成員'}</h2>
           <button onClick={onClose} className="text-mc-text/40 hover:text-mc-text transition-colors">
@@ -138,6 +140,10 @@ function MemberModal({
             </label>
           )}
 
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input type="checkbox" checked={showInDispatch} disabled={loading} onChange={e => setShowInDispatch(e.target.checked)} className="mt-1 h-4 w-4 accent-blue-500" />
+            <span className="text-sm text-mc-text/70">顯示於派發按鈕<span className="mt-1 block text-xs text-mc-text/40">僅啟用中的成員會顯示；不影響帳號或領圖申請。</span></span>
+          </label>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-white/10 text-mc-text/60 hover:text-mc-text hover:bg-mc-accent text-sm transition-colors">
               取消
@@ -257,7 +263,7 @@ export default function MembersPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium text-mc-text">{m.name}</span>
-                        {!m.active && <span className="text-xs text-mc-text/30">已停用</span>}
+                        {isAdmin && m.active && m.showInDispatch !== false && <span className="text-xs text-blue-300">派發人選</span>}{!m.active && <span className="text-xs text-mc-text/30">已停用</span>}
                       </div>
                       <div className="text-xs text-mc-text/50 mt-0.5 truncate">{m.email}</div>
                       {isAdmin && <LineIdentity member={m} />}
@@ -334,7 +340,7 @@ export default function MembersPage() {
                           </div>
                           <div>
                             <div className="text-sm font-medium text-mc-text">{m.name}</div>
-                            {!m.active && <div className="text-xs text-mc-text/30">已停用</div>}
+                            {isAdmin && m.active && m.showInDispatch !== false && <div className="text-xs text-blue-300">派發人選</div>}{!m.active && <div className="text-xs text-mc-text/30">已停用</div>}
                           </div>
                         </div>
                       </td>

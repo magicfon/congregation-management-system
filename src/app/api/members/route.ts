@@ -39,6 +39,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
+    if (body.showInDispatch !== undefined && typeof body.showInDispatch !== 'boolean') {
+      return NextResponse.json({ error: '派發按鈕設定必須為布林值' }, { status: 400 })
+    }
     const { name, email, password, phone } = body
 
     if (!name?.trim() || !email?.trim() || !password?.trim()) {
@@ -55,6 +58,7 @@ export async function POST(request: NextRequest) {
         password: passwordHash,
         phone: phone?.trim() || null,
         role: 'publisher',
+        showInDispatch: body.showInDispatch ?? true,
         active: true,
       },
     })

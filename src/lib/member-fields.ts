@@ -5,5 +5,5 @@ export const memberFields = {
 } as const
 
 export const memberLineFields = {
-  ...memberFields, lineuid: true, lineDisplayName: true,
+  ...memberFields, showInDispatch: true, lineuid: true, lineDisplayName: true,
 } as const
