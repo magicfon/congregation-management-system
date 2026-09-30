@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import DashboardLayout from '../../../../components/layout/DashboardLayout'
+import HandoffSummary from '../../../../components/map/HandoffSummary'
 import MinistryCanvas from '../../../../components/map/MinistryCanvas'
 import type { Stroke } from '../../../../lib/ministry'
 type Visit = { id:string; cycleKey:string; publisherId:string; publisherName:string; scheduledDate:string; status:string; strokes:Stroke[]; note:string; submittedAt:string|null }
@@ -70,6 +71,7 @@ export default function MinistryPage({params}:{params:{id:string}}) {
     <header className="flex flex-wrap justify-between gap-2"><div><a href="/dashboard" className="text-xs text-blue-300">← 我的地圖</a><h1 className="mt-1 text-xl font-semibold">{data?.area.label||'傳道進度與交接'}</h1>{data&&<p className="mt-1 text-xs text-mc-text/50">地圖管理者：{data.area.managerName} · {data.area.active?'持有中':'已交回'}</p>}</div><button disabled={busy} onClick={()=>void reload()} className="rounded-lg border border-white/10 px-3 py-2 text-sm">重新載入</button></header>
     {error&&<p role="alert" className="rounded-lg bg-red-400/10 p-3 text-sm text-red-300">{error}</p>}{message&&<p role="status" className="rounded-lg bg-blue-400/10 p-3 text-sm text-blue-300">{message}</p>}
     {!data&&!error&&<p role="status">載入中…</p>}
+    {data&&<HandoffSummary visits={current} active={data.area.active} onReview={viewVisit}/>}
     {data&&<div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]"><div ref={canvasSection} className="min-w-0 scroll-mt-4 space-y-3">
       {review&&<div className="flex justify-between gap-2 rounded-lg bg-blue-400/10 p-3 text-sm"><span>查看 {review.publisherName} · {review.scheduledDate}（{labels[review.status]}）</span><button onClick={()=>setReview(null)} className="shrink-0 text-blue-300">回到本輪</button></div>}
       {data.area.image?<MinistryCanvas key={`${data.area.id}:${review?.id||mine?.id||'read'}`} image={data.area.image} history={review?[]:history.map(v=>v.strokes)} strokes={review?review.strokes:strokes} editable={editable&&!busy&&!review} onChange={s=>{setStrokes(s);setDirty(true)}}/>:<div className="rounded-xl bg-mc-card p-8 text-sm text-mc-text/50">這張地圖尚無小地圖圖檔，可先用文字記錄進度。</div>}

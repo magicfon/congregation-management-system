@@ -31,6 +31,6 @@ export async function GET() {
       return [{ areaId: area.id, label: allocationLabel(area), publisher: last.publisherName, submittedDate: taipeiDate(last.submittedAt) || null, next: next ? { name: next.publisherName, date: next.scheduledDate } : null }]
     })
     const tasks = assignedVisits.filter(v => isAreaDispatched(v.area) && v.cycleKey === ministryCycle(v.area)).map(v => ({ id: v.id, areaId: v.areaId, label: allocationLabel(v.area), date: v.scheduledDate, status: v.status }))
-    return NextResponse.json({ handoffs, tasks, name: auth.user.name || '成員', isAdmin, maps, pendingRequests: pendingRequests.map(r => ({ id: r.id, label: allocationLabel(r.area), date: taipeiDate(r.createdAt) })), reviewCount }, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ today, handoffs, tasks, name: auth.user.name || '成員', isAdmin, maps, pendingRequests: pendingRequests.map(r => ({ id: r.id, label: allocationLabel(r.area), date: taipeiDate(r.createdAt) })), reviewCount }, { headers: { 'Cache-Control': 'no-store' } })
   } catch { return NextResponse.json({ error: '暫時無法讀取你的地圖，請稍後重試。' }, { status: 503 }) }
 }
