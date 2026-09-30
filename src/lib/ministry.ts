@@ -1,5 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client'
-import { isAreaDispatched } from './allocation'
+import { queueLineNotification } from './line-notifications'
+import { botSite } from './line-bot-client'
+import { isAreaDispatched, allocationLabel } from './allocation'
 export type Stroke = { points: [number, number][]; width: number }
 export type MinistryActor = { id: string; isAdmin: boolean }
 export class MinistryError extends Error { constructor(message: string, public status = 409) { super(message) } }
@@ -61,6 +63,18 @@ export async function changeMinistry(db: PrismaClient, areaId: string, actor: Mi
     } else throw new MinistryError('未知操作', 400)
     const updated = await tx.area.updateMany({ where: { id: areaId, ministryRevision: command.expectedRevision }, data: { ministryRevision: { increment: 1 } } })
     if (updated.count !== 1) throw new MinistryError('狀態同時被更新，請重新載入')
-    return { revision: area.ministryRevision + 1, sheetNo: area.sheetNo }
+    const notificationIds: string[] = []
+    const label = allocationLabel(area)
+    const notify = async (memberId: string, text: string) => {
+      const id = await queueLineNotification(tx, memberId, `${text}\n請開啟網站確認最新安排：\n${botSite}/dashboard`, now)
+      if (id) notificationIds.push(id)
+    }
+    if (command.action === 'plan' || command.action === 'reschedule') {
+      await notify(command.publisherId!, `${command.action === 'plan' ? '新增傳道預排' : '傳道預排已更新'}：${label}\n日期：${command.scheduledDate}\n尚待地圖管理者正式交接。`)
+      if (command.action === 'reschedule' && visit!.publisherId !== command.publisherId) await notify(visit!.publisherId, `您的 ${label} 原預排已改派其他人員。`)
+    } else if (command.action === 'start') await notify(visit!.publisherId, `已交接給您：${label}\n預排日期：${visit!.scheduledDate}\n可進入地圖查看交接摘要、塗畫並提交局部進度。`)
+    else if (command.action === 'cancel') await notify(visit!.publisherId, `您的傳道安排已取消：${label}\n原日期：${visit!.scheduledDate}`)
+    else if (command.action === 'submit') await notify(area.assignedMemberId!, `${label} 收到 ${visit!.publisherName} 的局部進度，請查看交接摘要並安排下一位。`)
+    return { revision: area.ministryRevision + 1, sheetNo: area.sheetNo, notificationIds }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }

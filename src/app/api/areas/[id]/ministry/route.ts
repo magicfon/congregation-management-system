@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
+import { drainLineNotifications } from '../../../../../lib/line-notifications'
 import { prisma } from '../../../../../lib/db'
 import { requireApiUser } from '../../../../../lib/api-auth'
 import { allocationLabel, isAreaDispatched } from '../../../../../lib/allocation'
@@ -46,7 +47,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         await updateSnapshot([{ sheetNo: result.sheetNo, member: '', date: null, keepDate: true }])
       } catch { warning = '地圖已交回，Sheet 尚待同步，請勿重複交回。' }
     }
-    return respond({ ...result, warning })
+    if (result.notificationIds.length) {
+      try { await drainLineNotifications(prisma, result.notificationIds) }
+      catch { /* Committed outbox can be retried independently. */ }
+    }
+    return respond({ revision: result.revision, sheetNo: result.sheetNo, warning })
   } catch (error) {
     if (error instanceof MinistryError) return respond({ error: error.message }, error.status)
     if (error instanceof SyntaxError) return respond({ error: '資料格式無效' }, 400)

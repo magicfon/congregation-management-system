@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { Map, Clock3, ClipboardCheck, ArrowRight, MapPinned } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import WeeklyMinistry from '../../components/dashboard/WeeklyMinistry'
+import LineBotStatus from '../../components/dashboard/LineBotStatus'
+import LineNotificationPreference from '../../components/dashboard/LineNotificationPreference'
 import SyncCheck from '../../components/dashboard/SyncCheck'
 type Dashboard = { today: string; handoffs: { areaId: string; label: string; publisher: string; submittedDate: string | null; next: {name: string; date: string} | null }[]; tasks: { id: string; areaId: string; label: string; date: string; status: string }[]; name: string; isAdmin: boolean; maps: { id: string; label: string; sheetNo: number | null; dispatchedDate: string | null; heldDays: number | null; ministryPending: number; ministryActive: boolean; report: { date: string; status: string } | null }[]; pendingRequests: { id: string; label: string; date: string }[]; reviewCount: number | null }
 export default function DashboardPage() {
@@ -31,6 +33,8 @@ export default function DashboardPage() {
       <section><h2 className="mb-3 font-semibold">尚待完成交回</h2>{!data.maps.length ? <div className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-mc-text/50">目前沒有持有地圖，可前往區域狀況申請。</div> : <div className="grid gap-3 md:grid-cols-2">{data.maps.map(map => <article key={map.id} className="rounded-xl border border-white/10 bg-mc-card p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-semibold">{map.label}</h3><span className="rounded-full bg-blue-400/10 px-2 py-1 text-xs text-blue-300">持有中</span></div><p className="mt-3 text-sm">{map.heldDays === null ? '領取日期未記錄' : <>已領取 <strong className="text-xl tabular-nums">{map.heldDays}</strong> 天</>}</p><p className="mt-1 text-xs text-mc-text/40">{map.dispatchedDate || '日期待確認'}</p><div className="my-3 border-t border-white/5 pt-3 text-xs">{map.report ? <p className="text-emerald-300">{map.report.date} 已提交系統回報</p> : <p className="text-amber-300">{map.dispatchedDate ? '本輪尚無系統回報' : '無領取日期，無法判斷本輪回報'}</p>}</div><p className="mb-3 text-xs text-blue-300">{map.ministryActive ? '傳道者進行中' : map.ministryPending ? `${map.ministryPending} 筆預排待交接` : '尚無待執行安排'}</p><div className="flex flex-wrap gap-2 text-sm"><a className="rounded-lg bg-mc-highlight px-3 py-2" href={`/map/ministry/${map.id}`}>管理／傳道進度</a>{map.sheetNo && map.sheetNo !== 2 && <a className="rounded-lg bg-white/5 px-3 py-2" href={`/maps/areas/${map.sheetNo}.jpg`} target="_blank" rel="noreferrer">查看小地圖 ↗</a>}<a className="rounded-lg border border-white/10 px-3 py-2 text-blue-300" href="/reports">查看／提交回報</a></div></article>)}</div>}<p className="mt-3 text-xs text-mc-text/40">系統回報不等於整張地圖已完成；完成交回後，地圖才會移出此清單。</p></section>
       {!!data.pendingRequests.length && <section className="rounded-xl border border-white/10 bg-mc-card p-4"><h2 className="mb-3 font-semibold">我的領圖申請</h2>{data.pendingRequests.map(r => <div key={r.id} className="flex items-center justify-between border-t border-white/5 py-2 text-sm"><span>{r.label}</span><span className="text-xs text-amber-300">待審核 · {r.date}</span></div>)}</section>}
       {data.isAdmin && <SyncCheck />}
+      <LineNotificationPreference />
+      {data.isAdmin && <LineBotStatus />}
     </>}
   </div></DashboardLayout>
 }
