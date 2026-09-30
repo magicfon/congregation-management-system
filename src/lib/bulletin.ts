@@ -2,9 +2,10 @@ const site = 'https://sites.google.com/view/jwnanzhi'
 const sheet = (id: string, query = '') => ({
   url: `https://docs.google.com/spreadsheets/d/${id}/edit${query}`,
   embed: `https://docs.google.com/spreadsheets/d/${id}/htmlembed${query}`,
+  pdf: id,
 })
 
-export type BulletinSource = { label: string; url: string; embed?: string }
+export type BulletinSource = { label: string; url: string; embed?: string; pdf?: string }
 export type BulletinCategory = {
   slug: string
   title: string
@@ -21,7 +22,7 @@ export const bulletinCategories: BulletinCategory[] = [
   ] },
   { slug: 'midweek-meeting', title: '傳道與生活聚會節目表', shortTitle: '傳道與生活', description: '查看週中聚會節目與參與安排。', icon: 'book', sources: [
     { label: '本週聚會節目', url: `${site}/${encodeURIComponent('傳道與生活聚會節目表')}`, embed: 'https://script.google.com/macros/s/AKfycbwZK_BLnGTntnI8TB1IgChMieyJvLu9bV28MBP9YLSHqh6o8ixcnLBhfOX-uZRacjEd3g/exec' },
-    { label: '週中秩序表', url: 'https://docs.google.com/document/d/1VKh8B9vlz371N2-wDfbEHXNUgHVgFMuFL1LIA-kXO9E/edit' },
+    { label: '週中秩序表', url: 'https://docs.google.com/document/d/1VKh8B9vlz371N2-wDfbEHXNUgHVgFMuFL1LIA-kXO9E/edit', pdf: '1VKh8B9vlz371N2-wDfbEHXNUgHVgFMuFL1LIA-kXO9E' },
   ] },
   { slug: 'announcements', title: '會眾公告', shortTitle: '會眾公告', description: '查看會眾消息與重要通知。', icon: 'notice', sources: [
     { label: '原會眾公告頁', url: `${site}/${encodeURIComponent('會眾公告')}` },
@@ -34,7 +35,7 @@ export const bulletinCategories: BulletinCategory[] = [
     { label: '傳道集合地點表', ...sheet('1Tc0_yU19einTBWErNFJ7laQe8qK_C59SpNNZS_Z4QQU', '?gid=1240525928') },
   ] },
   { slug: 'service-roster', title: '服務安排表', shortTitle: '服務安排', description: '查看輪值與會眾組織安排。', icon: 'service', sources: [
-    { label: '輪值表', ...sheet('1mEUaWpY6yAUTtXJP1gXVhKezt8413uadoPLN4t3e10Y') },
+    { label: '輪值表', ...sheet('1mEUaWpY6yAUTtXJP1gXVhKezt8413uadoPLN4t3e10Y', '?gid=1495819990') },
     { label: '組織表', ...sheet('108JU7H_v6Insxpdzk092f4s1nEQSk1uLNacdoG5i5HA') },
   ] },
   { slug: 'territory-report', title: '傳道區域回報', shortTitle: '區域回報', description: '開啟既有 Google 表單填寫回報。', icon: 'report', sources: [

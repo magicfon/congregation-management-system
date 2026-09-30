@@ -4,11 +4,13 @@ import { ArrowUpRight } from 'lucide-react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import BulletinIcon from '@/components/bulletin/BulletinIcon'
 import { bulletinCategories } from '@/lib/bulletin'
+import ReaderWarmup from '@/components/bulletin/ReaderWarmup'
 
 export const metadata: Metadata = { title: '楠梓會眾公布欄', description: '聚會節目、會眾公告與傳道安排，免登入即可查看。' }
 
 export default function BulletinPage() {
   return <DashboardLayout publicView>
+    <ReaderWarmup />
     <section className="relative mb-8 overflow-hidden rounded-3xl border border-blue-300/15 bg-mc-card px-6 py-10 md:px-10 md:py-14">
       <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
       <p className="relative mb-4 text-xs tracking-[0.2em] text-blue-300">楠梓會眾 · 聚會與傳道</p>
