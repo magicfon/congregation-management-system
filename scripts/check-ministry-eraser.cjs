@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm'),ts=require('typescript');
+const moduleExports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/ministry-eraser.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports:moduleExports});
+const {eraseCircle,eraseSweep}=moduleExports;
+const line=[{width:.01,points:[[.1,.5],[.9,.5]]}];
+assert.equal(eraseCircle(line,[.5,.1],.02,1),line,'non-hit preserves data');
+let erased=eraseCircle(line,[.5,.5],.05,1);
+assert.equal(erased.length,2,'split long segment across erased circle');
+assert(erased[0].points.at(-1)[0]<.5);assert(erased[1].points[0][0]>.5);
+assert.equal(line[0].points.length,2,'never mutates original');
+assert.equal(eraseCircle([{width:.01,points:[[.5,.5]]}],[.5,.5],.05,1).length,0);
+assert.equal(eraseCircle(line,[.5,.5],1,1).length,0,'erase whole stroke');
+erased=eraseSweep(line,[.5,.1],[.5,.9],.02,1);
+assert.equal(erased.length,2,'fast pointer sweep does not skip segment');
+assert.equal(eraseCircle(line,[.5,.46],.05,2),line,'image aspect ratio respected');
+for(const s of erased)for(const p of s.points)assert(p.every(v=>v>=0&&v<=1&&Number.isFinite(v)));
+console.log('PASS: local segment splitting, point/whole removal, fast sweeps, aspect ratio, immutable inputs, normalized output.');

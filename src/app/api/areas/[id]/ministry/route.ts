@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const text = await request.text()
     if (Buffer.byteLength(text) > 600000) return respond({ error: '筆跡資料過大，請減少筆跡' }, 413)
     const body = JSON.parse(text) as MinistryCommand
-    if (!body || !['plan','start','cancel','save','submit','finish'].includes(body.action) || typeof body.cycleKey !== 'string' || !Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 0 || (body.visitId !== undefined && typeof body.visitId !== 'string') || (body.publisherId !== undefined && typeof body.publisherId !== 'string')) return respond({ error: '操作資料無效' }, 400)
+    if (!body || !['plan','reschedule','start','cancel','save','submit','finish'].includes(body.action) || typeof body.cycleKey !== 'string' || !Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 0 || (body.visitId !== undefined && typeof body.visitId !== 'string') || (body.publisherId !== undefined && typeof body.publisherId !== 'string')) return respond({ error: '操作資料無效' }, 400)
     if (body.action === 'finish') {
       const snapshot = await readSnapshot()
       if (snapshot.size !== 213 || Array.from({ length: 213 }, (_, i) => i + 1).some(no => !snapshot.has(no))) return respond({ error: '同步快照不完整，暫時不能交回' }, 503)
