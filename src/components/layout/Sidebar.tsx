@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 
 const navItems = [
+  { href: '/bulletin', label: '公布欄', icon: <span aria-hidden="true" className="w-5 text-center">▤</span> },
   {
     href: '/dashboard',
     label: '儀表板',

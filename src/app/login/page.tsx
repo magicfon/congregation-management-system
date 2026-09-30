@@ -187,6 +187,7 @@ function LoginForm() {
         </div>
 
         <div className="text-center mt-6">
+          <Link href="/bulletin" className="mb-4 block rounded-xl border border-white/10 bg-mc-card px-4 py-3 text-sm text-blue-300 hover:bg-mc-accent">會眾公布欄（免登入）</Link>
           <Link href="/boundary-editor" className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-4">地圖編輯器（免登入）</Link>
           <p className="mt-1 text-xs text-mc-text/50">可直接編輯及儲存共用地圖草稿</p>
         </div>

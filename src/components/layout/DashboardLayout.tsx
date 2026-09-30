@@ -2,9 +2,29 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Sidebar from './Sidebar'
+import Link from 'next/link'
 import { type CurrentUserState } from './CurrentUser'
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children, publicView = false }: { children: React.ReactNode; publicView?: boolean }) {
+  if (publicView) return (
+    <div className="min-h-screen bg-mc-bg text-mc-text">
+      <header className="border-b border-white/10 bg-mc-card">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 md:px-8">
+          <Link href="/bulletin" className="flex min-h-11 items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
+            <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/10 text-blue-300">▤</span>
+            <span className="text-sm font-semibold sm:text-base">楠梓會眾<span className="block text-xs font-normal text-mc-text/50">公布欄</span></span>
+          </Link>
+          <Link href="/login" className="flex min-h-11 items-center rounded-lg border border-white/10 px-4 text-sm text-mc-text/70 hover:bg-mc-accent">成員登入</Link>
+        </div>
+      </header>
+      <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
+      <footer className="mx-auto max-w-6xl px-4 pb-8 pt-4 text-xs text-mc-text/50 md:px-8">楠梓會眾公布欄 · 聚會與傳道資訊</footer>
+    </div>
+  )
+  return <MemberDashboardLayout>{children}</MemberDashboardLayout>
+}
+
+function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<CurrentUserState>({ status: 'loading' })
   const userRequest = useRef<AbortController | null>(null)
