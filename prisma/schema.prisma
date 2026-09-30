@@ -12,6 +12,8 @@ datasource db {
 }
 
 model Area {
+  ministryRevision Int @default(0)
+  ministryVisits MinistryVisit[]
   id               String   @id @default(cuid())
   name             String
   dispatchEnabled  Boolean  @default(true) // 暫停時保留持有人，阻擋新申請與分發
@@ -50,6 +52,7 @@ model MapBoundaryDraft {
 }
 
 model Member {
+  ministryVisits MinistryVisit[]
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
@@ -169,4 +172,26 @@ model MapRequest {
   @@index([memberId, status])
   @@index([status, createdAt])
   @@map("map_requests")
+}
+
+model MinistryVisit {
+  id String @id @default(cuid())
+  areaId String
+  cycleKey String
+  managerId String
+  publisherId String
+  publisherName String
+  scheduledDate String
+  status String @default("planned")
+  strokes Json @default("[]")
+  note String @default("")
+  startedAt DateTime?
+  submittedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  publisher Member @relation(fields: [publisherId], references: [id], onDelete: Restrict)
+  @@index([areaId, cycleKey, scheduledDate])
+  @@index([publisherId, status])
+  @@map("ministry_visits")
 }
