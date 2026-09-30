@@ -66,7 +66,8 @@ async function main() {
   assert.equal(db.rows()[0].lineuid, uid)
 
   db = database()
-  const { authOptions } = load('src/lib/auth.ts', { './db': { prisma: db } })
+  let pendingUid
+  const { authOptions } = load('src/lib/auth.ts', { './db': { prisma: db }, './pending-line-identities': { recordPendingLineIdentity: async (_db, uid) => { pendingUid = uid } } })
   const { signIn, jwt } = authOptions.callbacks
   const account = { provider: 'line', providerAccountId: uid }
   assert.equal(await signIn({ account, profile: { name: '新暱稱' } }), true)
@@ -86,9 +87,9 @@ async function main() {
   db.rows()[1].active = false
   assert.equal(await signIn({ account, profile: { name: '新暱稱' } }), false)
   assert.equal((await jwt({ token })).id, undefined)
-  await signIn({ account: { provider: 'line', providerAccountId: 'U' + 'b'.repeat(32) }, profile: { name: '新人', email: 'b@example.com' } })
-  assert.equal(db.rows().length, 3, 'email must not silently link a different identity')
-  assert.equal(db.rows()[2].role, 'publisher')
+  assert.equal(await signIn({ account: { provider: 'line', providerAccountId: 'U' + 'b'.repeat(32) }, profile: { name: '新人', email: 'b@example.com' } }), '/pending-access')
+  assert.equal(db.rows().length, 2, 'unknown LINE identity must not create a member or auto-link by email')
+  assert.equal(pendingUid, 'U' + 'b'.repeat(32))
 
   const fields = load('src/lib/member-fields.ts')
   assert.equal(fields.memberFields.password, undefined)

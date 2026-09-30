@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run db:line-profile && npm run db:area-completion && npm run db:boundary-drafts && npm run db:map-requests && npm run db:area-dispatch-enabled && npm run db:member-dispatch-visibility && npm run db:ministry-visits && npm run db:line-notifications && prisma generate && next build",
+    "build": "npm run db:line-profile && npm run db:area-completion && npm run db:boundary-drafts && npm run db:map-requests && npm run db:area-dispatch-enabled && npm run db:member-dispatch-visibility && npm run db:ministry-visits && npm run db:line-notifications && npm run db:pending-line && prisma generate && next build",
     "db:map-requests": "prisma db execute --file prisma/map-requests.sql --schema prisma/schema.prisma",
     "db:boundary-drafts": "prisma db execute --file prisma/map-boundary-drafts.sql --schema prisma/schema.prisma",
     "check:area-status": "node scripts/check-area-status.cjs",
@@ -23,7 +23,8 @@
     "check:boundary-insert": "node scripts/check-boundary-insert.cjs",
     "db:member-dispatch-visibility": "prisma db execute --file prisma/member-dispatch-visibility.sql --schema prisma/schema.prisma",
     "db:ministry-visits": "prisma db execute --file prisma/ministry-visits.sql --schema prisma/schema.prisma",
-    "db:line-notifications": "prisma db execute --file prisma/line-notifications.sql --schema prisma/schema.prisma"
+    "db:line-notifications": "prisma db execute --file prisma/line-notifications.sql --schema prisma/schema.prisma",
+    "db:pending-line": "prisma db execute --file prisma/pending-line-identities.sql --schema prisma/schema.prisma"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",

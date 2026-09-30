@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
 import LinePairingPanel from '../../components/LinePairingPanel'
+import PendingLinePanel from '../../components/PendingLinePanel'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 
 interface Member {
@@ -222,6 +223,7 @@ export default function MembersPage() {
           </button>
         </div>
 
+        {isAdmin && <PendingLinePanel onLinked={() => void fetchMembers()} />}
         {isAdmin && <LinePairingPanel onPaired={() => void fetchMembers()} />}
 
         {/* Filters */}

@@ -3,11 +3,17 @@ import { allocationLabel, isAreaDispatched } from './allocation'
 import { ministryCycle } from './ministry'
 import { ministryWeek } from './ministry-week'
 import { taipeiDate } from './google-sheets'
-import { botSite } from './line-bot-client'
+import { botSite, lineDisplayName } from './line-bot-client'
+import { pendingLineMessage, recordPendingLineIdentity } from './pending-line-identities'
 
 export async function lineBotAnswer(db: PrismaClient, uid: string, command: string, now = new Date()) {
   const member = await db.member.findUnique({ where: { lineuid: uid }, select: { id: true, active: true } })
-  if (!member?.active) return `請先使用 LINE 登入網站，並請管理員完成成員配對。\n${botSite}/login`
+  if (!member) {
+    const pending = await db.pendingLineIdentity.findUnique({ where: { uid }, select: { displayName: true } })
+    await recordPendingLineIdentity(db, uid, pending?.displayName || await lineDisplayName(uid))
+    return `${pendingLineMessage}\n連結完成後，請再次傳送「我的地圖」。`
+  }
+  if (!member.active) return '此成員帳號已停用，請聯絡管理員確認權限。'
   const footer = `\n\n開啟網站查看詳情：\n${botSite}/dashboard`
   if (command === '本週行程') {
     const rows = await db.ministryVisit.findMany({ where: { publisherId: member.id, status: { in: ['planned','active'] } }, include: { area: true }, orderBy: { scheduledDate: 'asc' } })

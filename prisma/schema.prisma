@@ -212,3 +212,11 @@ model LineNotification {
   @@index([status, nextAttemptAt])
   @@map("line_notifications")
 }
+
+model PendingLineIdentity {
+  uid String @id
+  displayName String?
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  @@map("pending_line_identities")
+}

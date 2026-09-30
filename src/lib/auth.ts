@@ -1,9 +1,9 @@
 import { type NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import LineProvider from 'next-auth/providers/line'
-import { compare, hash } from 'bcryptjs'
+import { compare } from 'bcryptjs'
 import { prisma } from './db'
-import { randomUUID } from 'crypto'
+import { recordPendingLineIdentity } from './pending-line-identities'
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -49,8 +49,7 @@ export const authOptions: NextAuthOptions = {
     }),
 
     // ── LINE OAuth ────────────────────────────────────────────────────────────
-    // Anyone with a LINE account can sign in. Role defaults to 'publisher'.
-    // Admins can promote users to 'elder' or 'admin' afterwards.
+    // Unknown identities wait for an administrator to link an existing member.
     ...(process.env.LINE_CLIENT_ID && process.env.LINE_CLIENT_SECRET
       ? [LineProvider({
           clientId: process.env.LINE_CLIENT_ID,
@@ -60,8 +59,7 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    // LINE login: auto-create or auto-login any user.
-    // Everyone is allowed in; role defaults to 'publisher'.
+    // Only linked, active members receive an authenticated session.
     async signIn({ account, profile }) {
       if (account?.provider !== 'line') return true
 
@@ -78,15 +76,8 @@ export const authOptions: NextAuthOptions = {
           data: { lineDisplayName: lineName },
         })
       } else {
-        await prisma.member.create({
-          data: {
-            name: lineName || `LINE用戶-${lineUid.slice(0, 8)}`,
-            email: `line-${randomUUID()}@line.local`,
-            password: await hash(randomUUID(), 10),
-            role: 'publisher', active: true,
-            lineuid: lineUid, lineDisplayName: lineName,
-          },
-        })
+        await recordPendingLineIdentity(prisma, lineUid, lineName)
+        return '/pending-access'
       }
 
       return true

@@ -9,7 +9,7 @@ const notify=load('src/lib/line-notifications.ts',{'./line-bot-client':client});
 const allocation=load('src/lib/allocation.ts'),week=load('src/lib/ministry-week.ts');
 const ministry=load('src/lib/ministry.ts',{'./line-notifications':notify,'./line-bot-client':client,'./allocation':allocation});
 const dates={taipeiDate:d=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)};
-const queries=load('src/lib/line-bot-queries.ts',{'./line-bot-client':client,'./allocation':allocation,'./ministry':ministry,'./ministry-week':week,'./google-sheets':dates});
+const queries=load('src/lib/line-bot-queries.ts',{'./pending-line-identities':{pendingLineMessage:'待管理員確認權限，等待配對',recordPendingLineIdentity:async()=>{}},'./line-bot-client':client,'./allocation':allocation,'./ministry':ministry,'./ministry-week':week,'./google-sheets':dates});
 const now=new Date('2026-09-30T04:00:00Z');
 let jobs=[],member={id:'m',active:true,lineuid:'Utest',lineNotificationsEnabled:true};
 const db={member:{findUnique:async()=>member},lineNotification:{
@@ -32,6 +32,7 @@ const db={member:{findUnique:async()=>member},lineNotification:{
  member.lineNotificationsEnabled=true;await notify.queueLineNotification(db,'m','queued before mute',now);member.lineNotificationsEnabled=false;const mutedSends=sends.length;await notify.drainLineNotifications(db,undefined,now);assert.equal(sends.length,mutedSends);assert.equal(jobs.at(-1).status,'cancelled');member.lineNotificationsEnabled=true;
  let reads=0;const area={id:'a',name:'A',mapId:'nanzih',mapAreaId:1,sheetNo:1,assignedMemberId:'m',dispatchedAt:new Date('2026-09-01'),completedAt:null,ministryVisits:[]};
  const queryDb={member:{findUnique:async({where})=>{assert.equal(where.lineuid,'Utest');return member}},area:{findMany:async({where})=>{reads++;assert.equal(where.assignedMemberId,'m');return[area]}},ministryVisit:{findMany:async({where})=>{assert.equal(where.publisherId,'m');return[{id:'v',areaId:'a',area,status:'active',cycleKey:ministry.ministryCycle(area),scheduledDate:'2026-09-30'}]}}};
+ queryDb.pendingLineIdentity={findUnique:async()=>({displayName:'新人'})};
  assert.match(await queries.lineBotAnswer(queryDb,'Utest','本週行程',now),/2026-09-30/);assert.match(await queries.lineBotAnswer(queryDb,'Utest','我的地圖',now),/1 張/);member=null;assert.match(await queries.lineBotAnswer(queryDb,'Utest','我的地圖',now),/配對/);assert.equal(reads,1);
  let answers=0;const webhook=load('src/app/api/line-bot/webhook/route.ts',{'../../../../lib/db':{prisma:{}},'../../../../lib/line-bot-client':client,'../../../../lib/line-bot-queries':{lineBotAnswer:async()=>{answers++;return'test'}}});
  const request=payload=>{const b=JSON.stringify(payload);return new Request('https://example.test/api/line-bot/webhook',{method:'POST',body:b,headers:{'x-line-signature':crypto.createHmac('sha256',env.LINE_BOT_CHANNEL_SECRET).update(b).digest('base64')}})};

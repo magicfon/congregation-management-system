@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
   try { payload = JSON.parse(body.toString('utf8')) } catch { return new NextResponse(null, { status: 400 }) }
   if (!Array.isArray(payload?.events) || payload.events.length > 20) return new NextResponse(null, { status: 400 })
   try {
-    // Read-only private chat queries; reply tokens are single-use, including redelivery.
+    // Private queries register unknown identities without granting access.
+    // Reply tokens are single-use, including redelivery; registration is idempotent.
     for (let offset = 0; offset < payload.events.length; offset += 4) {
       await Promise.all(payload.events.slice(offset, offset + 4).map(async (event: { source?: { type?: string; userId?: string }; replyToken?: string; type?: string; message?: { type?: string; text?: string } }) => {
       if (event?.source?.type !== 'user' || typeof event.source.userId !== 'string' || typeof event.replyToken !== 'string') return
