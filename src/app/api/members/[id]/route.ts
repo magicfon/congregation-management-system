@@ -86,6 +86,25 @@ export async function PUT(
   }
 }
 
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireApiUser(['admin'])
+  if ('response' in auth) return auth.response
+  try {
+    const body = await request.json()
+    if (typeof body.showInDispatch !== 'boolean') {
+      return NextResponse.json({ error: '派發設定格式錯誤' }, { status: 400 })
+    }
+    const result = await prisma.member.updateMany({
+      where: { id: params.id },
+      data: { showInDispatch: body.showInDispatch },
+    })
+    if (!result.count) return NextResponse.json({ error: '成員不存在' }, { status: 404 })
+    return NextResponse.json({ showInDispatch: body.showInDispatch })
+  } catch {
+    return NextResponse.json({ error: '無法更新派發設定' }, { status: 500 })
+  }
+}
+
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }

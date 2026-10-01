@@ -45,7 +45,8 @@ function MemberModal({
     try {
       const url = member ? `/api/members/${member.id}` : '/api/members'
       const method = member ? 'PUT' : 'POST'
-      const body: Record<string, unknown> = { name, email, phone, active, showInDispatch }
+      const body: Record<string, unknown> = { name, email, phone, active }
+      if (!member) body.showInDispatch = showInDispatch
       if (!member || password) body.password = password
       const res = await fetch(url, {
         method,
@@ -141,10 +142,10 @@ function MemberModal({
             </label>
           )}
 
-          <label className="flex items-start gap-2.5 cursor-pointer">
+          {!member && <label className="flex items-start gap-2.5 cursor-pointer">
             <input type="checkbox" checked={showInDispatch} disabled={loading} onChange={e => setShowInDispatch(e.target.checked)} className="mt-1 h-4 w-4 accent-blue-500" />
             <span className="text-sm text-mc-text/70">顯示於派發按鈕<span className="mt-1 block text-xs text-mc-text/40">僅啟用中的成員會顯示；不影響帳號或領圖申請。</span></span>
-          </label>
+          </label>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-white/10 text-mc-text/60 hover:text-mc-text hover:bg-mc-accent text-sm transition-colors">
               取消
@@ -167,6 +168,8 @@ export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [dispatchSaving, setDispatchSaving] = useState<string | null>(null)
+  const [dispatchError, setDispatchError] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [modalMember, setModalMember] = useState<Member | null | undefined>(undefined)
 
@@ -185,6 +188,36 @@ export default function MembersPage() {
     const t = setTimeout(fetchMembers, 300)
     return () => clearTimeout(t)
   }, [fetchMembers])
+
+  async function handleToggleDispatch(member: Member) {
+    if (!isAdmin || dispatchSaving) return
+    setDispatchSaving(member.id)
+    setDispatchError('')
+    try {
+      const res = await fetch(`/api/members/${member.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showInDispatch: member.showInDispatch === false }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || '無法更新派發設定')
+      setMembers(current => current.map(item => item.id === member.id ? { ...item, showInDispatch: result.showInDispatch } : item))
+    } catch (error) {
+      setDispatchError(error instanceof Error ? error.message : '無法更新派發設定')
+    } finally {
+      setDispatchSaving(null)
+    }
+  }
+
+  function dispatchButton(member: Member) {
+    return isAdmin && <button type="button"
+      aria-label={`${member.name}：顯示於派發人選`}
+      aria-pressed={member.showInDispatch !== false}
+      disabled={dispatchSaving !== null}
+      onClick={() => void handleToggleDispatch(member)}
+      className={`min-h-11 rounded-lg border px-3 text-xs whitespace-nowrap disabled:opacity-50 ${member.showInDispatch !== false ? 'border-blue-400/30 bg-blue-400/10 text-blue-300' : 'border-white/10 text-mc-text/40'}`}
+    >{dispatchSaving === member.id ? '儲存中…' : member.showInDispatch !== false ? '派發人選 ✓' : '派發人選 −'}</button>
+  }
 
   async function handleToggleActive(member: Member) {
     if (!isAdmin) return
@@ -250,6 +283,7 @@ export default function MembersPage() {
           </label>
         </div>
 
+        {dispatchError && <p role="alert" className="mb-3 text-sm text-red-300">{dispatchError}</p>}
         {/* Mobile card list */}
         <div className="md:hidden space-y-3">
           {loading ? (
@@ -267,11 +301,12 @@ export default function MembersPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium text-mc-text">{m.name}</span>
-                        {isAdmin && m.active && m.showInDispatch !== false && <span className="text-xs text-blue-300">派發人選</span>}{!m.active && <span className="text-xs text-mc-text/30">已停用</span>}
+                        {!m.active && <span className="text-xs text-mc-text/30">已停用</span>}
                       </div>
                       <div className="text-xs text-mc-text/50 mt-0.5 truncate">{m.email}</div>
                       {isAdmin && <LineIdentity member={m} />}
                       {m.phone && <div className="text-xs text-mc-text/40">{m.phone}</div>}
+                      <div className="mt-2">{dispatchButton(m)}</div>
                       <div className="text-xs text-mc-text/40 mt-1">
                         {m._count.schedules} 排班 · {m._count.reports} 回報
                       </div>
@@ -346,7 +381,7 @@ export default function MembersPage() {
                           </div>
                           <div>
                             <div className="text-sm font-medium text-mc-text">{m.name}</div>
-                            {isAdmin && m.active && m.showInDispatch !== false && <div className="text-xs text-blue-300">派發人選</div>}{!m.active && <div className="text-xs text-mc-text/30">已停用</div>}
+                            {!m.active && <div className="text-xs text-mc-text/30">已停用</div>}
                           </div>
                         </div>
                       </td>
@@ -362,6 +397,7 @@ export default function MembersPage() {
                       </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {dispatchButton(m)}
                           <button
                             style={isAdmin ? undefined : { display: 'none' }}
                       onClick={() => setModalMember(m)}
