@@ -3,6 +3,7 @@ import { requireApiUser } from '../../../lib/api-auth'
 import { prisma } from '../../../lib/db'
 import { allocationLabel, isAreaDispatched, idleCalendarDays } from '../../../lib/allocation'
 import { ministryCycle } from '../../../lib/ministry'
+import { ministryHandoff } from '../../../lib/ministry-handoffs'
 import { taipeiDate } from '../../../lib/google-sheets'
 export const dynamic = 'force-dynamic'
 export async function GET() {
@@ -22,13 +23,9 @@ export async function GET() {
       const report = area.dispatchedAt && area.reports[0] && area.reports[0].submittedAt >= area.dispatchedAt ? area.reports[0] : null
       return { id: area.id, label: allocationLabel(area), sheetNo: area.sheetNo, dispatchedDate: taipeiDate(area.dispatchedAt) || null, heldDays: idleCalendarDays(taipeiDate(area.dispatchedAt) || null, today), ministryPending: area.ministryVisits.filter(v => v.cycleKey === ministryCycle(area) && v.status === 'planned').length, ministryActive: area.ministryVisits.some(v => v.cycleKey === ministryCycle(area) && v.status === 'active'), report: report ? { date: taipeiDate(report.submittedAt), status: report.status } : null }
     })
-    const handoffs = areas.filter(isAreaDispatched).flatMap(area => {
-      const visits = area.ministryVisits.filter(v => v.cycleKey === ministryCycle(area))
-      if (visits.some(v => v.status === 'active')) return []
-      const last = visits.filter(v => v.status === 'submitted').sort((a,b) => (b.submittedAt?.getTime() || 0) - (a.submittedAt?.getTime() || 0))[0]
-      if (!last) return []
-      const next = visits.filter(v => v.status === 'planned').sort((a,b) => a.scheduledDate.localeCompare(b.scheduledDate))[0]
-      return [{ areaId: area.id, label: allocationLabel(area), publisher: last.publisherName, submittedDate: taipeiDate(last.submittedAt) || null, next: next ? { name: next.publisherName, date: next.scheduledDate } : null }]
+    const handoffs = areas.flatMap(area => {
+      const handoff = ministryHandoff(area)
+      return handoff ? [handoff] : []
     })
     const tasks = assignedVisits.filter(v => isAreaDispatched(v.area) && v.cycleKey === ministryCycle(v.area)).map(v => ({ id: v.id, areaId: v.areaId, label: allocationLabel(v.area), date: v.scheduledDate, status: v.status }))
     return NextResponse.json({ today, handoffs, tasks, name: auth.user.name || '成員', isAdmin, maps, pendingRequests: pendingRequests.map(r => ({ id: r.id, label: allocationLabel(r.area), date: taipeiDate(r.createdAt) })), reviewCount }, { headers: { 'Cache-Control': 'no-store' } })

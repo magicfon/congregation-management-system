@@ -25,6 +25,9 @@ export default function PendingLinePanel({ onLinked }: { onLinked: () => void })
     finally { setLoading(false) }
   }, [])
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    if (window.location.hash === '#pending-line') document.getElementById('pending-line')?.scrollIntoView({ block: 'start' })
+  }, [])
 
   async function link(identity: Identity) {
     const target = members.find(m => m.id === targets[identity.uid])
@@ -41,7 +44,7 @@ export default function PendingLinePanel({ onLinked }: { onLinked: () => void })
     finally { lock.current = false; setBusy(false) }
   }
 
-  return <section className="mb-4 rounded-xl border border-amber-300/20 bg-mc-card p-4">
+  return <section id="pending-line" className="mb-4 scroll-mt-20 rounded-xl border border-amber-300/20 bg-mc-card p-4">
     <div className="flex items-center justify-between gap-3">
       <h2 className="text-sm font-semibold">待確認 LINE 帳號 <span className="ml-2 rounded-full bg-amber-300/10 px-2 py-1 text-xs text-amber-200">{loading ? '…' : pending.length}</span></h2>
       <button disabled={loading || busy} onClick={() => void load()} className="min-h-11 rounded-lg px-3 text-xs text-mc-text/60 hover:bg-white/5 disabled:opacity-40">重新整理</button>
