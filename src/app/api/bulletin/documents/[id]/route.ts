@@ -3,8 +3,10 @@ import { bulletinDocuments, exportBulletinPdf } from '@/lib/bulletin-pdf'
 
 export const dynamic = 'force-static'
 export const revalidate = 300
-export const dynamicParams = false
-export function generateStaticParams() { return bulletinDocuments.map(document => ({ id: document.id })) }
+export const dynamicParams = true
+// Generate the allowlisted PDFs on first request, not during deployment.
+// Google availability must not block unrelated application releases.
+export function generateStaticParams() { return [] }
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   if (!bulletinDocuments.some(document => document.id === params.id)) notFound()
