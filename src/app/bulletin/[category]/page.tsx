@@ -21,12 +21,11 @@ export default function BulletinCategoryPage({ params }: Props) {
     <Link href="/bulletin" className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-mc-text/60 hover:text-blue-300"><ArrowLeft aria-hidden="true" className="h-4 w-4" />回公布欄</Link>
     <div className="mb-7 flex items-start gap-4">
       <span className="shrink-0 rounded-2xl bg-blue-400/10 p-3 text-blue-300"><BulletinIcon icon={category.icon} /></span>
-      <div><h1 className="text-2xl font-semibold leading-snug sm:text-3xl">{category.title}</h1><p className="mt-2 text-sm leading-6 text-mc-text/60">{category.description}</p></div>
+      <h1 className="text-2xl font-semibold leading-snug sm:text-3xl">{category.title}</h1>
     </div>
     <nav aria-label="公布欄分類" className="mb-8 flex flex-wrap gap-2">
       {bulletinCategories.map(item => <Link key={item.slug} href={`/bulletin/${item.slug}`} aria-current={item.slug === category.slug ? 'page' : undefined} className={`flex min-h-11 items-center rounded-xl border px-3 text-sm ${item.slug === category.slug ? 'border-blue-400/40 bg-blue-400/10 text-blue-200' : 'border-white/10 text-mc-text/60 hover:bg-mc-accent'}`}>{item.shortTitle}</Link>)}
     </nav>
-    <p className="mb-4 text-xs leading-6 text-mc-text/50">文件可雙指縮放與拖曳。若無法顯示，可點「開啟原文件」。</p>
     <div className="space-y-5">
       {[...category.sources].sort((a, b) => Number(Boolean(b.pdf)) - Number(Boolean(a.pdf))).map(source => <section key={source.url} className="overflow-hidden rounded-2xl border border-white/10 bg-mc-card">
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-6">

@@ -38,10 +38,9 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
           <legend className="sr-only">公布欄外觀</legend>
           {choices.map(({ value, label, Icon }) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => chooseTheme(value)} className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 ${theme === value ? 'bg-mc-accent text-mc-text' : 'text-mc-text/60 hover:bg-mc-accent'}`}><Icon aria-hidden="true" className="h-4 w-4" />{label}</button>)}
         </fieldset>
-        <Link href="/login" className="flex min-h-11 items-center rounded-lg border border-white/10 px-4 text-sm text-mc-text/70 hover:bg-mc-accent">成員登入</Link>
+        <Link href="/login" className="flex min-h-11 items-center rounded-lg border border-white/10 px-4 text-sm text-mc-text/70 hover:bg-mc-accent">登入</Link>
       </div>
     </header>
     <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
-    <footer className="mx-auto max-w-6xl px-4 pb-8 pt-4 text-xs text-mc-text/50 md:px-8">楠梓會眾公布欄 · 聚會與傳道資訊</footer>
   </div>
 }
