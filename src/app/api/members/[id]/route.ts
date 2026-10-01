@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { memberLineFields } from '../../../../lib/member-fields'
 import { prisma } from '../../../../lib/db'
+import { deleteMember, MemberDeletionError } from '../../../../lib/member-deletion'
 import { requireApiUser } from '../../../../lib/api-auth'
 
 export async function GET(
@@ -12,7 +13,7 @@ export async function GET(
 
   try {
     const member = await prisma.member.findUnique({
-      where: { id: params.id },
+      where: { id: params.id, deletedAt: null },
       select: {
         ...memberLineFields,
         schedules: {
@@ -59,7 +60,7 @@ export async function PUT(
     }
 
     const existing = await prisma.member.findUnique({
-      where: { id: params.id },
+      where: { id: params.id, deletedAt: null },
       select: { id: true, email: true, active: true },
     })
 
@@ -69,7 +70,7 @@ export async function PUT(
 
     const member = await prisma.member.update({
       select: memberLineFields,
-      where: { id: params.id },
+      where: { id: params.id, deletedAt: null },
       data: {
         ...(body.showInDispatch !== undefined ? { showInDispatch: body.showInDispatch } : {}),
         name: name.trim(),
@@ -95,7 +96,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: '派發設定格式錯誤' }, { status: 400 })
     }
     const result = await prisma.member.updateMany({
-      where: { id: params.id },
+      where: { id: params.id, deletedAt: null },
       data: { showInDispatch: body.showInDispatch },
     })
     if (!result.count) return NextResponse.json({ error: '成員不存在' }, { status: 404 })
@@ -113,15 +114,11 @@ export async function DELETE(
   if ('response' in auth) return auth.response
 
   try {
-    const existing = await prisma.member.findUnique({ where: { id: params.id } })
-    if (!existing) {
-      return NextResponse.json({ error: '成員不存在' }, { status: 404 })
-    }
-
-    await prisma.member.delete({ where: { id: params.id } })
+    await deleteMember(prisma, params.id, auth.user.id!)
 
     return NextResponse.json({ message: '成員已刪除' })
   } catch (error) {
+    if (error instanceof MemberDeletionError) return NextResponse.json({ error: error.message }, { status: error.status })
     console.error('DELETE /api/members/[id] error:', error)
     return NextResponse.json({ error: '無法刪除成員' }, { status: 500 })
   }

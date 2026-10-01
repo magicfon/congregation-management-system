@@ -170,19 +170,18 @@ export default function MembersPage() {
   const [search, setSearch] = useState('')
   const [dispatchSaving, setDispatchSaving] = useState<string | null>(null)
   const [dispatchError, setDispatchError] = useState('')
-  const [showInactive, setShowInactive] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const [modalMember, setModalMember] = useState<Member | null | undefined>(undefined)
 
   const fetchMembers = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
     if (search) params.set('search', search)
-    if (showInactive) params.set('active', 'false')
     const res = await fetch(`/api/members?${params}`)
     const data = await res.json()
     setMembers(Array.isArray(data) ? data : [])
     setLoading(false)
-  }, [search, showInactive])
+  }, [search])
 
   useEffect(() => {
     const t = setTimeout(fetchMembers, 300)
@@ -219,19 +218,25 @@ export default function MembersPage() {
     >{dispatchSaving === member.id ? '儲存中…' : member.showInDispatch !== false ? '派發人選 ✓' : '派發人選 −'}</button>
   }
 
-  async function handleToggleActive(member: Member) {
-    if (!isAdmin) return
-    await fetch(`/api/members/${member.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: member.name,
-        email: member.email,
-        phone: member.phone,
-        active: !member.active,
-      }),
-    })
-    fetchMembers()
+  async function handleDelete(member: Member) {
+    if (!isAdmin || deleting || !window.confirm(`刪除「${member.name}」？歷史紀錄保留，LINE 可重新登入。`)) return
+    setDeleting(member.id)
+    setDispatchError('')
+    try {
+      const res = await fetch(`/api/members/${member.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '刪除失敗')
+      setMembers(current => current.filter(item => item.id !== member.id))
+    } catch (error) {
+      setDispatchError(error instanceof Error ? error.message : '刪除失敗')
+    } finally { setDeleting(null) }
+  }
+
+  function deleteButton(member: Member) {
+    return isAdmin && <button type="button" disabled={deleting !== null}
+      onClick={() => void handleDelete(member)} aria-label={`刪除 ${member.name}`}
+      className="min-h-11 rounded-lg border border-mc-error/20 px-3 text-xs text-mc-error/70 hover:bg-mc-error/10 disabled:opacity-50"
+    >{deleting === member.id ? '刪除中…' : '刪除'}</button>
   }
 
   return (
@@ -272,15 +277,7 @@ export default function MembersPage() {
               className="w-full pl-10 pr-4 py-3 md:py-2.5 rounded-lg bg-mc-card border border-white/5 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/40 transition-colors text-sm min-h-[44px]"
             />
           </div>
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-mc-text/50 hover:text-mc-text transition-colors min-h-[44px] px-1">
-            <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-              className="w-4 h-4 accent-blue-500"
-            />
-            已停用
-          </label>
+
         </div>
 
         {dispatchError && <p role="alert" className="mb-3 text-sm text-red-300">{dispatchError}</p>}
@@ -323,26 +320,7 @@ export default function MembersPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    <button
-                      style={isAdmin ? undefined : { display: 'none' }}
-                      onClick={() => handleToggleActive(m)}
-                      className={`p-2.5 rounded-lg border transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center ${
-                        m.active
-                          ? 'border-mc-error/20 text-mc-error/70 hover:text-mc-error hover:bg-mc-error/10'
-                          : 'border-mc-success/20 text-mc-success/70 hover:text-mc-success hover:bg-mc-success/10'
-                      }`}
-                      aria-label={m.active ? '停用' : '啟用'}
-                    >
-                      {m.active ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
+                    {deleteButton(m)}
                   </div>
                 </div>
               </div>
@@ -405,17 +383,7 @@ export default function MembersPage() {
                           >
                             編輯
                           </button>
-                          <button
-                            style={isAdmin ? undefined : { display: 'none' }}
-                      onClick={() => handleToggleActive(m)}
-                            className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                              m.active
-                                ? 'border-mc-error/20 text-mc-error/70 hover:text-mc-error hover:bg-mc-error/10'
-                                : 'border-mc-success/20 text-mc-success/70 hover:text-mc-success hover:bg-mc-success/10'
-                            }`}
-                          >
-                            {m.active ? '停用' : '啟用'}
-                          </button>
+                          {deleteButton(m)}
                         </div>
                       </td>
                     </tr>

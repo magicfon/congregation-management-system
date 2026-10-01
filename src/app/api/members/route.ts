@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
 
     const members = await prisma.member.findMany({
       where: {
+        deletedAt: null,
         ...(search ? { OR: ['name', 'email', 'phone', ...(isAdmin ? ['lineuid', 'lineDisplayName'] : [])].map((field) => ({ [field]: { contains: search, mode: 'insensitive' as const } })) } : {}),
         ...(active !== null ? { active: active === 'true' } : {}),
       },

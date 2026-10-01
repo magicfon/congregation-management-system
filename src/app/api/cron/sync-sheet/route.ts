@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const reportRows = await readValues(DEFAULT_SHEET_ID, '傳道區域回報!A2:G')
     const areas = await prisma.area.findMany()
     const bySheetNo = new Map(areas.filter(a => a.sheetNo != null).map(a => [a.sheetNo!, a] as const))
-    const memberCache = new Map((await prisma.member.findMany()).map(m => [m.name, m.id]))
+    const memberCache = new Map((await prisma.member.findMany({ where: { deletedAt: null } })).map(m => [m.name, m.id]))
 
     // Sheet 時間戳記 parse：'2026/8/14 下午 7:41:23' / '2026/8/14 上午 10:56:15'
     function parseTs(s: string): Date | null {

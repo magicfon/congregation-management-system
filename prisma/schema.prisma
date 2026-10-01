@@ -60,6 +60,7 @@ model Member {
   phone     String?
   role      String   @default("publisher") // admin, publisher, elder
   active    Boolean  @default(true)
+  deletedAt DateTime?
   showInDispatch Boolean @default(true)
   lineuid   String?  @unique
   lineDisplayName String?
