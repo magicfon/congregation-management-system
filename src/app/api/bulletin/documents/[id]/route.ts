@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { bulletinDocuments, exportBulletinPdf } from '@/lib/bulletin-pdf'
+import { bulletinDocuments, exportBulletinSnapshot } from '@/lib/bulletin-pdf'
 
 export const dynamic = 'force-static'
 export const revalidate = 300
@@ -11,11 +11,14 @@ export function generateStaticParams() { return [] }
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   if (!bulletinDocuments.some(document => document.id === params.id)) notFound()
   // Throw on upstream failure: ISR must retain its last successful document.
-  const bytes = await exportBulletinPdf(params.id)
+  const { bytes, modifiedAt, syncedAt, version } = await exportBulletinSnapshot(params.id)
   return new Response(bytes as BodyInit, { headers: {
     'Content-Type': 'application/pdf',
     'Content-Disposition': 'inline; filename="bulletin.pdf"',
     'Cache-Control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400',
     'X-Content-Type-Options': 'nosniff',
+    'X-Bulletin-Synced-At': syncedAt,
+    'X-Bulletin-Version': version,
+    ...(modifiedAt ? { 'X-Bulletin-Modified-At': modifiedAt } : {}),
   } })
 }
