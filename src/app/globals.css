@@ -20,6 +20,51 @@ body {
   box-sizing: border-box;
 }
 
+/* Bulletin theme tokens are scoped to the public layout, including fullscreen readers. */
+.bulletin-theme {
+  color-scheme: dark;
+  --mc-bg: 240 10% 3.9%;
+  --mc-surface: 240 10% 5.5%;
+  --mc-card: 240 10% 8%;
+  --mc-accent: 240 10% 14%;
+  --mc-text: 0 0% 90%;
+  --bulletin-blue: 213 94% 78%;
+  --bulletin-border: 0 0% 100%;
+  --bulletin-muted-opacity: 0.6;
+}
+
+.bulletin-theme[data-bulletin-theme="light"] {
+  color-scheme: light;
+  --mc-bg: 210 40% 98%;
+  --mc-surface: 210 30% 96%;
+  --mc-card: 0 0% 100%;
+  --mc-accent: 214 25% 91%;
+  --mc-text: 222 35% 16%;
+  --bulletin-blue: 215 80% 38%;
+  --bulletin-border: 222 35% 16%;
+  --bulletin-muted-opacity: 0.7;
+}
+
+@media (prefers-color-scheme: light) {
+  .bulletin-theme[data-bulletin-theme="system"] {
+    color-scheme: light;
+    --mc-bg: 210 40% 98%;
+    --mc-surface: 210 30% 96%;
+    --mc-card: 0 0% 100%;
+    --mc-accent: 214 25% 91%;
+    --mc-text: 222 35% 16%;
+    --bulletin-blue: 215 80% 38%;
+    --bulletin-border: 222 35% 16%;
+    --bulletin-muted-opacity: 0.7;
+  }
+}
+
+.bulletin-theme :is(.text-blue-200, .text-blue-300, .text-blue-400) { color: hsl(var(--bulletin-blue)); }
+.bulletin-theme :is(.text-mc-text\/50, .text-mc-text\/55, .text-mc-text\/60) { color: hsl(var(--mc-text) / var(--bulletin-muted-opacity)); }
+.bulletin-theme .border-white\/5 { border-color: hsl(var(--bulletin-border) / 0.05); }
+.bulletin-theme .border-white\/10 { border-color: hsl(var(--bulletin-border) / 0.1); }
+.bulletin-theme .border-white\/15 { border-color: hsl(var(--bulletin-border) / 0.15); }
+
 /* ===== Form controls: dark theme fix ===== */
 
 /* Select — closed state */
