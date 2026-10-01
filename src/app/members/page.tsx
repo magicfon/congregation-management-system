@@ -18,6 +18,7 @@ interface Member {
   active: boolean
   createdAt: string
   _count: { schedules: number; reports: number }
+  heldMapCount: number
 }
 
 function MemberModal({
@@ -298,6 +299,7 @@ export default function MembersPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium text-mc-text">{m.name}</span>
+                        <HoldingStatus count={m.heldMapCount} />
                         {!m.active && <span className="text-xs text-mc-text/30">已停用</span>}
                       </div>
                       <div className="text-xs text-mc-text/50 mt-0.5 truncate">{m.email}</div>
@@ -358,7 +360,7 @@ export default function MembersPage() {
                             {m.name.slice(0, 1)}
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-mc-text">{m.name}</div>
+                            <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-mc-text">{m.name}<HoldingStatus count={m.heldMapCount} /></div>
                             {!m.active && <div className="text-xs text-mc-text/30">已停用</div>}
                           </div>
                         </div>
@@ -409,6 +411,12 @@ export default function MembersPage() {
       )}
     </DashboardLayout>
   )
+}
+
+function HoldingStatus({ count }: { count: number }) {
+  return <span className={`whitespace-nowrap rounded px-2 py-0.5 text-xs font-normal ${count > 0 ? 'bg-amber-400/10 text-amber-200' : 'text-mc-text/40'}`}>
+    {count > 0 ? `持有 ${count} 張` : '未持有'}
+  </span>
 }
 
 function LineIdentity({ member }: { member: Member }) {

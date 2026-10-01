@@ -3,6 +3,7 @@ import { hash } from 'bcryptjs'
 import { prisma } from '../../../lib/db'
 import { requireApiUser } from '../../../lib/api-auth'
 import { memberFields, memberLineFields } from '../../../lib/member-fields'
+import { isAreaDispatched } from '../../../lib/allocation'
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiUser()
@@ -23,11 +24,15 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       select: {
         ...(isAdmin ? memberLineFields : memberFields),
+        assignedAreas: { select: { assignedMemberId: true, dispatchedAt: true, completedAt: true } },
         _count: { select: { schedules: true, reports: true } },
       },
     })
 
-    return NextResponse.json(members)
+    return NextResponse.json(members.map(({ assignedAreas, ...member }) => ({
+      ...member,
+      heldMapCount: assignedAreas.filter(isAreaDispatched).length,
+    })))
   } catch (error) {
     console.error('GET /api/members error:', error)
     return NextResponse.json({ error: '無法取得成員列表' }, { status: 500 })
