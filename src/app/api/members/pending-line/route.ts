@@ -4,8 +4,10 @@ import { requireApiUser } from '../../../../lib/api-auth'
 import { prisma } from '../../../../lib/db'
 import { linkPendingLineIdentity } from '../../../../lib/pending-line-identities'
 import { LinePairingError } from '../../../../lib/line-pairing'
+import { deliverPairingNotice } from '../../../../lib/line-pairing-notification'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 export async function GET() {
   const auth = await requireApiUser(['admin'])
@@ -25,7 +27,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '請選擇待確認帳號與目標成員' }, { status: 400 })
   }
   try {
-    return NextResponse.json(await linkPendingLineIdentity(prisma, body.uid, body.targetId))
+    const { notificationId, ...result } = await linkPendingLineIdentity(prisma, body.uid, body.targetId)
+    const notification = await deliverPairingNotice(prisma, notificationId)
+    return NextResponse.json({ ...result, notification })
   } catch (error) {
     if (error instanceof LinePairingError) return NextResponse.json({ error: error.message }, { status: 409 })
     if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2002', 'P2034', 'P2025'].includes(error.code)) {

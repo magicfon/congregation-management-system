@@ -35,7 +35,7 @@ export default function PendingLinePanel({ onLinked }: { onLinked: () => void })
       const res = await fetch('/api/members/pending-line', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: identity.uid, targetId: target.id }) })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || '連結失敗')
-      setMessage(`已連結至 ${result.memberName}。請使用者重新登入，或再次私訊 Bot。`)
+      setMessage(`已連結至 ${result.memberName}。${result.notification}。請使用者重新登入，或再次私訊 Bot。`)
       onLinked(); await load()
     } catch (e) { setError(e instanceof Error ? e.message : '無法確認結果，請重新整理') }
     finally { lock.current = false; setBusy(false) }

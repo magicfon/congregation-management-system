@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client'
+import { queuePairingNotice } from './line-pairing-notification'
 
 export class LinePairingError extends Error {}
 
@@ -15,8 +16,12 @@ export async function pairLineMember(db: PrismaClient, sourceId: string, targetI
     await tx.member.update({ where: { id: sourceId }, data: { lineuid: null, lineDisplayName: null } })
     await tx.member.update({
       where: { id: targetId },
-      data: { lineuid: source.lineuid, lineDisplayName: source.lineDisplayName },
+      data: {
+        lineuid: source.lineuid, lineDisplayName: source.lineDisplayName,
+        lineNotificationsEnabled: source.lineNotificationsEnabled !== false && target.lineNotificationsEnabled !== false,
+      },
     })
-    return { memberId: targetId, memberName: target.name }
+    const notificationId = await queuePairingNotice(tx, target)
+    return { memberId: targetId, memberName: target.name, notificationId }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }

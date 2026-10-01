@@ -45,7 +45,7 @@ function database() {
 }
 
 async function main() {
-  const pairing = load('src/lib/line-pairing.ts')
+  const pairing = load('src/lib/line-pairing.ts', { './line-pairing-notification': { queuePairingNotice: async () => null } })
   let db = database()
   await pairing.pairLineMember(db, 'source', 'target', uid)
   assert.equal(db.rows()[0].lineuid, null)
@@ -109,7 +109,7 @@ async function main() {
   const forbidden = new Response(null, { status: 403 })
   const route = load('src/app/api/members/line-pairing/route.ts', {
     '../../../../lib/api-auth': { requireApiUser: async (roles) => { assert.equal(roles[0], 'admin'); return { response: forbidden } } },
-    '../../../../lib/db': { prisma: {} },
+    '../../../../lib/db': { prisma: {} }, '../../../../lib/line-pairing-notification': { deliverPairingNotice: async () => 'test' },
     '../../../../lib/line-pairing': { ...pairing, pairLineMember: () => { throw new Error('must not be called') } },
   })
   assert.equal((await route.POST({})).status, 403)

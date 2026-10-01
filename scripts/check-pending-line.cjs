@@ -6,8 +6,8 @@ function load(file, mocks = {}) {
     {exports,process,Date,console,require:n=>mocks[n]??require(n)});
   return exports;
 }
-const uid='U'+'a'.repeat(32), pairing=load('src/lib/line-pairing.ts');
-const service=load('src/lib/pending-line-identities.ts',{'./line-pairing':pairing});
+const uid='U'+'a'.repeat(32), pairing=load('src/lib/line-pairing.ts',{'./line-pairing-notification':{queuePairingNotice:async()=>null}});
+const service=load('src/lib/pending-line-identities.ts',{'./line-pairing':pairing,'./line-pairing-notification':{queuePairingNotice:async()=>null}});
 let people, identities, failDelete=false;
 function reset(){people=[{id:'m',name:'成員',active:true,role:'elder',lineuid:null}];identities=[];failDelete=false}
 const match=(row,where)=>Object.entries(where).every(([k,v])=>row[k]===v);
@@ -47,9 +47,8 @@ const db={member:{
  await service.recordPendingLineIdentity(db,uid,'late-event');assert(!identities.some(r=>r.uid===uid));
  assert.equal(await auth.signIn({account,profile:{name:'新名稱'}}),true);assert.equal((await auth.jwt({token:{sub:uid},account})).role,'elder');
  people[0].active=false;assert.equal(await auth.signIn({account,profile:{name:'test'}}),false);assert.match(await queries.lineBotAnswer(db,uid,'我的地圖'),/停用/);
- let role='publisher';const route=load('src/app/api/members/pending-line/route.ts',{'../../../../lib/db':{prisma:db},'../../../../lib/pending-line-identities':service,'../../../../lib/line-pairing':pairing,'../../../../lib/api-auth':{requireApiUser:async roles=>{assert.equal(roles[0],'admin');return role==='admin'?{user:{id:'admin'}}:{response:new Response(null,{status:403})}}}});
+ let role='publisher';const route=load('src/app/api/members/pending-line/route.ts',{'../../../../lib/line-pairing-notification':{deliverPairingNotice:async()=>''},'../../../../lib/db':{prisma:db},'../../../../lib/pending-line-identities':service,'../../../../lib/line-pairing':pairing,'../../../../lib/api-auth':{requireApiUser:async roles=>{assert.equal(roles[0],'admin');return role==='admin'?{user:{id:'admin'}}:{response:new Response(null,{status:403})}}}});
  assert.equal((await route.GET()).status,403);assert.equal((await route.POST({})).status,403);
  role='admin';assert.equal((await route.GET()).status,200);assert.equal((await route.POST({json:async()=>({uid:'bad',targetId:'m'})})).status,400);
  console.log('PASS: unknown UID registration, dedup/profile fallback, no automatic member/session/private reads, admin-only list/link, conflict/rollback, retained role, login after approval, disabled member, delayed event.');
 })().catch(e=>{console.error(e);process.exitCode=1});
-

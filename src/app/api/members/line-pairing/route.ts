@@ -3,6 +3,9 @@ import { Prisma } from '@prisma/client'
 import { requireApiUser } from '../../../../lib/api-auth'
 import { prisma } from '../../../../lib/db'
 import { LinePairingError, pairLineMember } from '../../../../lib/line-pairing'
+import { deliverPairingNotice } from '../../../../lib/line-pairing-notification'
+
+export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   const auth = await requireApiUser(['admin'])
@@ -12,7 +15,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '缺少來源、目標成員或 UID' }, { status: 400 })
   }
   try {
-    return NextResponse.json(await pairLineMember(prisma, body.sourceId, body.targetId, body.expectedUid))
+    const { notificationId, ...result } = await pairLineMember(prisma, body.sourceId, body.targetId, body.expectedUid)
+    const notification = await deliverPairingNotice(prisma, notificationId)
+    return NextResponse.json({ ...result, notification })
   } catch (error) {
     if (error instanceof LinePairingError) return NextResponse.json({ error: error.message }, { status: 409 })
     if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2002', 'P2034'].includes(error.code)) {

@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { LinePairingError } from './line-pairing'
+import { queuePairingNotice } from './line-pairing-notification'
 
 export const pendingLineMessage = '待管理員確認權限。您的 LINE 帳號已登記，請聯絡管理員連結成員。'
 
@@ -35,6 +36,7 @@ export async function linkPendingLineIdentity(db: PrismaClient, uid: string, tar
     if (target.lineuid) throw new LinePairingError('目標成員已綁定 LINE，請勿覆蓋')
     await tx.member.update({ where: { id: targetId }, data: { lineuid: uid, lineDisplayName: pending.displayName } })
     await tx.pendingLineIdentity.delete({ where: { uid } })
-    return { memberId: target.id, memberName: target.name }
+    const notificationId = await queuePairingNotice(tx, target)
+    return { memberId: target.id, memberName: target.name, notificationId }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }
