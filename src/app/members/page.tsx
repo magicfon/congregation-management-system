@@ -16,6 +16,7 @@ interface Member {
   lineDisplayName?: string | null
   showInDispatch?: boolean
   active: boolean
+  role: string
   createdAt: string
   _count: { schedules: number; reports: number }
   heldMapCount: number
@@ -30,6 +31,7 @@ function MemberModal({
   onClose: () => void
   onSave: () => void
 }) {
+  const [role, setRole] = useState(member?.role ?? 'publisher')
   const [name, setName] = useState(member?.name ?? '')
   const [email, setEmail] = useState(member?.email ?? '')
   const [password, setPassword] = useState('')
@@ -47,6 +49,7 @@ function MemberModal({
       const url = member ? `/api/members/${member.id}` : '/api/members'
       const method = member ? 'PUT' : 'POST'
       const body: Record<string, unknown> = { name, email, phone, active }
+      if (member && role !== member.role) { body.role = role; body.expectedRole = member.role }
       if (!member) body.showInDispatch = showInDispatch
       if (!member || password) body.password = password
       const res = await fetch(url, {
@@ -56,6 +59,7 @@ function MemberModal({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '操作失敗')
+      if (member && role !== member.role) { window.location.reload(); return }
       onSave()
     } catch (err) {
       setError(err instanceof Error ? err.message : '操作失敗')
@@ -130,6 +134,14 @@ function MemberModal({
               className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
             />
           </div>
+
+          {member && <fieldset disabled={loading}>
+            <legend className="mb-1.5 text-sm text-mc-text/70">權限</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {([{ value: 'publisher', label: '一般傳道員' }, { value: 'admin', label: '管理員' }]).map(option => <button key={option.value} type="button" aria-pressed={role === option.value} onClick={() => setRole(option.value)} className={`min-h-11 rounded-lg border text-sm ${role === option.value ? 'border-blue-400/40 bg-blue-400/10 text-blue-300' : 'border-white/10 text-mc-text/60'}`}>{option.label}</button>)}
+            </div>
+            {role !== 'admin' && role !== 'publisher' && <p className="mt-1 text-xs text-mc-text/50">目前：長老</p>}
+          </fieldset>}
 
           {member && (
             <label className="flex items-center gap-2.5 cursor-pointer">
