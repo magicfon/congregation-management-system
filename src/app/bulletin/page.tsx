@@ -12,11 +12,11 @@ export default function BulletinPage() {
   return <DashboardLayout publicView>
     <ReaderWarmup />
     <h1 className="sr-only">公布欄</h1>
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {bulletinCategories.map(category => <Link key={category.slug} href={`/bulletin/${category.slug}`} className="group flex items-center gap-3 rounded-xl border border-white/10 bg-mc-card p-3 transition-colors hover:border-blue-300/40 hover:bg-mc-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+      {bulletinCategories.map(category => <Link key={category.slug} href={`/bulletin/${category.slug}`} className="group flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-mc-card p-3 transition-colors hover:border-blue-300/40 hover:bg-mc-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 sm:min-h-0 sm:flex-row sm:justify-start sm:gap-3">
         <span className="shrink-0 rounded-lg bg-blue-400/10 p-2 text-blue-300"><BulletinIcon icon={category.icon} /></span>
-        <h2 className="flex-1 text-sm font-semibold">{category.title}</h2>
-        <ArrowUpRight aria-hidden="true" className="h-4 w-4 text-mc-text/30 group-hover:text-blue-300" />
+        <h2 className="whitespace-nowrap text-base font-semibold sm:flex-1">{category.title}</h2>
+        <ArrowUpRight aria-hidden="true" className="hidden h-4 w-4 text-mc-text/30 group-hover:text-blue-300 sm:block" />
       </Link>)}
     </div>
   </DashboardLayout>
