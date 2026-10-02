@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout'
 import BulletinIcon from '@/components/bulletin/BulletinIcon'
 import { bulletinCategories } from '@/lib/bulletin'
 import PdfReader from '@/components/bulletin/PdfReader'
+import Announcements from '@/components/bulletin/Announcements'
 
 type Props = { params: { category: string } }
 export function generateStaticParams() { return bulletinCategories.map(category => ({ category: category.slug })) }
@@ -26,7 +27,7 @@ export default function BulletinCategoryPage({ params }: Props) {
     <nav aria-label="公布欄分類" className="mb-8 flex flex-wrap gap-2">
       {bulletinCategories.map(item => <Link key={item.slug} href={`/bulletin/${item.slug}`} aria-current={item.slug === category.slug ? 'page' : undefined} className={`flex min-h-11 items-center rounded-xl border px-3 text-sm ${item.slug === category.slug ? 'border-blue-400/40 bg-blue-400/10 text-blue-200' : 'border-white/10 text-mc-text/60 hover:bg-mc-accent'}`}>{item.shortTitle}</Link>)}
     </nav>
-    <div className="space-y-5">
+    {category.slug === 'announcements' ? <Announcements originalUrl={category.sources[0].url} /> : <div className="space-y-5">
       {[...category.sources].sort((a, b) => Number(Boolean(b.pdf)) - Number(Boolean(a.pdf))).map(source => <section key={source.url} className="overflow-hidden rounded-2xl border border-white/10 bg-mc-card">
         <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-6">
           <h2 className="text-sm font-semibold leading-6 sm:text-base">{source.label}</h2>
@@ -34,6 +35,6 @@ export default function BulletinCategoryPage({ params }: Props) {
         </div>
         {source.pdf ? <PdfReader id={source.pdf} label={source.label} /> : source.embed ? <details className="px-4 pb-4"><summary className="cursor-pointer py-3 text-sm text-blue-200">展開 Google 補充資訊</summary><iframe title={source.label} src={source.embed} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" className="h-[70vh] min-h-[420px] w-full border-0 bg-white sm:min-h-[540px]" /></details> : <p className="px-4 pb-5 text-sm leading-7 text-mc-text/60 sm:px-6">{category.slug === 'announcements' ? '公告沿用原會眾公告頁，請點上方連結查看。' : category.slug === 'territory-report' ? '使用原有 Google 表單完成回報。' : '點上方連結查看完整文件。'}</p>}
       </section>)}
-    </div>
+    </div>}
   </DashboardLayout>
 }

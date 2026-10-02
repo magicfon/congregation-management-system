@@ -127,6 +127,16 @@ input:-webkit-autofill:focus {
   caret-color: hsl(0, 0%, 90%);
 }
 
+.bulletin-theme input[type="text"] {
+  color: hsl(var(--mc-text)) !important;
+  background-color: hsl(var(--mc-surface)) !important;
+  -webkit-text-fill-color: hsl(var(--mc-text)) !important;
+}
+.bulletin-theme input::placeholder {
+  color: hsl(var(--mc-text) / 0.6) !important;
+  -webkit-text-fill-color: hsl(var(--mc-text) / 0.6) !important;
+}
+
 /* Date/time picker icon */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {

@@ -5,6 +5,19 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model BulletinAnnouncement {
+  id String @id @default(cuid())
+  title String
+  filename String
+  content Bytes
+  size Int
+  uploadedBy String
+  createdAt DateTime @default(now())
+  removedAt DateTime?
+  @@index([removedAt, createdAt])
+  @@map("bulletin_announcements")
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")

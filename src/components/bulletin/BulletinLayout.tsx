@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Monitor, Moon, Sun } from 'lucide-react'
 
 type Theme = 'system' | 'light' | 'dark'
@@ -14,6 +15,7 @@ const choices = [
 function parseTheme(value: string | null): Theme { return value === 'light' || value === 'dark' ? value : 'system' }
 
 export default function BulletinLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [theme, setTheme] = useState<Theme>('system')
   useEffect(() => {
     try { setTheme(parseTheme(localStorage.getItem(storageKey))) } catch { /* Device preference works without storage. */ }
@@ -38,7 +40,7 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
           <legend className="sr-only">公布欄外觀</legend>
           {choices.map(({ value, label, Icon }) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => chooseTheme(value)} className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 ${theme === value ? 'bg-mc-accent text-mc-text' : 'text-mc-text/60 hover:bg-mc-accent'}`}><Icon aria-hidden="true" className="h-4 w-4" />{label}</button>)}
         </fieldset>
-        <Link href="/login" className="flex min-h-11 items-center rounded-lg border border-white/10 px-4 text-sm text-mc-text/70 hover:bg-mc-accent">登入</Link>
+        <Link href={`/login?callbackUrl=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-lg border border-white/10 px-4 text-sm text-mc-text/70 hover:bg-mc-accent">登入</Link>
       </div>
     </header>
     <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>

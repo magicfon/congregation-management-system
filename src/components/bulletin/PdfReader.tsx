@@ -5,7 +5,7 @@ import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { getPdfWorker, loadPdfEngine } from './pdf-engine'
 import { readPosition, type ReadingPosition } from './reading-position'
 
-export default function PdfReader({ id, label }: { id: string; label: string }) {
+export default function PdfReader({ id, label, src }: { id: string; label: string; src?: string }) {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
   const [pageRatio, setPageRatio] = useState(1.414)
   const [zoom, setZoom] = useState(1)
@@ -43,7 +43,7 @@ export default function PdfReader({ id, label }: { id: string; label: string }) 
     pendingPosition.current = null
     void Promise.all([
       loadPdfEngine(),
-      fetch(`/api/bulletin/documents/${id}`, { signal: controller.signal }).then(async response => {
+      fetch(src ?? `/api/bulletin/documents/${id}`, { signal: controller.signal }).then(async response => {
         if (!response.ok || !response.headers.get('content-type')?.includes('application/pdf')) throw new Error('PDF unavailable')
         return { bytes: new Uint8Array(await response.arrayBuffer()), version: response.headers.get('X-Bulletin-Version') ?? '', modified: response.headers.get('X-Bulletin-Modified-At'), synced: response.headers.get('X-Bulletin-Synced-At') }
       }),
@@ -66,7 +66,7 @@ export default function PdfReader({ id, label }: { id: string; label: string }) 
       }
     }).catch(() => { if (!disposed) setError(true) })
     return () => { disposed = true; controller.abort(); if (task) void task.destroy() }
-  }, [id, retry])
+  }, [id, src, retry])
 
   useEffect(() => {
     const element = pane.current
