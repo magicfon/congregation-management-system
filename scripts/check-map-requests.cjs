@@ -4,7 +4,7 @@ const allocation=load('src/lib/allocation.ts');
 const dispatch=load('src/lib/batch-dispatch.ts',{'./allocation':allocation});
 const service=load('src/lib/map-requests.ts',{'./allocation':allocation,'./batch-dispatch':dispatch});
 let state, active=true;
-function reset() { state={ requests:[], areas:Array.from({length:8},(_,i)=>({id:'a'+i,sheetNo:i+1,assignedMemberId:null,dispatchedAt:null,completedAt:null,lastReportedCompletedAt:'2026-01-01'})) }; active=true }
+function reset() { state={ requests:[], areas:Array.from({length:8},(_,i)=>({id:'a'+i,sheetNo:i+1,personalTerritory:i%2===0,assignedMemberId:null,dispatchedAt:null,completedAt:null,lastReportedCompletedAt:'2026-01-01'})) }; active=true }
 const db={ $transaction:async(fn,options)=>{
  assert.equal(options.isolationLevel,'Serializable'); const before=structuredClone(state);
  const tx={member:{findUnique:async({where})=>({id:where.id,name:where.id,active})},area:{findMany:async({where})=>state.areas.filter(a=>where.id.in.includes(a.id)),updateMany:async({where,data})=>{const rows=state.areas.filter(a=>where.id.in.includes(a.id));rows.forEach(a=>Object.assign(a,data));return {count:rows.length}}},mapRequest:{

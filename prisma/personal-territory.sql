@@ -1,0 +1,1 @@
+ALTER TABLE "areas" ADD COLUMN IF NOT EXISTS "personalTerritory" BOOLEAN NOT NULL DEFAULT false;

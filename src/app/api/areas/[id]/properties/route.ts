@@ -9,7 +9,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   if ('response' in auth) return auth.response
   try {
     const area = await prisma.area.findUnique({ where: { id: params.id }, select: {
-      id: true, name: true, sheetNo: true, dispatchEnabled: true,
+      id: true, name: true, sheetNo: true, personalTerritory: true, dispatchEnabled: true,
       reports: { select: { id: true, content: true, status: true, submittedAt: true, member: { select: { name: true } } }, orderBy: { submittedAt: 'desc' }, take: 100 },
       _count: { select: { reports: true } },
     } })
@@ -29,6 +29,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const auth = await requireApiUser(['admin'])
   if ('response' in auth) return auth.response
   const body = await request.json().catch(() => null)
+  if (body && 'personalTerritory' in body) {
+    if (typeof body.personalTerritory !== 'boolean' || typeof body.expectedPersonalTerritory !== 'boolean' || 'dispatchEnabled' in body) return NextResponse.json({ error: '分類設定格式錯誤' }, { status: 400 })
+    try {
+      const updated = await prisma.area.updateMany({ where: { id: params.id, personalTerritory: body.expectedPersonalTerritory }, data: { personalTerritory: body.personalTerritory } })
+      if (updated.count !== 1) return NextResponse.json({ error: '地圖已被修改或不存在，請重新載入後再試' }, { status: 409 })
+      return NextResponse.json({ personalTerritory: body.personalTerritory })
+    } catch { return NextResponse.json({ error: '分類儲存失敗' }, { status: 500 }) }
+  }
   if (typeof body?.dispatchEnabled !== 'boolean' || typeof body?.expectedEnabled !== 'boolean') return NextResponse.json({ error: '分發設定格式錯誤' }, { status: 400 })
   try {
     const updated = await prisma.area.updateMany({ where: { id: params.id, dispatchEnabled: body.expectedEnabled }, data: { dispatchEnabled: body.dispatchEnabled } })

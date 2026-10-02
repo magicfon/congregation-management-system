@@ -14,7 +14,7 @@ export async function GET() {
   try {
     const [areas, sync] = await Promise.all([
       prisma.area.findMany({ select: {
-        dispatchEnabled: true, id: true, name: true, mapId: true, mapAreaId: true, sheetNo: true, blockCode: true,
+        personalTerritory: true, dispatchEnabled: true, id: true, name: true, mapId: true, mapAreaId: true, sheetNo: true, blockCode: true,
         assignedMemberId: true, assignedTo: true, dispatchedAt: true, completedAt: true,
         lastReportedCompletedAt: true, assignedMember: { select: { name: true } },
       } }),
@@ -26,7 +26,7 @@ export async function GET() {
       areas: areas.sort(allocationOrder).map((area) => {
         const lastCompletedDate = taipeiDate(area.lastReportedCompletedAt) || null
         return {
-          dispatchEnabled: area.dispatchEnabled, id: area.id, name: area.name, mapId: area.mapId, mapAreaId: area.mapAreaId,
+          personalTerritory: area.personalTerritory, dispatchEnabled: area.dispatchEnabled, id: area.id, name: area.name, mapId: area.mapId, mapAreaId: area.mapAreaId,
           sheetNo: area.sheetNo, blockCode: area.blockCode,
           assignedTo: area.assignedMember?.name || area.assignedTo,
           isDispatched: isAreaDispatched(area), lastCompletedDate,

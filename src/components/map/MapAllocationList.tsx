@@ -19,6 +19,7 @@ export default function MapAllocationList() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [district, setDistrict] = useState('all')
+  const [onlyPersonal, setOnlyPersonal] = useState(false)
   const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -49,11 +50,12 @@ export default function MapAllocationList() {
   useEffect(() => { void load() }, [load])
 
   const visible = useMemo(() => areas.filter((area) => {
+    if (onlyPersonal && !area.personalTerritory) return false
     if (district !== 'all' && area.mapId !== district) return false
     if (onlyAvailable && (area.isDispatched || !area.dispatchEnabled)) return false
     const needle = query.trim().toLowerCase()
     return !needle || [allocationLabel(area), area.blockCode, area.assignedTo].some((value) => value?.toLowerCase().includes(needle))
-  }), [areas, district, onlyAvailable, query])
+  }), [areas, district, onlyAvailable, onlyPersonal, query])
 
   const selectedAreas = visible.filter((area) => selected.has(area.id) && !area.isDispatched && area.dispatchEnabled)
   useEffect(() => {
@@ -126,6 +128,7 @@ export default function MapAllocationList() {
           {Object.entries(DISTRICT_NAMES).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
         <input aria-label="搜尋地圖或持有人" placeholder="搜尋地圖或持有人" value={query} disabled={disabled} onChange={(e) => setQuery(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-white/10 bg-mc-bg px-3 py-2 text-sm" />
+        <label className="flex items-center gap-2 text-xs text-mc-text/70"><input type="checkbox" checked={onlyPersonal} disabled={disabled} onChange={e => setOnlyPersonal(e.target.checked)} />只看個人區域</label>
         <label className="flex items-center gap-2 text-xs text-mc-text/70"><input type="checkbox" checked={onlyAvailable} disabled={disabled} onChange={(e) => setOnlyAvailable(e.target.checked)} />只看可分發</label>
       </div>
       <div className="flex flex-wrap justify-between gap-1 text-xs text-mc-text/50">
@@ -173,7 +176,7 @@ export default function MapAllocationList() {
                   <td className={`px-2 py-1 text-right whitespace-nowrap tabular-nums ${area.idleDays === null ? 'text-mc-text/40' : area.idleDays >= 180 ? 'text-red-400' : area.idleDays >= 90 ? 'text-yellow-300' : 'text-mc-text'}`}>
                     {area.idleDays === null ? '—' : <><strong>{area.idleDays}</strong> 天</>}
                   </td>
-                  <td className="px-2 py-1 max-w-28 break-words">{!area.dispatchEnabled && <span className="block text-amber-300">暫停分發</span>}{area.isDispatched ? <><span className="text-mc-text/50">使用中</span><span className="ml-1 text-xs">{area.assignedTo || '未知持有人'}</span></> : area.dispatchEnabled ? <span className="text-emerald-300">可分發</span> : null}</td>
+                  <td className="px-2 py-1 max-w-28 break-words">{area.personalTerritory && <span className="block text-blue-300">個人區域</span>}{!area.dispatchEnabled && <span className="block text-amber-300">暫停分發</span>}{area.isDispatched ? <><span className="text-mc-text/50">使用中</span><span className="ml-1 text-xs">{area.assignedTo || '未知持有人'}</span></> : area.dispatchEnabled ? <span className="text-emerald-300">可分發</span> : null}</td>
                 </tr>)}
             </tbody>
           </table>

@@ -1,8 +1,8 @@
 'use client'
 import { useId, useRef, useState } from 'react'
 import { History, Settings2, RotateCw, CalendarDays, UserRound, Info, Check, Loader2, MessageSquare, ChevronDown } from 'lucide-react'
-type Details = { dispatchEnabled: boolean; sheetNo: number | null; sheetError: string | null; formReports: { row: number; submittedAt: string; memberName: string; completedDate: string }[]; reports: { id: string; content: string; status: string; submittedAt: string; member: { name: string } }[]; _count: { reports: number } }
-export default function AreaProperties({ areaId, number, onChange }: { areaId: string; number: number; onChange: (id: string, enabled: boolean) => void }) {
+type Details = { personalTerritory: boolean; dispatchEnabled: boolean; sheetNo: number | null; sheetError: string | null; formReports: { row: number; submittedAt: string; memberName: string; completedDate: string }[]; reports: { id: string; content: string; status: string; submittedAt: string; member: { name: string } }[]; _count: { reports: number } }
+export default function AreaProperties({ areaId, number, onChange }: { areaId: string; number: number; onChange: (id: string, enabled: boolean, personal: boolean) => void }) {
   const [panel, setPanel] = useState<'history' | 'settings' | null>(null)
   const [source, setSource] = useState<'form' | 'system'>('form')
   const [expanded, setExpanded] = useState(false)
@@ -19,7 +19,7 @@ export default function AreaProperties({ areaId, number, onChange }: { areaId: s
       const res = await fetch(`/api/areas/${areaId}/properties`, { cache: 'no-store' })
       const value = await res.json()
       if (!res.ok) throw new Error(value.error || '載入失敗')
-      setData(value); onChange(areaId, value.dispatchEnabled)
+      setData(value); onChange(areaId, value.dispatchEnabled, value.personalTerritory)
     } catch (e) { setData(null); setError(e instanceof Error ? e.message : '載入失敗') }
     finally { setLoading(false) }
   }
@@ -30,9 +30,22 @@ export default function AreaProperties({ areaId, number, onChange }: { areaId: s
       const res = await fetch(`/api/areas/${areaId}/properties`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dispatchEnabled: !data.dispatchEnabled, expectedEnabled: data.dispatchEnabled }) })
       const value = await res.json()
       if (!res.ok) throw new Error(value.error || '儲存失敗')
-      setData({ ...data, dispatchEnabled: value.dispatchEnabled }); onChange(areaId, value.dispatchEnabled)
+      setData({ ...data, dispatchEnabled: value.dispatchEnabled }); onChange(areaId, value.dispatchEnabled, data.personalTerritory)
       setMessage(value.dispatchEnabled ? '已開放申請與分發。' : '已暫停申請與分發，目前持有人不變。')
     } catch (e) { setError(e instanceof Error ? e.message : '儲存失敗，請重新載入確認狀態') }
+    finally { lock.current = false; setBusy(false) }
+  }
+  async function saveCategory(personal: boolean) {
+    if (!data || lock.current || data.personalTerritory === personal) return
+    lock.current = true; setBusy(true); setError(''); setMessage('')
+    try {
+      const res = await fetch(`/api/areas/${areaId}/properties`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ personalTerritory: personal, expectedPersonalTerritory: data.personalTerritory }) })
+      const value = await res.json()
+      if (!res.ok) throw new Error(value.error || '儲存失敗')
+      setData({ ...data, personalTerritory: value.personalTerritory })
+      onChange(areaId, data.dispatchEnabled, value.personalTerritory)
+      setMessage('已儲存')
+    } catch (e) { setError(e instanceof Error ? e.message : '儲存失敗') }
     finally { lock.current = false; setBusy(false) }
   }
   function toggle(next: 'history' | 'settings') {
@@ -50,6 +63,9 @@ export default function AreaProperties({ areaId, number, onChange }: { areaId: s
       {loading && <p role="status" className="flex items-center gap-2 py-3 text-mc-text/50"><Loader2 size={15} className="animate-spin" aria-hidden="true" />載入中</p>}
       {error && <p role="alert" className="mb-3 rounded-lg bg-red-400/10 p-2 text-red-300">{error}</p>}
       {data && !loading && panel === 'settings' && <>
+        <div role="group" aria-label="區域分類" className="mb-4 grid grid-cols-2 gap-1 rounded-lg bg-black/15 p-1">
+          {[false, true].map(personal => <button key={String(personal)} type="button" aria-pressed={data.personalTerritory === personal} disabled={busy || !!error} onClick={() => void saveCategory(personal)} className={`min-h-11 rounded-md px-2 disabled:opacity-40 ${data.personalTerritory === personal ? 'bg-blue-400/15 text-blue-300' : 'text-mc-text/50'}`}>{personal ? '個人區域' : '一般區域'}</button>)}
+        </div>
         <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-medium">開放分發</p><p className={`mt-1 ${data.dispatchEnabled ? 'text-emerald-300' : 'text-mc-text/50'}`}>{data.dispatchEnabled ? '可申請、可分發' : '已暫停'}</p></div><button type="button" role="switch" aria-label={`${number} 號開放分發`} aria-checked={data.dispatchEnabled} disabled={busy || !!error} onClick={() => void save()} className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-40 ${data.dispatchEnabled ? 'bg-emerald-500' : 'bg-slate-600'}`}><span className={`absolute top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-emerald-600 shadow transition-transform ${data.dispatchEnabled ? 'translate-x-6' : 'translate-x-1'}`}>{busy ? <Loader2 size={12} className="animate-spin" aria-hidden="true" /> : data.dispatchEnabled ? <Check size={12} aria-hidden="true" /> : null}</span></button></div>
         <details className="mt-3 text-mc-text/50"><summary className="flex cursor-pointer list-none items-center gap-1.5 py-1"><Info size={13} aria-hidden="true" />暫停後會如何？</summary><p className="mt-2 leading-relaxed">停止新申請、分發及核准；目前持有人與日期保持不變。</p></details>
       </>}

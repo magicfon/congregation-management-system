@@ -16,6 +16,7 @@ model Area {
   ministryVisits MinistryVisit[]
   id               String   @id @default(cuid())
   name             String
+  personalTerritory Boolean @default(false)
   dispatchEnabled  Boolean  @default(true) // 暫停時保留持有人，阻擋新申請與分發
   description      String?
   assignedTo       String?

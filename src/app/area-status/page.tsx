@@ -15,9 +15,11 @@ export default function AreaStatusPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminMode, setAdminMode] = useState<'dispatch' | 'request'>('dispatch')
   const dispatchMode = isAdmin && adminMode === 'dispatch'
+  const [categories, setCategories] = useState<Record<string, boolean>>({})
   const [availability, setAvailability] = useState<Record<string, boolean>>({})
   useEffect(() => { const controller = new AbortController(); void fetch('/api/me', { signal: controller.signal }).then(r => r.ok ? r.json() : null).then(user => { if (!controller.signal.aborted) setIsAdmin(user?.role === 'admin') }).catch(() => {}); return () => controller.abort() }, [])
-  function updateAvailability(id: string, enabled: boolean) {
+  function updateAvailability(id: string, enabled: boolean, personal: boolean) {
+    setCategories(old => ({ ...old, [id]: personal }))
     setAvailability(old => ({ ...old, [id]: enabled }))
     if (!enabled) setQueue(old => old.filter(item => item.id !== id))
   }
@@ -42,7 +44,7 @@ export default function AreaStatusPage() {
         const result: AreaStatusData = await response.json()
         if (!controller.signal.aborted) {
           setData(result)
-          setAvailability({})
+          setAvailability({}); setCategories({})
           const reports = result.regions.flatMap(r => r.reports)
           setQueue(old => old.filter(item => !reports.some(r => r.areaId === item.id && (r.isDispatched || !r.dispatchEnabled))))
         }
@@ -92,11 +94,12 @@ export default function AreaStatusPage() {
             {!selected.reports.length && <p className="text-sm text-mc-text/60">尚未對應地圖號碼，請先在編輯器指定號碼。</p>}
             <div className="space-y-4">{selected.reports.map(r => {
               const enabled = (r.areaId ? availability[r.areaId] : undefined) ?? r.dispatchEnabled
+              const personal = (r.areaId ? categories[r.areaId] : undefined) ?? r.personalTerritory
               const queued = queue.some(i => i.id === r.areaId)
               const unavailable = !enabled || !r.areaId || r.isDispatched
               const status = !r.areaId ? '未配對' : r.isDispatched ? '使用中' : !enabled ? '暫停分發' : dispatchMode ? '可分發' : '可申請'
               return <article key={r.number} className="space-y-3 border-b border-white/10 pb-3 last:border-0 last:pb-0">
-                <div className="flex items-center justify-between"><span className="text-sm text-mc-text/60">{selected.numbers.length > 1 ? `${r.number} 號` : '地圖狀態'}</span><span className={`rounded-full px-2 py-1 text-xs ${unavailable ? 'bg-white/5 text-mc-text/60' : 'bg-emerald-400/10 text-emerald-300'}`}>{status}</span></div>
+                <div className="flex items-center justify-between"><span className="text-sm text-mc-text/60">{selected.numbers.length > 1 ? `${r.number} 號` : '地圖狀態'}{personal && <span className="ml-2 text-blue-300">個人區域</span>}</span><span className={`rounded-full px-2 py-1 text-xs ${unavailable ? 'bg-white/5 text-mc-text/60' : 'bg-emerald-400/10 text-emerald-300'}`}>{status}</span></div>
                 {r.isDispatched && <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm"><dt className="flex items-center gap-1.5 text-mc-text/50"><UserRound size={14} aria-hidden="true" />持有人</dt><dd>{r.assignedTo || '未記錄'}</dd><dt className="flex items-center gap-1.5 text-mc-text/50"><CalendarDays size={14} aria-hidden="true" />領取日</dt><dd>{r.dispatchedDate || '未記錄'}</dd></dl>}
                 <div><p className="text-xs text-mc-text/60">距上次完成回報</p><p className="mt-1"><strong className="text-3xl font-semibold tabular-nums">{data?.syncedAt && r.days !== null ? r.days : '—'}</strong><span className="ml-1 text-sm text-mc-text/60">天</span></p><p className="mt-1 flex items-center gap-1.5 text-xs text-mc-text/50"><CalendarDays size={13} aria-hidden="true" />{!data?.syncedAt ? '回報日期尚未同步' : `上次完成：${r.lastCompletedDate || '無紀錄'}`}</p></div>
                 {!unavailable && <button disabled={actionBusy || (!dispatchMode && queue.length >= 5 && !queued)} aria-pressed={queued} onClick={() => { if (r.areaId) setQueue(old => old.some(i => i.id === r.areaId) ? old.filter(i => i.id !== r.areaId) : !dispatchMode && old.length >= 5 ? old : [...old, { id: r.areaId!, label: `${DISTRICT_NAMES[mapId]} ${r.number} 號` }]) }} className={`w-full rounded-lg px-3 py-2.5 text-sm disabled:opacity-40 ${queued ? 'bg-blue-400/10 text-blue-300' : 'bg-mc-highlight text-white'}`}>{queued ? '✓ 已加入 · 點此移除' : dispatchMode ? '＋ 加入分發清單' : queue.length >= 5 ? '已選滿 5 張' : '＋ 加入申請'}</button>}
