@@ -5,6 +5,29 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model ServiceRosterState {
+  id String @id
+  revision Int @default(1)
+  importedAt DateTime @default(now())
+  @@map("service_roster_state")
+}
+model ServicePerson {
+  id String @id @default(cuid())
+  name String
+  memberId String? @unique
+  enabled Boolean @default(false)
+  roles Json @default("[]")
+  @@map("service_people")
+}
+model ServiceWeek {
+  startDate String @id
+  endDate String
+  stopped Boolean @default(false)
+  note String @default("")
+  assignments Json @default("{}")
+  @@map("service_weeks")
+}
+
 model BulletinAnnouncement {
   id String @id @default(cuid())
   title String

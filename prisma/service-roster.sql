@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS "service_roster_state" ("id" TEXT PRIMARY KEY, "revision" INTEGER NOT NULL DEFAULT 1, "importedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS "service_people" (
+  "id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "memberId" TEXT UNIQUE,
+  "enabled" BOOLEAN NOT NULL DEFAULT false, "roles" JSONB NOT NULL DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS "service_weeks" (
+  "startDate" TEXT PRIMARY KEY, "endDate" TEXT NOT NULL, "stopped" BOOLEAN NOT NULL DEFAULT false,
+  "note" TEXT NOT NULL DEFAULT '', "assignments" JSONB NOT NULL DEFAULT '{}'
+);
