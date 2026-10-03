@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import ServiceDutyIcon from './ServiceDutyIcon'
+import RosterName from './RosterName'
+import useRosterIdentity from './useRosterIdentity'
 import { serviceRoles, assignmentConflicts, addDays, dateDay, weekLabel, type ServicePersonData, type ServiceRole, type ServiceWeekData, type Assignments } from '@/lib/service-roster'
 type Member = { id: string; name: string }
 type Snapshot = { initialized: boolean; revision: number; weeks: ServiceWeekData[]; people?: ServicePersonData[]; members?: Member[] }
@@ -13,6 +15,7 @@ const groups = [...new Set(serviceRoles.map(role => role.group))]
 
 
 export default function ServiceRoster({ management = false }: { management?: boolean }) {
+  const ownPersonId = useRosterIdentity()
   const [data, setData] = useState<Snapshot | null>(null)
   const [admin, setAdmin] = useState(false)
   const canManage = management && admin
@@ -113,7 +116,7 @@ export default function ServiceRoster({ management = false }: { management?: boo
             {groups.map(group => <section key={group} data-roster-group={group} className="roster-group overflow-hidden rounded-xl border bg-mc-card"><h3 className="roster-group-title px-4 py-3 text-lg font-semibold">{group}</h3><dl className={editing ? 'space-y-2 p-3' : 'grid grid-cols-1 gap-x-4 gap-y-4 p-4 min-[380px]:grid-cols-2'}>{serviceRoles.filter(r => r.group === group).map(role => {
               const assigned = (editing ? draft : week.assignments)[role.id]
               const eligible = data.people?.filter(p => p.enabled && p.memberId && p.roles.includes(role.id)) ?? []
-              return <div key={role.id} className={editing ? 'grid min-h-12 grid-cols-1 items-center gap-2 sm:grid-cols-[10rem_minmax(0,1fr)]' : 'min-w-0 py-1'}><dt className={editing ? 'roster-duty-title flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-lg font-bold leading-7' : 'roster-duty-title mb-2 flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-xl font-bold leading-7'}><ServiceDutyIcon role={role.id} /><span>{role.label}</span></dt><dd>{editing ? <select className={control} aria-label={role.label} value={assigned?.personId ?? ''} onChange={event => { const person = data.people?.find(p => p.id === event.target.value); setDraft(current => { const next = { ...current }; if (person) next[role.id] = { personId: person.id, name: person.name }; else delete next[role.id]; return next }); setDirty(true) }}><option value="">待安排</option>{assigned && !eligible.some(p => p.id === assigned.personId) && <option value={assigned.personId}>{assigned.name}（原安排）</option>}{eligible.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <span className={`break-words text-2xl leading-9 ${assigned ? 'font-semibold' : 'text-mc-text/70'}`}>{assigned?.name ?? '待安排'}</span>}</dd></div>
+              return <div key={role.id} className={editing ? 'grid min-h-12 grid-cols-1 items-center gap-2 sm:grid-cols-[10rem_minmax(0,1fr)]' : 'min-w-0 py-1'}><dt className={editing ? 'roster-duty-title flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-lg font-bold leading-7' : 'roster-duty-title mb-2 flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-xl font-bold leading-7'}><ServiceDutyIcon role={role.id} /><span>{role.label}</span></dt><dd>{editing ? <select className={control} aria-label={role.label} value={assigned?.personId ?? ''} onChange={event => { const person = data.people?.find(p => p.id === event.target.value); setDraft(current => { const next = { ...current }; if (person) next[role.id] = { personId: person.id, name: person.name }; else delete next[role.id]; return next }); setDirty(true) }}><option value="">待安排</option>{assigned && !eligible.some(p => p.id === assigned.personId) && <option value={assigned.personId}>{assigned.name}（原安排）</option>}{eligible.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <RosterName assignment={assigned} ownPersonId={ownPersonId} />}</dd></div>
             })}</dl></section>)}
           </fieldset>
         </>}

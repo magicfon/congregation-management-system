@@ -97,6 +97,31 @@ async function main() {
   await assert.rejects(managementPage.default(), /redirect:\/bulletin\/service-roster/);
   pageUser = { id: 'admin', role: 'admin' };
   assert.ok(await managementPage.default(), 'Admin can render the separate management page');
+  let identityUser = null, activeMember = true, linkedPerson = 'roster-self', identityReads = 0;
+  const identityApi = load('src/app/api/service-roster/me/route.ts', {
+    '@/lib/api-auth': { requireApiUser: async () => identityUser ? { user: identityUser } : { response: new Response(null, { status: 401 }) } },
+    '@/lib/db': { prisma: {
+      member: { findFirst: async ({ where }) => { identityReads++; assert.equal(where.id, 'linked-member'); assert.equal(where.active, true); assert.equal(where.deletedAt, null); return activeMember ? { id: 'linked-member' } : null; } },
+      servicePerson: { findUnique: async ({ where, select }) => { assert.equal(where.memberId, 'linked-member'); assert.deepEqual(JSON.parse(JSON.stringify(select)), { id: true }); return linkedPerson ? { id: linkedPerson } : null; } },
+    } },
+  });
+  assert.equal((await identityApi.GET()).status, 401); assert.equal(identityReads, 0);
+  identityUser = { id: 'linked-member', role: 'publisher', name: 'LINE nickname' };
+  let identityResponse = await identityApi.GET();
+  assert.deepEqual(await identityResponse.json(), { personId: 'roster-self' });
+  assert.equal(identityResponse.headers.get('cache-control'), 'private, no-store');
+  assert.equal(identityResponse.headers.get('vary'), 'Cookie');
+  linkedPerson = null; assert.deepEqual(await (await identityApi.GET()).json(), { personId: null });
+  linkedPerson = 'relinked-person'; assert.deepEqual(await (await identityApi.GET()).json(), { personId: 'relinked-person' });
+  activeMember = false; assert.deepEqual(await (await identityApi.GET()).json(), { personId: null });
+  const Name = load('src/components/bulletin/RosterName.tsx').default;
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const renderName = (id, self) => renderToStaticMarkup(Name({ assignment: { personId: id, name: '同名成員' }, ownPersonId: self }));
+  assert.match(renderName('self', 'self'), /<mark/);
+  assert.match(renderName('self', 'self'), /我/);
+  assert.doesNotMatch(renderName('different', 'self'), /<mark/, 'Same display name must not highlight another member');
+  assert.doesNotMatch(renderName('self', null), /<mark/, 'Signed-out viewers must not inherit an identity');
+
   console.log('Service roster dates, import, qualification, matching, draft, concurrency and authorization checks passed');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
