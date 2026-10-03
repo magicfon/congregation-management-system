@@ -71,7 +71,8 @@ body {
 /* Category accents share the bulletin's system/light/dark preference. */
 .bulletin-theme [data-roster-group="招待"] { --roster-hue: 215; }
 .bulletin-theme [data-roster-group="週末聚會"] { --roster-hue: 270; }
-.bulletin-theme [data-roster-group="設備服務"] { --roster-hue: 172; }
+.bulletin-theme [data-roster-group="麥克風"] { --roster-hue: 172; }
+.bulletin-theme [data-roster-group="講台／音響／影音"] { --roster-hue: 195; }
 .bulletin-theme [data-roster-group="週中聚會"] { --roster-hue: 28; }
 .bulletin-theme .roster-group {
   border-color: hsl(var(--roster-hue) 65% 55% / 0.28);
@@ -162,4 +163,9 @@ input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(0.7);
   cursor: pointer;
+}
+
+.bulletin-theme .roster-duty-title {
+  color: hsl(var(--roster-hue) 65% var(--roster-ink-lightness));
+  background-color: hsl(var(--roster-hue) 65% 55% / 0.1);
 }

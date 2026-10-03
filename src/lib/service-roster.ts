@@ -1,7 +1,8 @@
 export const serviceRoles = [
   { id: 'host', label: '招待當值', group: '招待' }, { id: 'backup', label: '替補招待', group: '招待' }, { id: 'attendant', label: '會堂招待員', group: '招待' },
   { id: 'watchtower', label: '守望台朗讀', group: '週末聚會' },
-  { id: 'micA', label: '麥克風 A', group: '設備服務' }, { id: 'micB', label: '麥克風 B', group: '設備服務' }, { id: 'stage', label: '講台', group: '設備服務' }, { id: 'video', label: '影像', group: '設備服務' }, { id: 'audio', label: '音響', group: '設備服務' },
+  { id: 'micA', label: '麥克風 A', group: '麥克風' }, { id: 'micB', label: '麥克風 B', group: '麥克風' },
+  { id: 'stage', label: '講台', group: '講台／音響／影音' }, { id: 'audio', label: '音響', group: '講台／音響／影音' }, { id: 'video', label: '影像', group: '講台／音響／影音' },
   { id: 'chair', label: '週中主席', group: '週中聚會' }, { id: 'reader', label: '週中朗讀', group: '週中聚會' },
 ] as const
 export type ServiceRole = typeof serviceRoles[number]['id']

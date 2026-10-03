@@ -8,7 +8,7 @@ type Member = { id: string; name: string }
 type Snapshot = { initialized: boolean; revision: number; weeks: ServiceWeekData[]; people?: ServicePersonData[]; members?: Member[] }
 const button = 'min-h-12 rounded-lg border border-white/10 px-3 text-base hover:bg-mc-accent disabled:opacity-40'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 px-3 text-base'
-const groups = ['招待', '週末聚會', '設備服務', '週中聚會']
+const groups = [...new Set(serviceRoles.map(role => role.group))]
 
 export default function ServiceRoster({ management = false }: { management?: boolean }) {
   const [data, setData] = useState<Snapshot | null>(null)
@@ -110,7 +110,7 @@ export default function ServiceRoster({ management = false }: { management?: boo
             {groups.map(group => <section key={group} data-roster-group={group} className="roster-group overflow-hidden rounded-xl border bg-mc-card"><h3 className="roster-group-title px-4 py-3 text-lg font-semibold">{group}</h3><dl className={editing ? 'space-y-2 p-3' : 'grid grid-cols-2 gap-x-4 gap-y-4 p-4'}>{serviceRoles.filter(r => r.group === group).map(role => {
               const assigned = (editing ? draft : week.assignments)[role.id]
               const eligible = data.people?.filter(p => p.enabled && p.memberId && p.roles.includes(role.id)) ?? []
-              return <div key={role.id} className={editing ? 'grid min-h-12 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2' : 'min-w-0 py-1'}><dt className={editing ? 'text-base text-mc-text/60' : 'mb-1 text-lg leading-7 text-mc-text/80'}>{role.label}</dt><dd>{editing ? <select className={control} aria-label={role.label} value={assigned?.personId ?? ''} onChange={event => { const person = data.people?.find(p => p.id === event.target.value); setDraft(current => { const next = { ...current }; if (person) next[role.id] = { personId: person.id, name: person.name }; else delete next[role.id]; return next }); setDirty(true) }}><option value="">待安排</option>{assigned && !eligible.some(p => p.id === assigned.personId) && <option value={assigned.personId}>{assigned.name}（原安排）</option>}{eligible.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <span className={`break-words text-2xl leading-9 ${assigned ? 'font-semibold' : 'text-mc-text/70'}`}>{assigned?.name ?? '待安排'}</span>}</dd></div>
+              return <div key={role.id} className={editing ? 'grid min-h-12 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2' : 'min-w-0 py-1'}><dt className={editing ? 'roster-duty-title rounded px-1 py-1 text-lg font-bold leading-7' : 'roster-duty-title mb-2 w-fit max-w-full rounded px-1 py-1 text-xl font-bold leading-7'}>{role.label}</dt><dd>{editing ? <select className={control} aria-label={role.label} value={assigned?.personId ?? ''} onChange={event => { const person = data.people?.find(p => p.id === event.target.value); setDraft(current => { const next = { ...current }; if (person) next[role.id] = { personId: person.id, name: person.name }; else delete next[role.id]; return next }); setDirty(true) }}><option value="">待安排</option>{assigned && !eligible.some(p => p.id === assigned.personId) && <option value={assigned.personId}>{assigned.name}（原安排）</option>}{eligible.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <span className={`break-words text-2xl leading-9 ${assigned ? 'font-semibold' : 'text-mc-text/70'}`}>{assigned?.name ?? '待安排'}</span>}</dd></div>
             })}</dl></section>)}
           </fieldset>
         </>}
