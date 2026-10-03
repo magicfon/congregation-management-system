@@ -44,7 +44,7 @@ body {
   --bulletin-blue: 215 80% 38%;
   --bulletin-border: 222 35% 16%;
   --bulletin-muted-opacity: 0.7;
-  --roster-ink-lightness: 32%;
+  --roster-ink-lightness: 28%;
 }
 
 @media (prefers-color-scheme: light) {
@@ -58,7 +58,7 @@ body {
     --bulletin-blue: 215 80% 38%;
     --bulletin-border: 222 35% 16%;
     --bulletin-muted-opacity: 0.7;
-    --roster-ink-lightness: 32%;
+    --roster-ink-lightness: 28%;
   }
 }
 
