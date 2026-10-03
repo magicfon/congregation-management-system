@@ -13,6 +13,7 @@ const PROTECTED_PAGE_PREFIXES = [
   '/members',
   '/reports',
   '/schedules',
+  '/service-roster',
 ]
 
 export async function middleware(request: NextRequest) {
@@ -31,5 +32,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/map-requests/:path*', '/area-status/:path*', '/dashboard/:path*', '/areas/:path*', '/members/:path*', '/reports/:path*', '/schedules/:path*', '/statistics/:path*', '/map/:path*', '/map-images/:path*', '/active-assignments/:path*', '/assignments/:path*'],
+  matcher: ['/service-roster/:path*', '/map-requests/:path*', '/area-status/:path*', '/dashboard/:path*', '/areas/:path*', '/members/:path*', '/reports/:path*', '/schedules/:path*', '/statistics/:path*', '/map/:path*', '/map-images/:path*', '/active-assignments/:path*', '/assignments/:path*'],
 }

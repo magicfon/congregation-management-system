@@ -16,7 +16,7 @@ function parseTheme(value: string | null): Theme { return value === 'light' || v
 
 export default function BulletinLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const compact = pathname === '/bulletin/service-roster'
+  const compact = pathname === '/bulletin/service-roster' || pathname === '/service-roster/manage'
   const [theme, setTheme] = useState<Theme>('system')
   useEffect(() => {
     try { setTheme(parseTheme(localStorage.getItem(storageKey))) } catch { /* Device preference works without storage. */ }

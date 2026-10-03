@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { serviceRoles, assignmentConflicts, addDays, dateDay, weekLabel, type ServicePersonData, type ServiceRole, type ServiceWeekData, type Assignments } from '@/lib/service-roster'
 type Member = { id: string; name: string }
@@ -9,9 +10,10 @@ const button = 'min-h-12 rounded-lg border border-white/10 px-3 text-base hover:
 const control = 'min-h-12 w-full rounded-lg border border-white/10 px-3 text-base'
 const groups = ['招待', '週末聚會', '設備服務', '週中聚會']
 
-export default function ServiceRoster() {
+export default function ServiceRoster({ management = false }: { management?: boolean }) {
   const [data, setData] = useState<Snapshot | null>(null)
   const [admin, setAdmin] = useState(false)
+  const canManage = management && admin
   const [selected, setSelected] = useState('')
   const [editing, setEditing] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -35,16 +37,13 @@ export default function ServiceRoster() {
   async function load() {
     setError(''); setBusy(true)
     try {
-      const response = await fetch('/api/service-roster', { cache: 'no-store' })
-      if (!response.ok) throw new Error('服務安排暫時無法讀取')
+      const response = await fetch(management ? '/api/service-roster/manage' : '/api/service-roster', { cache: 'no-store' })
+      if (!response.ok) throw new Error(management ? '管理資料暫時無法讀取，請確認管理員登入狀態' : '服務安排暫時無法讀取')
       accept(await response.json())
-      const me = await fetch('/api/me', { cache: 'no-store' })
-      const isAdmin = me.ok && (await me.json()).isAdmin === true
-      setAdmin(isAdmin)
-      if (isAdmin) {
-        const managed = await fetch('/api/service-roster/manage', { cache: 'no-store' })
-        if (!managed.ok) throw new Error('管理資料暫時無法讀取')
-        accept(await managed.json())
+      if (management) setAdmin(true)
+      else {
+        const me = await fetch('/api/me', { cache: 'no-store' })
+        setAdmin(me.ok && (await me.json()).isAdmin === true)
       }
       setEditing(false); setDirty(false)
     } catch (err) { setError(err instanceof Error ? err.message : '讀取失敗') }
@@ -54,6 +53,7 @@ export default function ServiceRoster() {
   useEffect(() => { setDraft(week?.assignments ?? {}); setNote(week?.note ?? ''); setStopped(week?.stopped ?? false); setDirty(false) }, [week])
 
   async function act(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    if (!canManage) throw new Error('請至管理頁進行安排')
     setBusy(true); setError(''); setNotice('')
     try {
       const response = await fetch('/api/service-roster/manage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: data?.revision, ...body }) })
@@ -75,23 +75,24 @@ export default function ServiceRoster() {
       setNotice(`已補 ${result.filled} 項，儲存後才發布。${(result.warnings as string[]).join('；')}`)
     } catch {}
   }
-  const warnings = admin && week ? [
+  const warnings = canManage && week ? [
     ...assignmentConflicts(editing ? draft : week.assignments),
     ...Object.entries(editing ? draft : week.assignments).filter(([role, value]) => { const p = data?.people?.find(p => p.id === value!.personId); return !p?.enabled || !p.roles.includes(role as ServiceRole) }).map(([role, value]) => `${value!.name}的${serviceRoles.find(r => r.id === role)!.label}資格待確認`),
   ] : []
 
   return <div className="space-y-4">
+    {!management && admin && <div className="flex justify-end"><Link href="/service-roster/manage" className={`${button} inline-flex items-center`}>管理安排</Link></div>}
     {error && <p role="alert" className="rounded-xl border border-white/10 p-3 text-base">{error}<button type="button" className={`${button} ml-2`} disabled={busy} onClick={() => void load()}>重新載入</button></p>}
     {notice && <p role="status" className="text-base text-blue-300">{notice}</p>}
     {!data && !error && <p role="status" className="text-base text-mc-text/60">正在載入安排…</p>}
-    {data && !data.initialized && <div className="rounded-xl border border-white/10 p-4"><p className="text-base">本站輪值資料尚未匯入。</p>{admin && <button type="button" className={`${button} mt-3`} disabled={busy} onClick={() => void act({ action: 'initialize' }).catch(() => {})}>{busy ? '匯入中…' : '首次匯入 Google 輪值資料'}</button>}</div>}
+    {data && !data.initialized && <div className="rounded-xl border border-white/10 p-4"><p className="text-base">本站輪值資料尚未匯入。</p>{canManage && <button type="button" className={`${button} mt-3`} disabled={busy} onClick={() => void act({ action: 'initialize' }).catch(() => {})}>{busy ? '匯入中…' : '首次匯入 Google 輪值資料'}</button>}</div>}
     {data?.initialized && <>
       <div className="rounded-2xl border border-white/10 bg-mc-card p-3 sm:p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="text-base font-medium text-blue-300">{week?.startDate.slice(0, 4)} · {currentWeek?.startDate === selected ? '本週安排' : '每週安排'}{dirty ? ' · 尚未儲存' : ''}</span>
           <div className="flex items-center gap-2">
             {currentWeek && currentWeek.startDate !== selected && <button type="button" className={button} disabled={busy} onClick={() => changeWeek(currentWeek.startDate)}>回本週</button>}
-            {admin && week && <button type="button" className={button} disabled={busy} onClick={() => { setDraft(week.assignments); setNote(week.note); setStopped(week.stopped); setEditing(!editing); setDirty(false); setNotice('') }}>{editing ? '取消編輯' : '安排'}</button>}
+            {canManage && week && <button type="button" className={button} disabled={busy} onClick={() => { setDraft(week.assignments); setNote(week.note); setStopped(week.stopped); setEditing(!editing); setDirty(false); setNotice('') }}>{editing ? '取消編輯' : '安排'}</button>}
           </div>
         </div>
         <div className="grid grid-cols-[48px_minmax(0,1fr)_48px] items-center gap-2">
@@ -114,13 +115,13 @@ export default function ServiceRoster() {
           </fieldset>
         </>}
         {editing && <div className="flex flex-wrap items-center gap-2"><button type="button" className={button} disabled={busy || stopped} onClick={() => void preview()}>自動補空缺</button><button type="button" className="min-h-12 rounded-lg bg-blue-500 px-4 text-base text-white disabled:opacity-40" disabled={busy || !dirty} onClick={() => void act({ action: 'week', startDate: selected, note, stopped, assignments: draft }).catch(() => {})}>{busy ? '處理中…' : '儲存並發布'}</button></div>}
-        {admin && warnings.length > 0 && <details className="text-base text-mc-text/60"><summary className="cursor-pointer py-2">{warnings.length} 項資格／兼任提醒</summary><ul className="space-y-1 py-2">{warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></details>}
+        {canManage && warnings.length > 0 && <details className="text-base text-mc-text/60"><summary className="cursor-pointer py-2">{warnings.length} 項資格／兼任提醒</summary><ul className="space-y-1 py-2">{warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></details>}
       </>}
-      {admin && !editing && <>
+      {canManage && !editing && <>
         <details className="rounded-xl border border-white/10 bg-mc-card p-4"><summary className="cursor-pointer text-base font-semibold">新增週次</summary><form className="mt-3 flex flex-wrap items-center gap-2" onSubmit={event => { event.preventDefault(); void act({ action: 'create', startDate: createDate, note: '', stopped: false, assignments: {} }).then(() => setSelected(createDate)).catch(() => {}) }}><label className="flex-1 text-base">週開始（星期一）<input type="date" required className={`${control} mt-2`} value={createDate} disabled={busy} onChange={event => setCreateDate(event.target.value)} /></label><button className={`${button} mt-7`} disabled={busy}>新增</button></form></details>
         <PersonEditor people={data.people ?? []} members={data.members ?? []} busy={busy} save={act} />
       </>}
-      <RosterStats data={data} />
+      {canManage && <RosterStats data={data} />}
     </>}
   </div>
 }

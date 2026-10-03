@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), ts = require('typescript');
 function load(file, mocks = {}) {
   const exports = {};
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText,
     { exports, require: id => id in mocks ? mocks[id] : require(id), Date, console, fetch, AbortSignal, URL, Request, Response, Set, Map }, { filename: file });
   return exports;
 }
@@ -73,6 +73,20 @@ async function main() {
   const request = (origin = 'https://test.local') => new Request('https://test.local/api/service-roster/manage', { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'week' }) });
   assert.equal((await api.POST(request())).status, 401); actor = 'publisher'; assert.equal((await api.POST(request())).status, 403); actor = 'elder'; assert.equal((await api.GET()).status, 403);
   assert.equal(edited, 0); actor = 'admin'; assert.equal((await api.POST(request('https://outside.local'))).status, 403); assert.equal((await api.POST(request())).status, 200);
+  let pageUser = null;
+  const managementPage = load('src/app/service-roster/manage/page.tsx', {
+    'next/link': { default: () => null },
+    'next-auth': { getServerSession: async () => ({ user: pageUser }) },
+    'next/navigation': { redirect: url => { throw new Error(`redirect:${url}`); } },
+    '@/lib/auth': { authOptions: {} },
+    '@/components/layout/DashboardLayout': { default: () => null },
+    '@/components/bulletin/ServiceRoster': { default: () => null },
+  });
+  await assert.rejects(managementPage.default(), /redirect:.*login.*callbackUrl/);
+  pageUser = { id: 'member', role: 'publisher' };
+  await assert.rejects(managementPage.default(), /redirect:\/bulletin\/service-roster/);
+  pageUser = { id: 'admin', role: 'admin' };
+  assert.ok(await managementPage.default(), 'Admin can render the separate management page');
   console.log('Service roster dates, import, qualification, matching, draft, concurrency and authorization checks passed');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
