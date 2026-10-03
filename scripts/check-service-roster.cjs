@@ -50,6 +50,16 @@ async function main() {
   assert.equal(service.assignmentConflicts({ watchtower: assignment('same'), reader: assignment('same') }).length, 0, 'Separate meeting duties remain compatible');
   assert.equal(service.validateAssignments({ host: assignment('original') }, { host: assignment('original') }, []).host.personId, 'original', 'Existing imported assignments remain locked until changed');
 
+  const overview = load('src/lib/service-roster-overview.ts', { './service-roster': service });
+  const overviewInput = [week('2027-01-04', { micA: assignment('one') }), week('2026-12-28', { host: assignment('one'), reader: assignment('one'), micB: assignment('two') }), week('2026-12-21', { micB: assignment('one') }), week('2027-01-11', { host: assignment('one') }, { stopped: true })];
+  const personal = overview.overviewWeeks(overviewInput, '2027-01-03', 'one');
+  assert.deepEqual(Array.from(personal.upcoming, w => w.startDate), ['2026-12-28', '2027-01-04'], 'Keep current Sunday, sort by full date, exclude stopped personal assignments');
+  assert.equal(personal.past.length, 1);
+  assert.equal(overview.overviewDuties(personal.upcoming[0], 'one').length, 2, 'Include every duty for the same person/week');
+  assert.equal(overview.overviewWeeks(overviewInput, '2027-01-04', 'one').past.length, 2, 'Completed week becomes past on Monday');
+  assert.equal(overview.overviewWeeks(overviewInput, '2027-01-03', 'missing').upcoming.length, 0);
+  assert.equal(overview.overviewWeeks(overviewInput, '2027-01-03').upcoming.length, 3, 'All-person overview retains stopped week notices');
+
   let revision = 1, weeks = [week()], writes = 0;
   const database = {
     serviceRosterState: { findUnique: async () => ({ revision }), updateMany: async ({ where }) => { if (revision !== where.revision) return { count: 0 }; revision++; return { count: 1 }; } },

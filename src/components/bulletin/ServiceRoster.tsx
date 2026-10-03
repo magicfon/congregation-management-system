@@ -83,6 +83,7 @@ export default function ServiceRoster({ management = false }: { management?: boo
   ] : []
 
   return <div className="space-y-4">
+    {!management && <Link href="/bulletin/service-roster/all" className={`${button} flex items-center justify-center border-blue-400/30 bg-blue-400/10 font-semibold text-blue-300`}>所有週次・查個人安排</Link>}
     {!management && admin && <div className="flex justify-end"><Link href="/service-roster/manage" className={`${button} inline-flex items-center`}>管理安排</Link></div>}
     {error && <p role="alert" className="rounded-xl border border-white/10 p-3 text-base">{error}<button type="button" className={`${button} ml-2`} disabled={busy} onClick={() => void load()}>重新載入</button></p>}
     {notice && <p role="status" className="text-base text-blue-300">{notice}</p>}
