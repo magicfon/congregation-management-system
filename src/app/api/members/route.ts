@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: 'desc' },
       select: {
-        ...(isAdmin ? memberLineFields : memberFields),
+        ...(isAdmin ? memberLineFields : { ...memberFields, role: false }),
         assignedAreas: { select: { assignedMemberId: true, dispatchedAt: true, completedAt: true } },
         _count: { select: { schedules: true, reports: true } },
       },
