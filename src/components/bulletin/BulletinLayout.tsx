@@ -16,6 +16,7 @@ function parseTheme(value: string | null): Theme { return value === 'light' || v
 
 export default function BulletinLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const compact = pathname === '/bulletin/service-roster'
   const [theme, setTheme] = useState<Theme>('system')
   useEffect(() => {
     try { setTheme(parseTheme(localStorage.getItem(storageKey))) } catch { /* Device preference works without storage. */ }
@@ -36,9 +37,9 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
           <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/10 text-blue-300">▤</span>
           <span className="text-sm font-semibold sm:text-base">楠梓會眾<span className="block text-xs font-normal text-mc-text/50">公布欄</span></span>
         </Link>
-        <fieldset className="order-last flex w-full items-center justify-end gap-1 rounded-xl bg-mc-bg p-1 sm:order-none sm:ml-auto sm:w-auto">
+        <fieldset className={compact ? 'ml-auto flex items-center gap-0.5 rounded-xl bg-mc-bg p-1' : 'order-last flex w-full items-center justify-end gap-1 rounded-xl bg-mc-bg p-1 sm:order-none sm:ml-auto sm:w-auto'}>
           <legend className="sr-only">公布欄外觀</legend>
-          {choices.map(({ value, label, Icon }) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => chooseTheme(value)} className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 ${theme === value ? 'bg-mc-accent text-mc-text' : 'text-mc-text/60 hover:bg-mc-accent'}`}><Icon aria-hidden="true" className="h-4 w-4" />{label}</button>)}
+          {choices.map(({ value, label, Icon }) => <button key={value} type="button" aria-label={label} title={label} aria-pressed={theme === value} onClick={() => chooseTheme(value)} className={`flex min-h-11 items-center gap-2 rounded-lg ${compact ? 'justify-center px-2 sm:px-3' : 'px-3'} text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 ${theme === value ? 'bg-mc-accent text-mc-text' : 'text-mc-text/60 hover:bg-mc-accent'}`}><Icon aria-hidden="true" className="h-4 w-4" /><span className={compact ? 'hidden sm:inline' : ''}>{label}</span></button>)}
         </fieldset>
         <Link href={`/login?callbackUrl=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-lg border border-white/10 px-4 text-sm text-mc-text/70 hover:bg-mc-accent">登入</Link>
       </div>

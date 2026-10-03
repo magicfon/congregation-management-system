@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { serviceRoles, assignmentConflicts, addDays, dateDay, weekLabel, type ServicePersonData, type ServiceRole, type ServiceWeekData, type Assignments } from '@/lib/service-roster'
 type Member = { id: string; name: string }
 type Snapshot = { initialized: boolean; revision: number; weeks: ServiceWeekData[]; people?: ServicePersonData[]; members?: Member[] }
@@ -23,6 +24,8 @@ export default function ServiceRoster() {
   const [createDate, setCreateDate] = useState('')
   const today = dateDay(new Date())
   const week = data?.weeks.find(w => w.startDate === selected)
+  const weekIndex = data?.weeks.findIndex(w => w.startDate === selected) ?? -1
+  const currentWeek = data?.weeks.find(w => w.startDate <= today && w.endDate >= today)
 
   function accept(next: Snapshot) {
     setData(next)
@@ -83,20 +86,30 @@ export default function ServiceRoster() {
     {!data && !error && <p role="status" className="text-sm text-mc-text/60">正在載入安排…</p>}
     {data && !data.initialized && <div className="rounded-xl border border-white/10 p-4"><p className="text-sm">本站輪值資料尚未匯入。</p>{admin && <button type="button" className={`${button} mt-3`} disabled={busy} onClick={() => void act({ action: 'initialize' }).catch(() => {})}>{busy ? '匯入中…' : '首次匯入 Google 輪值資料'}</button>}</div>}
     {data?.initialized && <>
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex-1 text-sm"><span className="sr-only">查看週次</span><select aria-label="查看週次" className={control} value={selected} disabled={busy} onChange={event => changeWeek(event.target.value)}>{data.weeks.map(w => <option key={w.startDate} value={w.startDate}>{weekLabel(w.startDate)} · {w.startDate}～{w.endDate}{w.stopped ? '（停排）' : ''}</option>)}</select></label>
-        {admin && week && <button type="button" className={button} disabled={busy} onClick={() => { setDraft(week.assignments); setNote(week.note); setStopped(week.stopped); setEditing(!editing); setDirty(false); setNotice('') }}>{editing ? '取消編輯' : '安排'}</button>}
+      <div className="rounded-2xl border border-white/10 bg-mc-card p-3 sm:p-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-sm font-medium text-blue-300">{currentWeek?.startDate === selected ? '本週安排' : '每週安排'}{dirty ? ' · 尚未儲存' : ''}</span>
+          <div className="flex items-center gap-2">
+            {currentWeek && currentWeek.startDate !== selected && <button type="button" className={button} disabled={busy} onClick={() => changeWeek(currentWeek.startDate)}>回本週</button>}
+            {admin && week && <button type="button" className={button} disabled={busy} onClick={() => { setDraft(week.assignments); setNote(week.note); setStopped(week.stopped); setEditing(!editing); setDirty(false); setNotice('') }}>{editing ? '取消編輯' : '安排'}</button>}
+          </div>
+        </div>
+        <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
+          <button type="button" aria-label="上一週" className={`${button} flex items-center justify-center px-0`} disabled={busy || weekIndex <= 0} onClick={() => changeWeek(data.weeks[weekIndex - 1].startDate)}><ChevronLeft aria-hidden="true" className="h-5 w-5" /></button>
+          <label className="min-w-0 text-center"><span className="sr-only">查看週次</span><select aria-label="查看週次" className={`${control} text-center font-semibold`} value={selected} disabled={busy} onChange={event => changeWeek(event.target.value)}>{data.weeks.map(w => <option key={w.startDate} value={w.startDate}>{w.startDate.slice(0, 4)} · {w.startDate.slice(5).replace('-', '/')}～{w.endDate.slice(0, 4) !== w.startDate.slice(0, 4) ? `${w.endDate.slice(0, 4)}/` : ''}{w.endDate.slice(5).replace('-', '/')}{w.stopped ? '（停排）' : ''}</option>)}</select></label>
+          <button type="button" aria-label="下一週" className={`${button} flex items-center justify-center px-0`} disabled={busy || weekIndex < 0 || weekIndex >= data.weeks.length - 1} onClick={() => changeWeek(data.weeks[weekIndex + 1].startDate)}><ChevronRight aria-hidden="true" className="h-5 w-5" /></button>
+        </div>
       </div>
       {week && <>
-        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">{week.startDate.slice(5).replace('-', '/')}～{week.endDate.slice(5).replace('-', '/')}</h2><span className="text-xs text-mc-text/60">{weekLabel(week.startDate)}{dirty ? ' · 尚未儲存' : ''}</span></div>
+        <h2 className="sr-only">{weekLabel(week.startDate)} 服務安排</h2>
         {editing && <fieldset disabled={busy} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-mc-card p-3"><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={stopped} onChange={event => { setStopped(event.target.checked); setDirty(true) }} />本週停排</label><label className="min-w-0 flex-1"><span className="sr-only">備註或停排原因</span><input type="text" aria-label="備註或停排原因" className={control} maxLength={300} placeholder="備註／停排原因" value={note} onChange={event => { setNote(event.target.value); setDirty(true) }} /></label></fieldset>}
         {(editing ? stopped : week.stopped) ? <p className="rounded-xl border border-white/10 bg-mc-card p-5 text-base">本週停排{(editing ? note : week.note) ? `：${editing ? note : week.note}` : ''}</p> : <>
           {!editing && week.note && <p className="text-sm text-mc-text/60">{week.note}</p>}
-          <fieldset disabled={busy} className="grid gap-3 md:grid-cols-2">
-            {groups.map(group => <section key={group} className="rounded-xl border border-white/10 bg-mc-card p-4"><h3 className="mb-3 text-sm font-semibold text-blue-300">{group}</h3><dl className="space-y-2">{serviceRoles.filter(r => r.group === group).map(role => {
+          <fieldset disabled={busy} className="grid items-start gap-3 md:grid-cols-2">
+            {groups.map(group => <section key={group} className="overflow-hidden rounded-xl border border-white/10 bg-mc-card"><h3 className="border-b border-white/10 bg-mc-accent/30 px-3 py-2 text-sm font-semibold text-blue-300">{group}</h3><dl className={editing ? 'space-y-2 p-3' : 'grid grid-cols-2 gap-x-3 gap-y-2 p-3'}>{serviceRoles.filter(r => r.group === group).map(role => {
               const assigned = (editing ? draft : week.assignments)[role.id]
               const eligible = data.people?.filter(p => p.enabled && p.memberId && p.roles.includes(role.id)) ?? []
-              return <div key={role.id} className="grid min-h-11 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2"><dt className="text-sm text-mc-text/60">{role.label}</dt><dd>{editing ? <select className={control} aria-label={role.label} value={assigned?.personId ?? ''} onChange={event => { const person = data.people?.find(p => p.id === event.target.value); setDraft(current => { const next = { ...current }; if (person) next[role.id] = { personId: person.id, name: person.name }; else delete next[role.id]; return next }); setDirty(true) }}><option value="">待安排</option>{assigned && !eligible.some(p => p.id === assigned.personId) && <option value={assigned.personId}>{assigned.name}（原安排）</option>}{eligible.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <span className={`text-base ${assigned ? 'font-medium' : 'text-mc-text/40'}`}>{assigned?.name ?? '待安排'}</span>}</dd></div>
+              return <div key={role.id} className={editing ? 'grid min-h-11 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2' : 'min-w-0 py-1'}><dt className={editing ? 'text-sm text-mc-text/60' : 'mb-0.5 text-xs leading-5 text-mc-text/60'}>{role.label}</dt><dd>{editing ? <select className={control} aria-label={role.label} value={assigned?.personId ?? ''} onChange={event => { const person = data.people?.find(p => p.id === event.target.value); setDraft(current => { const next = { ...current }; if (person) next[role.id] = { personId: person.id, name: person.name }; else delete next[role.id]; return next }); setDirty(true) }}><option value="">待安排</option>{assigned && !eligible.some(p => p.id === assigned.personId) && <option value={assigned.personId}>{assigned.name}（原安排）</option>}{eligible.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <span className={`break-words text-lg leading-7 ${assigned ? 'font-semibold' : 'text-mc-text/40'}`}>{assigned?.name ?? '待安排'}</span>}</dd></div>
             })}</dl></section>)}
           </fieldset>
         </>}

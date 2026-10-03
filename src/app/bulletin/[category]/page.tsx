@@ -20,6 +20,8 @@ export function generateMetadata({ params }: Props): Metadata {
 export default function BulletinCategoryPage({ params }: Props) {
   const category = bulletinCategories.find(item => item.slug === params.category)
   if (!category) notFound()
+  const compact = category.slug === 'service-roster'
+  const categoryLinks = bulletinCategories.map(item => <Link key={item.slug} href={`/bulletin/${item.slug}`} aria-current={item.slug === category.slug ? 'page' : undefined} className={`flex min-h-11 items-center rounded-xl border px-3 text-sm ${item.slug === category.slug ? 'border-blue-400/40 bg-blue-400/10 text-blue-200' : 'border-white/10 text-mc-text/60 hover:bg-mc-accent'}`}>{item.shortTitle}</Link>)
   const sources = <div className="space-y-5">
     {[...category.sources].sort((a, b) => Number(Boolean(b.pdf)) - Number(Boolean(a.pdf))).map(source => <section key={source.url} className="overflow-hidden rounded-2xl border border-white/10 bg-mc-card">
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-6">
@@ -30,14 +32,20 @@ export default function BulletinCategoryPage({ params }: Props) {
     </section>)}
   </div>
   return <DashboardLayout publicView>
+    {compact ? <div className="mb-4 flex items-center gap-3">
+      <Link href="/bulletin" aria-label="回公布欄" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 text-mc-text/60"><ArrowLeft aria-hidden="true" className="h-5 w-5" /></Link>
+      <h1 className="text-xl font-semibold">{category.title}</h1>
+      <details className="relative ml-auto"><summary className="min-h-11 cursor-pointer rounded-lg border border-white/10 px-3 py-3 text-sm">分類</summary><nav aria-label="公布欄分類" className="absolute right-0 z-20 mt-2 grid w-64 grid-cols-2 gap-2 rounded-xl border border-white/10 bg-mc-card p-3 shadow-lg">{categoryLinks}</nav></details>
+    </div> : <>
     <Link href="/bulletin" className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm text-mc-text/60 hover:text-blue-300"><ArrowLeft aria-hidden="true" className="h-4 w-4" />回公布欄</Link>
     <div className="mb-7 flex items-start gap-4">
       <span className="shrink-0 rounded-2xl bg-blue-400/10 p-3 text-blue-300"><BulletinIcon icon={category.icon} /></span>
       <h1 className="text-2xl font-semibold leading-snug sm:text-3xl">{category.title}</h1>
     </div>
     <nav aria-label="公布欄分類" className="mb-8 flex flex-wrap gap-2">
-      {bulletinCategories.map(item => <Link key={item.slug} href={`/bulletin/${item.slug}`} aria-current={item.slug === category.slug ? 'page' : undefined} className={`flex min-h-11 items-center rounded-xl border px-3 text-sm ${item.slug === category.slug ? 'border-blue-400/40 bg-blue-400/10 text-blue-200' : 'border-white/10 text-mc-text/60 hover:bg-mc-accent'}`}>{item.shortTitle}</Link>)}
+      {categoryLinks}
     </nav>
+    </>}
     {category.slug === 'service-roster' && <div className="mb-5"><ServiceRoster /></div>}
     {category.slug === 'announcements' ? <Announcements originalUrl={category.sources[0].url} /> : category.slug === 'service-roster' ? <RosterReference>{sources}</RosterReference> : sources}
   </DashboardLayout>
