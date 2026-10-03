@@ -1,3 +1,4 @@
 scripts/*
 !scripts/sync-bulletin-reader.cjs
 !scripts/seed-service-roster.ts
+!scripts/execute-db-sql.cjs
