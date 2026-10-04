@@ -13,7 +13,8 @@ export async function GET() {
       return auth.response
     }
     const member = await prisma.member.findFirst({ where: { id: auth.user.id, active: true, deletedAt: null }, select: { id: true } })
-    const person = member ? await prisma.servicePerson.findUnique({ where: { memberId: member.id }, select: { id: true } }) : null
+    if (!member) return NextResponse.json({ personId: null }, { status: 401, headers })
+    const person = await prisma.servicePerson.findUnique({ where: { memberId: member.id }, select: { id: true } })
     return NextResponse.json({ personId: person?.id ?? null }, { headers })
   } catch {
     return NextResponse.json({ personId: null }, { status: 503, headers })

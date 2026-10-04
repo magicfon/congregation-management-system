@@ -60,6 +60,10 @@ async function main() {
   assert.equal(overview.overviewWeeks(overviewInput, '2027-01-03', 'missing').upcoming.length, 0);
   assert.equal(overview.overviewWeeks(overviewInput, '2027-01-03').upcoming.length, 3, 'All-person overview retains stopped week notices');
 
+  assert.deepEqual(Array.from(overview.overviewDuties(overviewInput[1], '', ['micA', 'micB']), r => r.id), ['micA', 'micB'], 'Microphone tab shows both positions, including vacancies');
+  assert.equal(overview.overviewWeeks(overviewInput, '2027-01-03', 'one', ['micB']).upcoming.length, 0, 'Name and duty filters must match the same assignment');
+  assert.equal(overview.overviewWeeks(overviewInput, '2027-01-03', 'two', ['micB']).upcoming.length, 1);
+  assert.equal(overview.overviewDuties(overviewInput[3], '', ['host']).length, 0, 'Stopped weeks show only notice');
   let revision = 1, weeks = [week()], writes = 0;
   const database = {
     serviceRosterState: { findUnique: async () => ({ revision }), updateMany: async ({ where }) => { if (revision !== where.revision) return { count: 0 }; revision++; return { count: 1 }; } },
@@ -113,7 +117,7 @@ async function main() {
   assert.equal(identityResponse.headers.get('vary'), 'Cookie');
   linkedPerson = null; assert.deepEqual(await (await identityApi.GET()).json(), { personId: null });
   linkedPerson = 'relinked-person'; assert.deepEqual(await (await identityApi.GET()).json(), { personId: 'relinked-person' });
-  activeMember = false; assert.deepEqual(await (await identityApi.GET()).json(), { personId: null });
+  activeMember = false; const inactiveIdentity = await identityApi.GET(); assert.equal(inactiveIdentity.status, 401); assert.deepEqual(await inactiveIdentity.json(), { personId: null });
   const Name = load('src/components/bulletin/RosterName.tsx').default;
   const { renderToStaticMarkup } = require('react-dom/server');
   const renderName = (id, self) => renderToStaticMarkup(Name({ assignment: { personId: id, name: '同名成員' }, ownPersonId: self }));

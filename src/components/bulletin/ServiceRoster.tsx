@@ -15,7 +15,7 @@ const groups = [...new Set(serviceRoles.map(role => role.group))]
 
 
 export default function ServiceRoster({ management = false }: { management?: boolean }) {
-  const ownPersonId = useRosterIdentity()
+  const { personId: ownPersonId } = useRosterIdentity()
   const [data, setData] = useState<Snapshot | null>(null)
   const [admin, setAdmin] = useState(false)
   const canManage = management && admin
