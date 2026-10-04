@@ -32,6 +32,7 @@ export async function getAccessToken(): Promise<string> {
   }
 
   const resp = await fetch(TOKEN_URL, {
+    signal: AbortSignal.timeout(12000),
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -51,6 +52,7 @@ async function call(method: 'GET' | 'POST', path: string, body?: unknown) {
   const token = await getAccessToken()
   const url = path.startsWith('http') ? path : `${SHEETS_API}/${path}`
   const resp = await fetch(url, {
+    signal: AbortSignal.timeout(12000),
     method,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
@@ -60,6 +62,11 @@ async function call(method: 'GET' | 'POST', path: string, body?: unknown) {
     throw new Error(`Sheets API ${method} ${path} failed: ${resp.status} ${text.slice(0, 300)}`)
   }
   return resp.json()
+}
+
+/** Authenticated spreadsheet REST request, including metadata and RAW batch writes. */
+export async function spreadsheetRequest(sheetId: string, suffix: string, body?: unknown) {
+  return call(body === undefined ? 'GET' : 'POST', `${sheetId}${suffix}`, body)
 }
 
 /** 讀值。range 例：'區域狀態!A1:G214' */

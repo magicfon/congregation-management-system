@@ -6,9 +6,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import ServiceDutyIcon from './ServiceDutyIcon'
 import RosterName from './RosterName'
 import useRosterIdentity from './useRosterIdentity'
+import type { SyncStatus, SyncWeek } from '@/lib/service-roster-sync-plan'
 import { serviceRoles, assignmentConflicts, addDays, dateDay, weekLabel, type ServicePersonData, type ServiceRole, type ServiceWeekData, type Assignments } from '@/lib/service-roster'
 type Member = { id: string; name: string }
-type Snapshot = { initialized: boolean; revision: number; weeks: ServiceWeekData[]; people?: ServicePersonData[]; members?: Member[] }
+type Snapshot = { initialized: boolean; revision: number; weeks: ServiceWeekData[]; people?: ServicePersonData[]; members?: Member[]; sync?: SyncStatus }
 const button = 'min-h-12 rounded-lg border border-white/10 px-3 text-base hover:bg-mc-accent disabled:opacity-40'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 px-3 text-base'
 const groups = [...new Set(serviceRoles.map(role => role.group))]
@@ -64,7 +65,11 @@ export default function ServiceRoster({ management = false }: { management?: boo
       const response = await fetch('/api/service-roster/manage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: data?.revision, ...body }) })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || '操作失敗')
-      if (body.action !== 'preview') { accept(result); setEditing(false); setDirty(false); setNotice('已儲存並發布') }
+      if (body.action !== 'preview') {
+        accept(result); setEditing(false); setDirty(false)
+        const pending = result.sync?.errors?.length || result.sync?.conflicts?.length
+        setNotice(body.action === 'sync' || body.action === 'resolve-sync' ? pending ? '同步有待確認項目，請查看下方' : '已同步 Google' : pending ? '本站已儲存並發布；Google 同步有待確認項目' : body.action === 'person' ? '資格已儲存' : '已儲存並發布')
+      }
       return result
     } catch (err) { setError(err instanceof Error ? err.message : '操作失敗'); throw err }
     finally { setBusy(false) }
@@ -93,6 +98,16 @@ export default function ServiceRoster({ management = false }: { management?: boo
     {!data && !error && <p role="status" className="text-base text-mc-text/60">正在載入安排…</p>}
     {data && !data.initialized && <div className="rounded-xl border border-white/10 p-4"><p className="text-base">本站輪值資料尚未匯入。</p>{canManage && <button type="button" className={`${button} mt-3`} disabled={busy} onClick={() => void act({ action: 'initialize' }).catch(() => {})}>{busy ? '匯入中…' : '首次匯入 Google 輪值資料'}</button>}</div>}
     {data?.initialized && <>
+      {canManage && <section className="rounded-xl border border-white/10 bg-mc-card p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">Google 每週安排同步</h2><button type="button" className={button} disabled={busy || editing} onClick={() => void act({ action: 'sync' }).catch(() => {})}>{busy ? '處理中…' : '立即同步'}</button></div>
+        <p className="text-base text-mc-text/70">儲存後同步；Google 修改由排程帶回。人員資格只在本站管理。</p>
+        {data.sync?.lastRun && <p className="text-base text-mc-text/70">上次檢查：{new Date(data.sync.lastRun).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })} · 匯入 {data.sync.pulled} 週／寫回 {data.sync.pushed} 列</p>}
+        {!!data.sync?.errors.length && <ul role="alert" className="space-y-2 text-base">{data.sync.errors.map((message, i) => <li key={i}>{message}</li>)}</ul>}
+        {!!data.sync?.conflicts.length && <details open><summary className="cursor-pointer text-lg font-semibold">{data.sync.conflicts.length} 週安排待確認</summary><div className="mt-3 space-y-4">{data.sync.conflicts.map(conflict => <article key={conflict.id} className="rounded-lg border border-white/10 p-3">
+          <h3 className="text-lg font-semibold">{conflict.date} · {conflict.reason}</h3>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">{[{ label: '本站', choice: 'local', week: conflict.local }, ...conflict.remote.map(remote => ({ label: `Google ${remote.sheet}`, choice: remote.sheet, week: remote.week }))].map(version => <div key={version.choice} className="rounded-lg bg-mc-accent/20 p-3"><h4 className="font-semibold">{version.label}</h4><SyncWeekDetails week={version.week} /><button type="button" className={`${button} mt-3`} disabled={busy || editing || !version.week} onClick={() => void act({ action: 'resolve-sync', date: conflict.date, id: conflict.id, choice: version.choice }).catch(() => {})}>採用{version.label}</button></div>)}</div>
+        </article>)}</div></details>}
+      </section>}
       <div className="rounded-2xl border border-white/10 bg-mc-card p-3 sm:p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="text-base font-medium text-blue-300">{week?.startDate.slice(0, 4)} · {currentWeek?.startDate === selected ? '本週安排' : '每週安排'}{dirty ? ' · 尚未儲存' : ''}</span>
@@ -130,6 +145,11 @@ export default function ServiceRoster({ management = false }: { management?: boo
       {canManage && <RosterStats data={data} />}
     </>}
   </div>
+}
+
+function SyncWeekDetails({ week }: { week: SyncWeek | null }) {
+  if (!week) return <p className="mt-2">無此週次</p>
+  return <div className="mt-2 text-base">{week.stopped ? <p>停排：{week.note}</p> : <><dl className="space-y-1">{serviceRoles.map(role => <div key={role.id}><dt className="inline text-mc-text/60">{role.label}：</dt><dd className="inline">{week.names[role.id] || '待安排'}</dd></div>)}</dl>{week.note && <p>備註：{week.note}</p>}</>}</div>
 }
 
 function PersonEditor({ people, members, busy, save }: { people: ServicePersonData[]; members: Member[]; busy: boolean; save: (body: Record<string, unknown>) => Promise<unknown> }) {

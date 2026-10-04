@@ -10,6 +10,7 @@ import {
 } from '../../../../lib/google-sheets'
 import { randomUUID } from 'crypto'
 import { syncReportCompletions } from '../../../../lib/report-completion-sync'
+import { syncServiceRoster } from '../../../../lib/service-roster-sync'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
   }
 
   const result = { completionDatesUpdated: 0, imported: 0, sheetEdits: 0, conflicts: 0, pushedBack: 0, errors: [] as string[] }
+  const serviceRosterSync = syncServiceRoster(prisma)
 
   try {
     // ============ 1. Form 回報匯入 ============
@@ -218,12 +220,21 @@ export async function POST(request: NextRequest) {
       await updateSnapshot(snapUpdates)
     }
 
-    return NextResponse.json({ ok: true, ...result })
+    const serviceRoster = await serviceRosterSync
+    result.errors.push(...serviceRoster.errors.map(error => `服務安排：${error}`))
+    if (serviceRoster.conflicts.length) result.errors.push(`服務安排有 ${serviceRoster.conflicts.length} 週衝突待確認`)
+    return NextResponse.json({ ok: result.errors.length === 0, ...result, serviceRoster })
   } catch (error) {
     console.error('POST /api/cron/sync-sheet error:', error)
     return NextResponse.json(
-      { ok: false, ...result, error: error instanceof Error ? error.message : String(error) },
+      { ok: false, ...result, serviceRoster: await serviceRosterSync, error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }
+}
+
+// Vercel scheduled requests use GET; both methods require the same authorization.
+export async function GET(request: NextRequest) {
+  if (!process.env.CRON_SECRET || request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  return POST(request)
 }
