@@ -18,6 +18,35 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
   const pathname = usePathname()
   const compact = (pathname === '/bulletin/service-roster' || pathname.startsWith('/bulletin/service-roster/')) || pathname === '/service-roster/manage'
   const [theme, setTheme] = useState<Theme>('system')
+  const [user, setUser] = useState<{ role: string } | null>()
+  const [authError, setAuthError] = useState(false)
+  const [authRetry, setAuthRetry] = useState(0)
+  useEffect(() => {
+    let request: AbortController | undefined
+    async function refresh() {
+      request?.abort()
+      const controller = new AbortController()
+      request = controller
+      setAuthError(false)
+      try {
+        const response = await fetch('/api/me', { cache: 'no-store', signal: controller.signal })
+        if (!response.ok && response.status !== 401) throw new Error('Unable to check session')
+        const identity = response.ok ? await response.json() : null
+        if (!controller.signal.aborted) setUser(identity?.id ? { role: identity.role } : null)
+      } catch {
+        if (!controller.signal.aborted) setAuthError(true)
+      }
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh() }
+    void refresh()
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      request?.abort()
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [pathname, authRetry])
   useEffect(() => {
     try { setTheme(parseTheme(localStorage.getItem(storageKey))) } catch { /* Device preference works without storage. */ }
     const onStorage = (event: StorageEvent) => { if (event.key === storageKey || event.key === null) setTheme(parseTheme(event.newValue)) }
@@ -41,7 +70,7 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
           <legend className="sr-only">公布欄外觀</legend>
           {choices.map(({ value, label, Icon }) => <button key={value} type="button" aria-label={label} title={label} aria-pressed={theme === value} onClick={() => chooseTheme(value)} className={`flex min-h-11 items-center gap-2 rounded-lg ${compact ? 'justify-center px-2 sm:px-3' : 'px-3'} text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 ${theme === value ? 'bg-mc-accent text-mc-text' : 'text-mc-text/60 hover:bg-mc-accent'}`}><Icon aria-hidden="true" className="h-4 w-4" /><span className={compact ? 'hidden sm:inline' : ''}>{label}</span></button>)}
         </fieldset>
-        <Link href={`/login?callbackUrl=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-lg border border-white/10 px-4 text-sm text-mc-text/70 hover:bg-mc-accent">登入</Link>
+        {authError ? <button type="button" onClick={() => setAuthRetry(value => value + 1)} className="min-h-11 rounded-lg border border-white/10 px-3 text-sm">重試登入狀態</button> : user !== undefined && <Link href={user ? compact && user.role === 'admin' ? '/service-roster/manage' : '/dashboard' : `/login?callbackUrl=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-lg border border-white/10 px-4 text-sm text-mc-text/70 hover:bg-mc-accent">{user ? compact && user.role === 'admin' ? '管理安排' : '我的帳號' : '登入'}</Link>}
       </div>
     </header>
     <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
