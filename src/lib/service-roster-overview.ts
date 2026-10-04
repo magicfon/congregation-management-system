@@ -2,7 +2,8 @@ import { serviceRoles, type ServiceRole, type ServiceWeekData } from './service-
 
 export const overviewTabs: { id: string; label: string; roles: ServiceRole[] }[] = [
   { id: 'microphones', label: '麥克風', roles: ['micA', 'micB'] },
-  ...serviceRoles.filter(role => role.id !== 'micA' && role.id !== 'micB').map(role => ({ id: role.id, label: role.label, roles: [role.id] })),
+  { id: 'hospitality', label: '招待', roles: ['host', 'backup'] },
+  ...serviceRoles.filter(role => !['micA', 'micB', 'host', 'backup'].includes(role.id)).map(role => ({ id: role.id, label: role.label, roles: [role.id] })),
   { id: 'all', label: '全部工作', roles: serviceRoles.map(role => role.id) },
 ]
 
