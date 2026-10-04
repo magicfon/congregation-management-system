@@ -30,6 +30,11 @@ const serial= (Date.UTC(2027,0,4)-Date.UTC(1899,11,30))/86400000;
 const headers=['週別','日期','','','招待當值','替補招待','會堂招待員','守望台朗讀','麥克風傳遞員 A','麥克風傳遞員 B','講台','影像控制','音響控制','周中聚會主席','周中聚會朗讀'];
 function grid(title){return {properties:{title,gridProperties:{rowCount:100,columnCount:26}},data:[{rowData:[{values:headers.map(cell)},{values:[1,serial,'~',serial+6,'甲','','','','','','','影像人員','音響人員','',''].map(cell)}]}]};}
 const source=sheet.parseSheets([grid('Schedule'),grid('History')]);
+const fullSheets = [grid('Schedule'), grid('History')];
+fullSheets.forEach((s, i) => { s.properties.sheetId = i; s.properties.gridProperties.rowCount = 2; });
+const expansion = sheet.prepareWrites(sheet.parseSheets(fullSheets), [{...base, startDate:'2027-01-11', endDate:'2027-01-17'}]);
+assert.equal(expansion.expand.length, 2);
+assert.equal(expansion.expand[0].updateSheetProperties.properties.gridProperties.rowCount, 3);
 assert.equal(source.rows[0].week.names.audio,'音響人員');assert.equal(source.rows[0].week.names.video,'影像人員');
 assert.equal(source.rows[0].week.startDate,day);
 assert.equal(sheet.prepareWrites(source,[base]).pushed,0);

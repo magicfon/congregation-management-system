@@ -13,6 +13,12 @@ async function scenario(values, expected, rejects = false) {
 (async () => {
   await scenario([{ ...zero, imported: 3 }, zero], true);
   await scenario([zero, { ...zero, sheetEdits: 1 }], false);
+  const rosterZero = { pulled: 0, pushed: 0, conflicts: [], errors: [] };
+  await scenario([{ ...zero, serviceRoster: { ...rosterZero, pulled: 2 } }, { ...zero, serviceRoster: rosterZero }], true);
+  await scenario([zero, { ...zero, serviceRoster: { ...rosterZero, pushed: 1 } }], false);
+  await scenario([{ ...zero, serviceRoster: { ...rosterZero, conflicts: [{}] } }], null, true);
+  await scenario([{ ...zero, serviceRoster: { ...rosterZero, errors: ['Google failed'] } }], null, true);
+  await scenario([{ ...zero, serviceRoster: { ...rosterZero, pulled: -1 } }], null, true);
   await scenario([{ ...zero, conflicts: 1 }], null, true);
   await scenario([{ ...zero, errors: ['partial failure'] }], null, true);
   await scenario([{ ...zero, ok: false, error: 'server failure' }], null, true);

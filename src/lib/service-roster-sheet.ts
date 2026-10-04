@@ -5,7 +5,7 @@ import { normalized, sameWeek, SyncError, type SyncWeek, type RemoteWeek } from 
 
 type Cell = { userEnteredValue?: { formulaValue?: string }; effectiveValue?: { numberValue?: number; stringValue?: string; boolValue?: boolean } }
 type Merge = { startRowIndex?: number; endRowIndex: number; startColumnIndex?: number; endColumnIndex: number }
-type Grid = { properties: { title: string; gridProperties: { rowCount: number; columnCount: number } }; merges?: Merge[]; data?: { rowData?: { values?: Cell[] }[] }[] }
+type Grid = { properties: { sheetId: number; title: string; gridProperties: { rowCount: number; columnCount: number } }; merges?: Merge[]; data?: { rowData?: { values?: Cell[] }[] }[] }
 export type SheetSource = { sheets: Grid[]; rows: RemoteWeek[]; fingerprint: string }
 const roleColumns: ServiceRole[] = ['host', 'backup', 'attendant', 'watchtower', 'micA', 'micB', 'stage', 'video', 'audio', 'chair', 'reader']
 const expectedHeaders = ['招待當值', '替補招待', '會堂招待員', '守望台朗讀', '麥克風傳遞員A', '麥克風傳遞員B', '講台', '影像控制', '音響控制', '周中聚會主席', '周中聚會朗讀']
@@ -49,18 +49,19 @@ export function parseSheets(sheets: Grid[]): SheetSource {
   return { sheets, rows, fingerprint: JSON.stringify(sheets) }
 }
 export async function readRosterSheet(): Promise<SheetSource> {
-  const fields = 'sheets(properties(title,gridProperties),merges,data(rowData(values(userEnteredValue,effectiveValue))))'
+  const fields = 'sheets(properties(sheetId,title,gridProperties),merges,data(rowData(values(userEnteredValue,effectiveValue))))'
   const result = await spreadsheetRequest(SERVICE_SHEET_ID, `?ranges=Schedule!A:Q&ranges=History!A:Q&includeGridData=true&fields=${encodeURIComponent(fields)}`)
   return parseSheets(result.sheets)
 }
 const serial = (day: string) => Math.round((new Date(`${day}T04:00:00Z`).getTime() - Date.UTC(1899, 11, 30, 4)) / 86400000)
 export function prepareWrites(source: SheetSource, targets: SyncWeek[]) {
   const data: { range: string; values: (string | number)[][] }[] = []
+  const expand: unknown[] = []
   let pushed = 0
   for (const sheet of source.sheets) {
     const title = sheet.properties.title
     const rows = sheet.data?.[0]?.rowData ?? []
-    let appendRow = Math.max(2, rows.length + 1)
+    let appendRow = rows.reduce((next, row, index) => row.values?.some(cell => text(cell) || cell.userEnteredValue?.formulaValue) ? index + 2 : next, 2)
     const updates = targets.flatMap(target => {
       const remote = source.rows.find(row => row.sheet === title && row.week.startDate === target.startDate)
       // History covers every week; Schedule keeps its existing window plus newly created future weeks.
@@ -69,7 +70,8 @@ export function prepareWrites(source: SheetSource, targets: SyncWeek[]) {
       return [{ target, row: remote?.row ?? appendRow++, fresh: !remote }]
     })
     if (!updates.length) continue
-    if (sheet.properties.gridProperties.columnCount < 17 || appendRow - 1 > sheet.properties.gridProperties.rowCount) throw new SyncError(`${title} 請先增加空白列或擴充到 Q 欄`)
+    const grid = sheet.properties.gridProperties
+    if (grid.columnCount < 17 || appendRow - 1 > grid.rowCount) expand.push({ updateSheetProperties: { properties: { sheetId: sheet.properties.sheetId, gridProperties: { columnCount: Math.max(17, grid.columnCount), rowCount: Math.max(appendRow - 1, grid.rowCount) } }, fields: 'gridProperties.columnCount,gridProperties.rowCount' } })
     for (const { target, row, fresh } of updates) {
       const values: (string | number)[] = [Number(weekLabel(target.startDate).split('W')[1]), serial(target.startDate), '~', serial(target.endDate), ...roleColumns.map((role, i) => target.stopped ? i === 0 ? `【停排】${target.note}` : '' : target.names[role] ?? ''), target.note, target.stopped ? 'TRUE' : 'FALSE']
       for (let column = fresh ? 0 : 4; column < 17; column++) {
@@ -92,13 +94,14 @@ export function prepareWrites(source: SheetSource, targets: SyncWeek[]) {
       if (!text(rows[0]?.values?.[col])) data.push({ range: `'${title}'!${String.fromCharCode(65 + col)}1`, values: [[label]] })
     }
   }
-  return { data, pushed }
+  return { data, pushed, expand }
 }
 export async function writeRosterSheet(source: SheetSource, targets: SyncWeek[]) {
   const prepared = prepareWrites(source, targets)
   if (!prepared.data.length) return 0
   const latest = await readRosterSheet()
   if (latest.fingerprint !== source.fingerprint) throw new SyncError('Google 在同步期間有修改，請重新同步')
+  if (prepared.expand.length) await spreadsheetRequest(SERVICE_SHEET_ID, ':batchUpdate', { requests: prepared.expand })
   await spreadsheetRequest(SERVICE_SHEET_ID, '/values:batchUpdate', { valueInputOption: 'RAW', data: prepared.data })
   const verified = await readRosterSheet()
   for (const target of targets) {
