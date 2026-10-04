@@ -74,6 +74,31 @@ body {
 .bulletin-theme [data-roster-group="麥克風"] { --roster-hue: 172; }
 .bulletin-theme [data-roster-group="講台／音響／影音"] { --roster-hue: 195; }
 .bulletin-theme [data-roster-group="週中聚會"] { --roster-hue: 28; }
+.bulletin-theme [data-roster-group="我的委派"] { --roster-hue: 40; }
+.bulletin-theme .roster-tab {
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 1px solid hsl(var(--roster-hue, 215) var(--roster-tab-saturation, 0%) 55% / 0.3);
+  border-radius: 8px;
+  color: hsl(var(--roster-hue, 215) var(--roster-tab-saturation, 0%) var(--roster-ink-lightness));
+  background-color: hsl(var(--roster-hue, 215) var(--roster-tab-saturation, 0%) 55% / 0.07);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.bulletin-theme .roster-tab[data-roster-group] { --roster-tab-saturation: 65%; }
+.bulletin-theme .roster-tab:hover {
+  background-color: hsl(var(--roster-hue, 215) var(--roster-tab-saturation, 0%) 55% / 0.14);
+}
+.bulletin-theme .roster-tab[aria-pressed="true"] {
+  border-color: currentColor;
+  background-color: hsl(var(--roster-hue, 215) var(--roster-tab-saturation, 0%) 55% / 0.2);
+  box-shadow: inset 0 -3px 0 currentColor;
+}
+.bulletin-theme .roster-tab:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
 .bulletin-theme .roster-group {
   border-color: hsl(var(--roster-hue) 65% 55% / 0.28);
   border-left: 3px solid hsl(var(--roster-hue) 65% 55%);

@@ -44,9 +44,9 @@ export default function ServiceRosterOverview() {
 
   return <div className="space-y-5">
     {error ? <div role="alert" className="rounded-xl border border-white/10 p-4 text-lg">{error}<button type="button" onClick={() => setReload(value => value + 1)} className="ml-3 min-h-12 rounded-lg border border-white/10 px-3">重試</button></div> : !data ? <p role="status" className="text-lg">正在載入安排…</p> : !data.initialized ? <p className="text-lg">尚未公布安排。</p> : <>
-      <nav aria-label="職務標籤" className="flex flex-wrap gap-2">
-        {signedIn && <button type="button" aria-pressed={mine} onClick={() => chooseTab('mine')} className={`min-h-12 rounded-xl border px-4 text-lg font-semibold ${mine ? 'border-amber-500 bg-amber-400/20' : 'border-white/10 bg-mc-card'}`}>我的委派</button>}
-        {overviewTabs.map(item => <button key={item.id} type="button" aria-pressed={activeTab === item.id} onClick={() => chooseTab(item.id)} className={`min-h-12 rounded-xl border px-3 text-lg font-semibold ${activeTab === item.id ? 'border-blue-400 bg-blue-400/20 text-blue-300' : 'border-white/10 bg-mc-card hover:bg-mc-accent'}`}>{item.label}</button>)}
+      <nav aria-label="職務標籤" className="flex flex-wrap gap-1">
+        {signedIn && <button type="button" aria-pressed={mine} data-roster-group="我的委派" onClick={() => chooseTab('mine')} className="roster-tab">我的委派</button>}
+        {overviewTabs.map(item => <button key={item.id} type="button" aria-pressed={activeTab === item.id} data-roster-group={item.id === 'all' ? undefined : serviceRoles.find(role => role.id === item.roles[0])?.group} onClick={() => chooseTab(item.id)} className="roster-tab">{item.label}</button>)}
       </nav>
       {!mine && <details className="rounded-xl border border-white/10 bg-mc-card p-4">
         <summary className="cursor-pointer text-lg">依姓名篩選{personId ? `：${names.get(personId) ?? ''}` : ''}</summary>
