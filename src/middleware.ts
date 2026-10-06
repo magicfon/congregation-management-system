@@ -5,7 +5,6 @@ import { getToken } from 'next-auth/jwt'
 const PROTECTED_PAGE_PREFIXES = [
   '/dashboard',
   '/map',
-  '/map-images',
   '/area-status',
   '/map-requests',
   '/assignments',
@@ -32,5 +31,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/service-roster/:path*', '/map-requests/:path*', '/area-status/:path*', '/dashboard/:path*', '/areas/:path*', '/members/:path*', '/reports/:path*', '/schedules/:path*', '/statistics/:path*', '/map/:path*', '/map-images/:path*', '/active-assignments/:path*', '/assignments/:path*'],
+  matcher: ['/service-roster/:path*', '/map-requests/:path*', '/area-status/:path*', '/dashboard/:path*', '/areas/:path*', '/members/:path*', '/reports/:path*', '/schedules/:path*', '/statistics/:path*', '/map/:path*', '/active-assignments/:path*', '/assignments/:path*'],
 }

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import Link from 'next/link'
 
@@ -15,7 +15,6 @@ const ERROR_MESSAGES: Record<string, string> = {
 }
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard'
 
@@ -25,10 +24,7 @@ function LoginForm() {
     ? (ERROR_MESSAGES[urlError] ?? ERROR_MESSAGES.Default)
     : ''
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState(initialError)
-  const [loading, setLoading] = useState(false)
   const [lineLoading, setLineLoading] = useState(false)
 
   function handleLineLogin() {
@@ -38,26 +34,6 @@ function LoginForm() {
     signIn('line', { callbackUrl })
   }
 
-  async function handleEmailSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    const result = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    })
-
-    setLoading(false)
-
-    if (result?.error) {
-      setError('電子郵件或密碼不正確')
-    } else {
-      router.push(callbackUrl)
-      router.refresh()
-    }
-  }
 
   return (
     <div className="min-h-screen bg-mc-bg flex items-center justify-center px-4">
@@ -101,8 +77,8 @@ function LoginForm() {
           <button
             type="button"
             onClick={handleLineLogin}
-            disabled={lineLoading || loading}
-            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-lg bg-[#06C755] hover:bg-[#05b04c] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors mb-6"
+            disabled={lineLoading}
+            className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-lg bg-[#06C755] hover:bg-[#05b04c] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors min-h-11"
           >
             {lineLoading ? (
               <>
@@ -122,71 +98,11 @@ function LoginForm() {
             )}
           </button>
 
-          {/* Divider */}
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-mc-card px-3 text-mc-text/30">或使用帳號密碼</span>
-            </div>
-          </div>
 
-          {/* Email / password */}
-          <form onSubmit={handleEmailSubmit} className="space-y-5">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-mc-text/70 mb-1.5">
-                電子郵件
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                placeholder="you@example.com"
-                className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-mc-text/70 mb-1.5">
-                密碼
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || lineLoading}
-              className="w-full py-2.5 px-4 rounded-lg bg-mc-highlight hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors border border-blue-500/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  登入中…
-                </span>
-              ) : (
-                '登入'
-              )}
-            </button>
-          </form>
         </div>
 
         <div className="text-center mt-6">
+          <Link href="/map-images" className="mb-3 block rounded-xl border border-white/10 bg-mc-card px-4 py-3 text-sm text-blue-300 hover:bg-mc-accent">下載地圖（免登入）</Link>
           <Link href="/bulletin" className="mb-4 block rounded-xl border border-white/10 bg-mc-card px-4 py-3 text-sm text-blue-300 hover:bg-mc-accent">會眾公布欄（免登入）</Link>
           <Link href="/boundary-editor" className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-4">地圖編輯器（免登入）</Link>
           <p className="mt-1 text-xs text-mc-text/50">可直接編輯及儲存共用地圖草稿</p>
