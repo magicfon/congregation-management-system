@@ -4,17 +4,17 @@ import { readFile } from 'fs/promises'
 import path from 'path'
 import { botSite, lineBotReady } from './line-bot-client'
 
-const stateKey = 'line_rich_menu_v1'
+const stateKey = 'line_rich_menu_v2'
 const lockKey = 'line_rich_menu_publish_lock'
 const api = 'https://api.line.me/v2/bot'
 const dataApi = 'https://api-data.line.me/v2/bot'
 export const menuDefinition = {
   size: { width: 1000, height: 674 }, selected: true,
-  name: '楠梓會眾功能選單 v1', chatBarText: '開啟功能選單',
+  name: '楠梓會眾功能選單 v2', chatBarText: '開啟功能選單',
   areas: [
-    { bounds: { x: 0, y: 0, width: 500, height: 337 }, action: { type: 'message', text: '我的地圖' } },
-    { bounds: { x: 500, y: 0, width: 500, height: 337 }, action: { type: 'message', text: '本週行程' } },
-    { bounds: { x: 0, y: 337, width: 500, height: 337 }, action: { type: 'message', text: '待交接' } },
+    { bounds: { x: 0, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: `${botSite}/dashboard?view=maps` } },
+    { bounds: { x: 500, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: `${botSite}/dashboard?view=week` } },
+    { bounds: { x: 0, y: 337, width: 500, height: 337 }, action: { type: 'uri', uri: `${botSite}/dashboard?view=handoffs` } },
     { bounds: { x: 500, y: 337, width: 500, height: 337 }, action: { type: 'uri', uri: `${botSite}/bulletin` } },
   ],
 }

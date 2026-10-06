@@ -16,7 +16,7 @@ async function transport(url,options){
  if(url.endsWith(`/richmenu/${menuId}`))return remoteMenu?json({richMenuId:menuId}):json({},404);
  throw Error('Unexpected request '+url);
 }
-function load(file,mocks={}){const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}}).outputText,{exports,process:{env,cwd:()=>process.cwd()},Date,Buffer,Uint8Array,AbortSignal,fetch:transport,require:n=>mocks[n]??require(n)});return exports}
+function load(file,mocks={}){const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}}).outputText,{exports,process:{env,cwd:()=>process.cwd()},Date,Buffer,Uint8Array,AbortSignal,URL,Headers,fetch:transport,require:n=>mocks[n]??require(n)});return exports}
 const client=load('src/lib/line-bot-client.ts');
 const menu=load('src/lib/line-rich-menu.ts',{'./line-bot-client':client});
 const matches=(r,w)=>Object.entries(w).every(([k,v])=>r[k]===v);
@@ -31,7 +31,7 @@ function reset(){current=null;remoteMenu=null;hasImage=false;uploadFails=false;s
 (async()=>{
  const metadata=await sharp('public/line/rich-menu-v1.png').metadata();assert.equal(metadata.width,1000);assert.equal(metadata.height,674);assert(fs.statSync('public/line/rich-menu-v1.png').size<1000000);
  assert.equal(menu.menuDefinition.areas.length,4);assert.equal(menu.menuDefinition.areas[3].action.uri,client.botSite+'/bulletin');
- const commands=menu.menuDefinition.areas.slice(0,3).map(a=>a.action.text);assert.equal(commands.join(','),'我的地圖,本週行程,待交接');
+ assert(menu.menuDefinition.areas.every(a=>a.action.type==='uri'));const views=menu.menuDefinition.areas.slice(0,3).map(a=>new URL(a.action.uri).searchParams.get('view'));assert.equal(views.join(','),'maps,week,handoffs');
  reset();assert.equal((await menu.richMenuStatus(db)).installed,false);await menu.publishRichMenu(db,null);assert.equal(current,menuId);assert.equal(createCount,1);assert(hasImage);assert.equal((await menu.richMenuStatus(db)).installed,true);
  await menu.publishRichMenu(db,menuId);assert.equal(createCount,1);assert.equal(publishCount,1);
  await assert.rejects(menu.publishRichMenu(db,null),/已變更/);assert.equal(createCount,1);
@@ -42,5 +42,6 @@ function reset(){current=null;remoteMenu=null;hasImage=false;uploadFails=false;s
  env.LINE_BOT_ENABLED='false';assert.equal((await menu.richMenuStatus(db)).enabled,false);await assert.rejects(menu.publishRichMenu(db,null),/設定/);env.LINE_BOT_ENABLED='true';
  let actor='publisher';const route=load('src/app/api/line-bot/rich-menu/route.ts',{'../../../../lib/db':{prisma:db},'../../../../lib/line-rich-menu':menu,'../../../../lib/api-auth':{requireApiUser:async roles=>{assert.equal(roles[0],'admin');return actor==='admin'?{user:{id:'admin'}}:{response:new Response(null,{status:403})}}}});
  assert.equal((await route.GET()).status,403);assert.equal((await route.POST({})).status,403);actor='admin';assert.equal((await route.POST({json:async()=>({})})).status,400);
+ actor='publisher';env.CRON_SECRET='operator';assert.equal((await route.GET({headers:new Headers({authorization:'Bearer wrong'})})).status,403);assert.equal((await route.GET({headers:new Headers({authorization:'Bearer operator'})})).status,200);assert.equal((await route.POST({headers:new Headers({authorization:'Bearer operator'}),json:async()=>({})})).status,400);delete env.CRON_SECRET;
  console.log('PASS: four menu actions/image bounds, admin authorization, publish order, repeat install, stale default protection, failed upload preservation/retry, ambiguous publish, concurrent lock, disabled bot.');
 })().catch(e=>{console.error(e);process.exitCode=1});

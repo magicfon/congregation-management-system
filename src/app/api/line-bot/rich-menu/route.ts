@@ -8,14 +8,18 @@ export const maxDuration = 60
 function failure(error: unknown) {
   return NextResponse.json({ error: error instanceof RichMenuError ? error.message : 'LINE 選單操作暫時失敗，請重新整理後重試' }, { status: error instanceof RichMenuError ? error.status : 503 })
 }
-export async function GET() {
-  const auth = await requireApiUser(['admin'])
+async function authorize(request?: NextRequest) {
+  if (process.env.CRON_SECRET && request?.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`) return { user: { role: 'admin' } }
+  return requireApiUser(['admin'])
+}
+export async function GET(request: NextRequest) {
+  const auth = await authorize(request)
   if ('response' in auth) return auth.response
   try { return NextResponse.json(await richMenuStatus(prisma), { headers: { 'Cache-Control': 'no-store' } }) }
   catch (error) { return failure(error) }
 }
 export async function POST(request: NextRequest) {
-  const auth = await requireApiUser(['admin'])
+  const auth = await authorize(request)
   if ('response' in auth) return auth.response
   const body = await request.json().catch(() => null)
   if (!body || !(body.expectedCurrentId === null || (typeof body.expectedCurrentId === 'string' && /^richmenu-[0-9a-f]{32}$/i.test(body.expectedCurrentId)))) {
