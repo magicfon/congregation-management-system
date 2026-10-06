@@ -18,7 +18,7 @@ async function transport(url,options){
 }
 function load(file,mocks={}){const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}}).outputText,{exports,process:{env,cwd:()=>process.cwd()},Date,Buffer,Uint8Array,AbortSignal,URL,Headers,fetch:transport,require:n=>mocks[n]??require(n)});return exports}
 const client=load('src/lib/line-bot-client.ts');
-const menu=load('src/lib/line-rich-menu.ts',{'./line-bot-client':client});
+const menu=load('src/lib/line-rich-menu.ts',{'./line-bot-client':client,'./liff-settings':{configuredLiffId:()=>null}});
 const matches=(r,w)=>Object.entries(w).every(([k,v])=>r[k]===v);
 const db={setting:{
  findUnique:async({where})=>rows.find(r=>matches(r,where))||null,
@@ -32,6 +32,7 @@ function reset(){current=null;remoteMenu=null;hasImage=false;uploadFails=false;s
  const metadata=await sharp('public/line/rich-menu-v1.png').metadata();assert.equal(metadata.width,1000);assert.equal(metadata.height,674);assert(fs.statSync('public/line/rich-menu-v1.png').size<1000000);
  assert.equal(menu.menuDefinition.areas.length,4);assert.equal(menu.menuDefinition.areas[3].action.uri,client.botSite+'/bulletin');
  assert(menu.menuDefinition.areas.every(a=>a.action.type==='uri'));const views=menu.menuDefinition.areas.slice(0,3).map(a=>new URL(a.action.uri).searchParams.get('view'));assert.equal(views.join(','),'maps,week,handoffs');
+ const liffMenu=load('src/lib/line-rich-menu.ts',{'./line-bot-client':client,'./liff-settings':{configuredLiffId:()=> '123-test'}});assert(liffMenu.menuDefinition.areas.every(a=>new URL(a.action.uri).origin==='https://liff.line.me'));assert.equal(liffMenu.menuDefinition.areas.map(a=>new URL(a.action.uri).searchParams.get('view')).join(','),'maps,week,handoffs,bulletin');
  reset();assert.equal((await menu.richMenuStatus(db)).installed,false);await menu.publishRichMenu(db,null);assert.equal(current,menuId);assert.equal(createCount,1);assert(hasImage);assert.equal((await menu.richMenuStatus(db)).installed,true);
  await menu.publishRichMenu(db,menuId);assert.equal(createCount,1);assert.equal(publishCount,1);
  await assert.rejects(menu.publishRichMenu(db,null),/已變更/);assert.equal(createCount,1);

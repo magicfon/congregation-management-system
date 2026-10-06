@@ -4,6 +4,8 @@ import LineProvider from 'next-auth/providers/line'
 import { compare } from 'bcryptjs'
 import { prisma } from './db'
 import { recordPendingLineIdentity } from './pending-line-identities'
+import { authorizeLiff } from './liff-auth'
+import { configuredLiffId } from './liff-settings'
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -48,6 +50,12 @@ export const authOptions: NextAuthOptions = {
       },
     }),
 
+    ...(configuredLiffId() ? [CredentialsProvider({
+      id: 'liff', name: 'LINE LIFF',
+      credentials: { idToken: { label: 'LINE ID token', type: 'text' } },
+      authorize: async credentials => authorizeLiff(prisma, credentials?.idToken),
+    })] : []),
+
     // ── LINE OAuth ────────────────────────────────────────────────────────────
     // Unknown identities wait for an administrator to link an existing member.
     ...(process.env.LINE_CLIENT_ID && process.env.LINE_CLIENT_SECRET
@@ -91,7 +99,9 @@ export const authOptions: NextAuthOptions = {
         token.id = member?.id
       } else if (user) {
         token.id = user.id
-        delete token.lineUid
+        const lineUid = (user as typeof user & { lineUid?: string }).lineUid
+        if (account?.provider === 'liff' && lineUid) token.lineUid = lineUid
+        else delete token.lineUid
       }
 
       // Older LINE sessions used the provider UID as subject.

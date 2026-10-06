@@ -3,19 +3,22 @@ import { randomUUID } from 'crypto'
 import { readFile } from 'fs/promises'
 import path from 'path'
 import { botSite, lineBotReady } from './line-bot-client'
+import { configuredLiffId } from './liff-settings'
 
-const stateKey = 'line_rich_menu_v2'
+const liffId = configuredLiffId()
+const stateKey = liffId ? `line_rich_menu_liff_${liffId}` : 'line_rich_menu_v2'
+const menuUrl = (view: string) => liffId ? `https://liff.line.me/${liffId}/?view=${view}` : view === 'bulletin' ? `${botSite}/bulletin` : `${botSite}/dashboard?view=${view}`
 const lockKey = 'line_rich_menu_publish_lock'
 const api = 'https://api.line.me/v2/bot'
 const dataApi = 'https://api-data.line.me/v2/bot'
 export const menuDefinition = {
   size: { width: 1000, height: 674 }, selected: true,
-  name: '楠梓會眾功能選單 v2', chatBarText: '開啟功能選單',
+  name: liffId ? '楠梓會眾 LIFF 選單' : '楠梓會眾功能選單 v2', chatBarText: '開啟功能選單',
   areas: [
-    { bounds: { x: 0, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: `${botSite}/dashboard?view=maps` } },
-    { bounds: { x: 500, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: `${botSite}/dashboard?view=week` } },
-    { bounds: { x: 0, y: 337, width: 500, height: 337 }, action: { type: 'uri', uri: `${botSite}/dashboard?view=handoffs` } },
-    { bounds: { x: 500, y: 337, width: 500, height: 337 }, action: { type: 'uri', uri: `${botSite}/bulletin` } },
+    { bounds: { x: 0, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('maps') } },
+    { bounds: { x: 500, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('week') } },
+    { bounds: { x: 0, y: 337, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('handoffs') } },
+    { bounds: { x: 500, y: 337, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('bulletin') } },
   ],
 }
 export class RichMenuError extends Error {

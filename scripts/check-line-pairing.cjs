@@ -67,7 +67,7 @@ async function main() {
 
   db = database()
   let pendingUid
-  const { authOptions } = load('src/lib/auth.ts', { './db': { prisma: db }, './pending-line-identities': { recordPendingLineIdentity: async (_db, uid) => { pendingUid = uid } } })
+  const { authOptions } = load('src/lib/auth.ts', { './db': { prisma: db }, './liff-auth': { authorizeLiff: async () => null }, './liff-settings': { configuredLiffId: () => null }, './pending-line-identities': { recordPendingLineIdentity: async (_db, uid) => { pendingUid = uid } } })
   const { signIn, jwt } = authOptions.callbacks
   const account = { provider: 'line', providerAccountId: uid }
   assert.equal(await signIn({ account, profile: { name: '新暱稱' } }), true)
@@ -100,6 +100,7 @@ async function main() {
       '../../../lib/api-auth': { requireApiUser: async () => ({ user: { role } }) },
       '../../../lib/db': { prisma: { member: { findMany: async (q) => { query = q; return [] } } } },
       '../../../lib/member-fields': fields,
+      '../../../lib/allocation': load('src/lib/allocation.ts'),
     })
     const res = await route.GET({ url: 'https://example.com/api/members?search=LINE' })
     assert.equal(res.status, 200)
