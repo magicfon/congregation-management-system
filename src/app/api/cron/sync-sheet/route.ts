@@ -1,3 +1,5 @@
+import { queuePersonalTerritoryReminders } from '../../../../lib/personal-territory-reminders'
+import { drainLineNotifications } from '../../../../lib/line-notifications'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/db'
 import {
@@ -223,7 +225,15 @@ export async function POST(request: NextRequest) {
     const serviceRoster = await serviceRosterSync
     result.errors.push(...serviceRoster.errors.map(error => `服務安排：${error}`))
     if (serviceRoster.conflicts.length) result.errors.push(`服務安排有 ${serviceRoster.conflicts.length} 週衝突待確認`)
-    return NextResponse.json({ ok: result.errors.length === 0, ...result, serviceRoster })
+    let reminders = null
+    if (!result.errors.length) {
+      try {
+        const queued = await queuePersonalTerritoryReminders(prisma)
+        const delivery = await drainLineNotifications(prisma, undefined, new Date(), 250)
+        reminders = { ...queued, ...delivery }
+      } catch { result.errors.push('個人區域提醒處理失敗，將於下次排程重試') }
+    }
+    return NextResponse.json({ ok: result.errors.length === 0, ...result, serviceRoster, reminders })
   } catch (error) {
     console.error('POST /api/cron/sync-sheet error:', error)
     return NextResponse.json(

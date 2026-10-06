@@ -236,6 +236,7 @@ model MinistryVisit {
 }
 
 model LineNotification {
+  reminderRequestId String?
   id String @id
   memberId String
   lineUid String

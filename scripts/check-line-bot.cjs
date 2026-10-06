@@ -5,7 +5,7 @@ let transportStatus=200,sends=[];
 const fetch=async(url,options)=>{sends.push({url,options});return {ok:transportStatus===200,status:transportStatus,headers:new Headers(transportStatus===409?{'x-line-accepted-request-id':'accepted'}:{})}};
 function load(file,mocks={}){const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports,Buffer,console,Date,Headers,AbortSignal,fetch,process:{env},require:n=>mocks[n]??require(n)});return exports}
 const client=load('src/lib/line-bot-client.ts');
-const notify=load('src/lib/line-notifications.ts',{'./line-bot-client':client});
+const notify=load('src/lib/line-notifications.ts',{'./personal-territory-reminders':{personalReminderDue:()=>true},'./line-bot-client':client});
 const allocation=load('src/lib/allocation.ts'),week=load('src/lib/ministry-week.ts');
 const ministry=load('src/lib/ministry.ts',{'./line-notifications':notify,'./line-bot-client':client,'./allocation':allocation});
 const dates={taipeiDate:d=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)};

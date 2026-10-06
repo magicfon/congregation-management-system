@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/sync-bulletin-reader.cjs && npm run db:line-profile && npm run db:area-completion && npm run db:boundary-drafts && npm run db:map-requests && npm run db:area-dispatch-enabled && npm run db:member-dispatch-visibility && npm run db:ministry-visits && npm run db:line-notifications && npm run db:pending-line && npm run db:member-deletion && npm run db:personal-territory && npm run db:bulletin-announcements && npm run db:service-roster && prisma generate && npx tsx scripts/seed-service-roster.ts && next build",
+    "build": "node scripts/sync-bulletin-reader.cjs && npm run db:line-profile && npm run db:area-completion && npm run db:boundary-drafts && npm run db:map-requests && npm run db:area-dispatch-enabled && npm run db:member-dispatch-visibility && npm run db:ministry-visits && npm run db:line-notifications && npm run db:pending-line && npm run db:member-deletion && npm run db:personal-territory && npm run db:personal-reminders && npm run db:bulletin-announcements && npm run db:service-roster && prisma generate && npx tsx scripts/seed-service-roster.ts && next build",
     "db:map-requests": "node scripts/execute-db-sql.cjs prisma/map-requests.sql",
     "db:boundary-drafts": "node scripts/execute-db-sql.cjs prisma/map-boundary-drafts.sql",
     "check:area-status": "node scripts/check-area-status.cjs",
@@ -24,6 +24,7 @@
     "db:member-dispatch-visibility": "node scripts/execute-db-sql.cjs prisma/member-dispatch-visibility.sql",
     "db:ministry-visits": "node scripts/execute-db-sql.cjs prisma/ministry-visits.sql",
     "db:line-notifications": "node scripts/execute-db-sql.cjs prisma/line-notifications.sql",
+    "db:personal-reminders": "node scripts/execute-db-sql.cjs prisma/personal-reminders.sql",
     "db:personal-territory": "node scripts/execute-db-sql.cjs prisma/personal-territory.sql",
     "db:member-deletion": "node scripts/execute-db-sql.cjs prisma/member-deletion.sql",
     "db:pending-line": "node scripts/execute-db-sql.cjs prisma/pending-line-identities.sql",

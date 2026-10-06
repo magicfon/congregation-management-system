@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 function load(file,mocks={}){const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}}).outputText,{exports,Date,require:n=>mocks[n]??require(n)});return exports}
 let sent=0,jobs=[],members,failQueue=false,failDelivery=false;
 const client={botSite:'https://example.test',lineBotReady:()=>true,botText:text=>({text}),lineRequest:async()=>{sent++;return{accepted:true,status:200}}};
-const notifications=load('src/lib/line-notifications.ts',{'./line-bot-client':client});
+const notifications=load('src/lib/line-notifications.ts',{'./personal-territory-reminders':{personalReminderDue:()=>true},'./line-bot-client':client});
 const notice=load('src/lib/line-pairing-notification.ts',{'./line-bot-client':client,'./line-notifications':{...notifications,drainLineNotifications:async(db,ids)=>{if(failDelivery)throw Error('offline');return notifications.drainLineNotifications(db,ids)}}});
 const pairing=load('src/lib/line-pairing.ts',{'./line-pairing-notification':notice});
 const pending=load('src/lib/pending-line-identities.ts',{'./line-pairing':pairing,'./line-pairing-notification':notice});
