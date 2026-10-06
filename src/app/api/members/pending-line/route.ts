@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { requireApiUser } from '../../../../lib/api-auth'
 import { prisma } from '../../../../lib/db'
-import { linkPendingLineIdentity } from '../../../../lib/pending-line-identities'
+import { linkPendingLineIdentity, createPendingLineMember } from '../../../../lib/pending-line-identities'
 import { LinePairingError } from '../../../../lib/line-pairing'
 import { deliverPairingNotice } from '../../../../lib/line-pairing-notification'
 
@@ -23,11 +23,15 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiUser(['admin'])
   if ('response' in auth) return auth.response
   const body = await request.json().catch(() => null)
-  if (typeof body?.uid !== 'string' || !/^U[0-9a-f]{32}$/i.test(body.uid) || typeof body?.targetId !== 'string' || !body.targetId.trim()) {
+  if (typeof body?.uid !== 'string' || !/^U[0-9a-f]{32}$/i.test(body.uid)) {
     return NextResponse.json({ error: '請選擇待確認帳號與目標成員' }, { status: 400 })
   }
+  const create = body.action === 'create'
+  if (create ? (typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 100 || !['admin', 'publisher'].includes(body.role) || body.targetId !== undefined) : (body.action !== undefined || typeof body.targetId !== 'string' || !body.targetId.trim())) {
+    return NextResponse.json({ error: '請填寫姓名與權限，或選擇既有成員' }, { status: 400 })
+  }
   try {
-    const { notificationId, ...result } = await linkPendingLineIdentity(prisma, body.uid, body.targetId)
+    const { notificationId, ...result } = await (create ? createPendingLineMember(prisma, body.uid, body.name.trim(), body.role, auth.user.id!) : linkPendingLineIdentity(prisma, body.uid, body.targetId))
     const notification = await deliverPairingNotice(prisma, notificationId)
     return NextResponse.json({ ...result, notification })
   } catch (error) {

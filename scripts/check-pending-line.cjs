@@ -12,6 +12,7 @@ let people, identities, failDelete=false;
 function reset(){people=[{id:'m',name:'成員',active:true,role:'elder',lineuid:null}];identities=[];failDelete=false}
 const match=(row,where)=>Object.entries(where).every(([k,v])=>row[k]===v);
 const db={member:{
+  create:async({data})=>{const row={id:'created',...data};people.push(row);return row;},
   findUnique:async({where})=>people.find(r=>match(r,where))||null,
   update:async({where,data})=>Object.assign(people.find(r=>match(r,where)),data),
 },pendingLineIdentity:{
@@ -50,5 +51,15 @@ const db={member:{
  let role='publisher';const route=load('src/app/api/members/pending-line/route.ts',{'../../../../lib/line-pairing-notification':{deliverPairingNotice:async()=>''},'../../../../lib/db':{prisma:db},'../../../../lib/pending-line-identities':service,'../../../../lib/line-pairing':pairing,'../../../../lib/api-auth':{requireApiUser:async roles=>{assert.equal(roles[0],'admin');return role==='admin'?{user:{id:'admin'}}:{response:new Response(null,{status:403})}}}});
  assert.equal((await route.GET()).status,403);assert.equal((await route.POST({})).status,403);
  role='admin';assert.equal((await route.GET()).status,200);assert.equal((await route.POST({json:async()=>({uid:'bad',targetId:'m'})})).status,400);
+ reset();people.push({id:'admin',active:true,role:'admin'});await service.recordPendingLineIdentity(db,uid,'新使用者');
+ const create=body=>route.POST({json:async()=>({action:'create',uid,name:'新成員',role:'publisher',...body})});
+ role='publisher';assert.equal((await create({})).status,403);role='admin';
+ assert.equal((await create({role:'elder'})).status,400);assert.equal((await create({name:' '})).status,400);assert.equal((await create({targetId:'m'})).status,400);
+ failDelete=true;assert.equal((await create({})).status,503);assert.equal(people.length,2);assert.equal(identities.length,1);failDelete=false;
+ const created=await create({});assert.equal(created.status,200);assert.equal(people.length,3);assert.equal(identities.length,0);
+ const member=people.find(p=>p.id==='created');assert.equal(member.role,'publisher');assert.equal(member.lineuid,uid);assert.equal(member.lineDisplayName,'新使用者');assert.match(member.email,/@members.invalid$/);assert.match(member.password,/^\$2/);
+ assert.equal((await create({})).status,409);assert.equal(people.length,3);
+ assert.equal(await auth.signIn({account,profile:{name:'LINE'}}),true);assert.equal((await auth.jwt({token:{sub:uid},account})).role,'publisher');
+ reset();people.push({id:'admin',active:true,role:'admin'});await service.recordPendingLineIdentity(db,uid,'新使用者');assert.equal((await create({role:'admin'})).status,200);assert.equal(people.find(p=>p.id==='created').role,'admin');
  console.log('PASS: unknown UID registration, dedup/profile fallback, no automatic member/session/private reads, admin-only list/link, conflict/rollback, retained role, login after approval, disabled member, delayed event.');
 })().catch(e=>{console.error(e);process.exitCode=1});

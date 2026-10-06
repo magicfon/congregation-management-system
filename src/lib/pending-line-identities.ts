@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto'
+import { hash } from 'bcryptjs'
 import { Prisma, type PrismaClient } from '@prisma/client'
 import { LinePairingError } from './line-pairing'
 import { queuePairingNotice } from './line-pairing-notification'
@@ -38,5 +40,24 @@ export async function linkPendingLineIdentity(db: PrismaClient, uid: string, tar
     await tx.pendingLineIdentity.delete({ where: { uid } })
     const notificationId = await queuePairingNotice(tx, target)
     return { memberId: target.id, memberName: target.name, notificationId }
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+}
+
+export async function createPendingLineMember(db: PrismaClient, uid: string, name: string, role: 'admin' | 'publisher', actorId: string) {
+  const password = await hash(randomUUID(), 10)
+  return db.$transaction(async tx => {
+    const actor = await tx.member.findUnique({ where: { id: actorId } })
+    if (!actor?.active || actor.deletedAt || actor.role !== 'admin') throw new LinePairingError('只有管理員可建立並連結')
+    const pending = await tx.pendingLineIdentity.findUnique({ where: { uid } })
+    if (!pending) throw new LinePairingError('此 LINE 帳號已處理，請重新整理')
+    const existing = await tx.member.findUnique({ where: { lineuid: uid } })
+    if (existing) throw new LinePairingError('此 UID 已綁定其他成員，請重新整理')
+    const member = await tx.member.create({ data: {
+      name, role, active: true, lineuid: uid, lineDisplayName: pending.displayName,
+      email: `line-${randomUUID()}@members.invalid`, password,
+    } })
+    await tx.pendingLineIdentity.delete({ where: { uid } })
+    const notificationId = await queuePairingNotice(tx, member)
+    return { memberId: member.id, memberName: member.name, notificationId }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }
