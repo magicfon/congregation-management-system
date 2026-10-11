@@ -9,6 +9,7 @@ import PdfReader from '@/components/bulletin/PdfReader'
 import Announcements from '@/components/bulletin/Announcements'
 import ServiceRoster from '@/components/bulletin/ServiceRoster'
 import RosterReference from '@/components/bulletin/RosterReference'
+import Midweek from '@/components/bulletin/Midweek'
 
 type Props = { params: { category: string } }
 export function generateStaticParams() { return bulletinCategories.map(category => ({ category: category.slug })) }
@@ -20,7 +21,7 @@ export function generateMetadata({ params }: Props): Metadata {
 export default function BulletinCategoryPage({ params }: Props) {
   const category = bulletinCategories.find(item => item.slug === params.category)
   if (!category) notFound()
-  const compact = category.slug === 'service-roster'
+  const compact = category.slug === 'service-roster' || category.slug === 'midweek-meeting'
   const categoryLinks = bulletinCategories.map(item => <Link key={item.slug} href={`/bulletin/${item.slug}`} aria-current={item.slug === category.slug ? 'page' : undefined} className={`flex min-h-11 items-center rounded-xl border px-3 text-sm ${item.slug === category.slug ? 'border-blue-400/40 bg-blue-400/10 text-blue-200' : 'border-white/10 text-mc-text/60 hover:bg-mc-accent'}`}>{item.shortTitle}</Link>)
   const sources = <div className="space-y-5">
     {[...category.sources].sort((a, b) => Number(Boolean(b.pdf)) - Number(Boolean(a.pdf))).map(source => <section key={source.url} className="overflow-hidden rounded-2xl border border-white/10 bg-mc-card">
@@ -47,6 +48,6 @@ export default function BulletinCategoryPage({ params }: Props) {
     </nav>
     </>}
     {category.slug === 'service-roster' && <div className="mb-5"><ServiceRoster /></div>}
-    {category.slug === 'announcements' ? <Announcements originalUrl={category.sources[0].url} /> : category.slug === 'service-roster' ? <RosterReference>{sources}</RosterReference> : sources}
+    {category.slug === 'midweek-meeting' ? <Midweek /> : category.slug === 'announcements' ? <Announcements originalUrl={category.sources[0].url} /> : category.slug === 'service-roster' ? <RosterReference>{sources}</RosterReference> : sources}
   </DashboardLayout>
 }

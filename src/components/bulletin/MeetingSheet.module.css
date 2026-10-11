@@ -1,0 +1,19 @@
+.viewport { overflow-x: auto; background: white; border-radius: 4px; color: #111; }
+.sheet { width: 1200px; padding: 24px 24px 38px; font-family: Arial, 'Microsoft JhengHei', sans-serif; position: absolute; top: 0; left: 0; }
+.note { color: red; font-size: 24px; font-weight: bold; margin: 0 0 55px; white-space: pre-wrap; }
+.heading { font-size: 24px; font-weight: 700; margin: 35px 10px 0; }
+.chair { display: flex; justify-content: flex-end; align-items: center; min-height: 78px; padding-right: 35px; gap: 22px; font-size: 26px; color: red; }
+.chair small,.assignee small,.section small { font-size: 17px; color: #777; letter-spacing: 1px; }
+.chair span { min-width: 170px; }
+.section { display: grid; grid-template-columns: 66% 34%; align-items: center; margin: 20px 0 6px; }
+.section h3 { color: white; font-size: 23px; padding: 4px 18px; font-weight: 600; }
+.section small { text-align: center; }
+.row { display: grid; grid-template-columns: 72px minmax(0,1fr) 380px; gap: 6px; align-items: center; min-height: 55px; padding: 5px 10px; }
+.row time { font-size: 19px; color: #55595b; font-weight: 700; }
+.title { font-size: 25px; line-height: 1.5; overflow-wrap: anywhere; }
+.title > span:first-child { font-size: 20px; margin-right: 5px; }
+.minutes { font-size: 22px; white-space: nowrap; }
+.assignee { display: flex; justify-content: flex-end; align-items: center; gap: 16px; color: red; font-size: 25px; line-height: 1.5; }
+.assignee small { white-space: nowrap; }
+.assignee > span { width: 265px; flex-shrink: 0; overflow-wrap: anywhere; }
+@media print { .viewport { overflow: visible; } .sheet { min-width: 0; width: 100%; } .row { grid-template-columns: 55px minmax(0,1fr) 230px; } .title,.assignee { font-size: 18px; } }

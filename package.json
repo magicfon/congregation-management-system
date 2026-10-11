@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "check:midweek": "tsx scripts/check-midweek.ts && tsx scripts/check-midweek-store.ts",
+    "import:midweek": "tsx scripts/import-midweek.ts",
     "dev": "next dev",
     "build": "node scripts/sync-bulletin-reader.cjs && npm run db:line-profile && npm run db:area-completion && npm run db:boundary-drafts && npm run db:map-requests && npm run db:area-dispatch-enabled && npm run db:member-dispatch-visibility && npm run db:ministry-visits && npm run db:line-notifications && npm run db:pending-line && npm run db:member-deletion && npm run db:personal-territory && npm run db:personal-reminders && npm run db:bulletin-announcements && npm run db:service-roster && prisma generate && npx tsx scripts/seed-service-roster.ts && next build",
     "db:map-requests": "node scripts/execute-db-sql.cjs prisma/map-requests.sql",
@@ -40,6 +42,7 @@
     "@types/leaflet": "^1.9.21",
     "@vercel/blob": "^2.3.1",
     "bcryptjs": "^2.4.3",
+    "cheerio": "^1.0.0",
     "date-fns": "^3.0.0",
     "googleapis": "^171.4.0",
     "leaflet": "^1.9.4",

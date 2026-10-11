@@ -1,0 +1,135 @@
+'use client'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { addDays, newMeeting, sectionNames, type Highlight, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
+import MeetingSheet from './MeetingSheet'
+
+type Week = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
+type Sync = { remaining: number; done: number; imported: number; completedAt: string | null; errors: { url: string; error: string }[]; busy?: boolean }
+const field = 'w-full min-h-11 rounded-lg border border-white/15 bg-mc-card px-3 py-2 text-mc-text'
+const button = 'min-h-11 rounded-lg border border-white/15 px-4 py-2 disabled:opacity-40'
+async function api(url: string, options?: RequestInit) {
+  const response = await fetch(url, { cache: 'no-store', ...options })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || '讀取失敗')
+  return data
+}
+function HighlightSelect({ value, onChange }: { value: Highlight; onChange: (value: Highlight) => void }) {
+  return <select aria-label="更新底色" className={field} value={value} onChange={e => onChange(e.target.value as Highlight)}><option value="">無底色</option><option value="yellow">黃色更新</option><option value="green">綠色更新</option></select>
+}
+export default function Midweek({ management = false }: { management?: boolean }) {
+  const [weeks, setWeeks] = useState<Week[]>([]), [id, setId] = useState('')
+  const [members, setMembers] = useState<{ id: string; name: string }[]>([])
+  const [source, setSource] = useState<SourceWeek | null>(null), [record, setRecord] = useState<MeetingRecord | null>(null)
+  const [meeting, setMeeting] = useState<Meeting | null>(null), [dirty, setDirty] = useState(false)
+  const [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [syncing, setSyncing] = useState(false)
+  const [sync, setSync] = useState<Sync | null>(null), [error, setError] = useState(''), [message, setMessage] = useState('')
+  const [preview, setPreview] = useState(false), [isAdmin, setIsAdmin] = useState(management)
+  const alive = useRef(true)
+  const endpoint = management ? '/api/midweek/manage' : '/api/midweek'
+  async function refresh() {
+    const data = await api(endpoint)
+    if (!alive.current) return
+    setWeeks(data.weeks); if (management) { setMembers(data.members); setSync(data.sync) }
+    setId(current => {
+      if (current && data.weeks.some((w: Week) => w.id === current)) return current
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+      const upcoming = [...data.weeks].filter((w: Week) => w.date >= addDays(today, -3)).sort((a: Week, b: Week) => a.date.localeCompare(b.date))
+      return upcoming[0]?.id || data.weeks[0]?.id || ''
+    })
+  }
+  useEffect(() => {
+    alive.current = true
+    refresh().catch(e => setError(e.message)).finally(() => setLoading(false))
+    if (!management) api('/api/me').then(data => setIsAdmin(data.role === 'admin' || data.user?.role === 'admin')).catch(() => {})
+    return () => { alive.current = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpoint])
+  useEffect(() => {
+    if (!id) { setMeeting(null); return }
+    const controller = new AbortController()
+    setLoading(true); setMeeting(null); setSource(null); setRecord(null); setError(''); setMessage('')
+    api(`${endpoint}?id=${id}`, { signal: controller.signal }).then(data => {
+      if (management) { setSource(data.source); setRecord(data.record); setMeeting(data.record?.draft || newMeeting(data.source)) }
+      else setMeeting(data.meeting)
+      setDirty(false)
+    }).catch(e => { if (!controller.signal.aborted) setError(e.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
+  }, [id, endpoint, management])
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+  const change = (patch: Partial<Meeting>) => { setMeeting(current => current && { ...current, ...patch }); setDirty(true); setMessage('') }
+  const itemChange = (index: number, patch: Partial<MeetingItem>) => change({ items: meeting!.items.map((r, i) => i === index ? { ...r, ...patch } : r) })
+  async function save(action: string) {
+    if (!meeting || busy) return
+    if (action === 'reset' && !confirm('以最新手冊重新建立草稿？目前草稿的人員與修改將被清除，已發布版本會保留。')) return
+    if (action === 'unpublish' && !confirm('下架這週節目？公開公布欄將不再顯示。')) return
+    setBusy(true); setError(''); setMessage('')
+    try {
+      const data = await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, revision: record?.revision || 0, meeting }) })
+      setRecord(data.record); setSource(data.source)
+      if (action !== 'unpublish') { setMeeting(data.record.draft); setDirty(false) }
+      setMessage(action === 'publish' ? '已發布到公布欄' : action === 'unpublish' ? '已下架' : '草稿已儲存')
+      await refresh()
+    } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+  }
+  async function runSync() {
+    setSyncing(true); setError('')
+    try {
+      let status: Sync
+      do {
+        const data = await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sync' }) })
+        status = data.sync; if (!alive.current) break
+        setSync(status)
+        await refresh()
+      } while (status.remaining > 0 && !status.busy && alive.current)
+    } catch (e) { setError((e as Error).message) } finally { if (alive.current) setSyncing(false) }
+  }
+  const move = (index: number, direction: number) => {
+    const items = [...meeting!.items], target = index + direction
+    if (target < 0 || target >= items.length) return
+    ;[items[index], items[target]] = [items[target], items[index]]; change({ items })
+  }
+  return <div className="space-y-4">
+    <div className="flex flex-wrap items-center gap-3">
+      <select aria-label="選擇週次" className={`${field} !w-auto max-w-full flex-1`} value={id} disabled={busy || loading} onChange={e => { if (!dirty || confirm('尚有未儲存修改，確定切換週次？')) setId(e.target.value) }}>
+        {!weeks.length && <option value="">{management ? '尚未匯入手冊' : '尚未發布節目'}</option>}
+        {weeks.map(w => <option key={w.id} value={w.id}>{w.date}　{w.reading}{management ? w.publishedAt ? '（已發布）' : '（草稿）' : ''}</option>)}
+      </select>
+      {management ? <><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button><Link className={button} href="/bulletin/midweek-meeting">公開頁</Link></> : isAdmin && <Link className={button} href="/midweek/manage">編排節目</Link>}
+    </div>
+    {management && sync && <details className="text-sm text-mc-text/70"><summary className="cursor-pointer py-2">已匯入 {weeks.length} 週 · {sync.remaining ? `待處理 ${sync.remaining} 頁` : sync.errors.length ? `${sync.errors.length} 頁需重試` : '檢查完成'}{sync.completedAt && ` · ${new Date(sync.completedAt).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}`}</summary><p>每月自動檢查來源更新；大量歷史資料分批續跑。</p>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
+    {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
+    {message && <p role="status" className="text-green-300">{message}</p>}
+    {loading && <p role="status">載入中…</p>}
+    {!loading && !meeting && !error && <p className="py-8 text-mc-text/60">{management ? '請先匯入手冊，再選擇要安排的週次。' : '目前沒有已發布的週中聚會節目。'}</p>}
+    {meeting && <>
+      {management && <>
+        <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布到公布欄</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>
+        {source && record && source.hash !== record.sourceHash && <p className="text-amber-300">官方手冊有新版，現有安排已保留。可查看來源後自行調整，或重新建立草稿。</p>}
+        {source && <details className="text-sm"><summary className="cursor-pointer py-2">手冊來源與重建草稿</summary><div className="flex flex-wrap items-center gap-3"><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a><button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button></div></details>}
+        {!preview && <fieldset disabled={busy} className="space-y-4">
+          <datalist id="meeting-members">{members.map(m => <option key={m.id} value={m.name} />)}</datalist>
+          <div className="grid gap-3 sm:grid-cols-3"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>主席<input list="meeting-members" className={field} value={meeting.chair} onChange={e => change({ chair: e.target.value })} /></label><label className="sm:col-span-3">每週閱讀經文<input className={field} value={meeting.reading} onChange={e => change({ reading: e.target.value })} /></label><label className="sm:col-span-2">更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label><label>標示底色<HighlightSelect value={meeting.noteHighlight} onChange={noteHighlight => change({ noteHighlight })} /></label></div>
+          {meeting.items.map((item, index) => <details key={item.id} className="rounded-xl border border-white/10 bg-mc-card p-3"><summary className="cursor-pointer leading-8"><span className="mr-3 text-mc-text/50">{index + 1}</span>{item.title} <span className="text-mc-text/50">{item.minutes} 分</span><span className="ml-4 text-red-300">{[item.person, item.assistant].filter(Boolean).join('／') || '未安排'}</span></summary><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="sm:col-span-2">節目名稱<input className={field} value={item.title} onChange={e => itemChange(index, { title: e.target.value })} /></label>
+            <label>分鐘<input type="number" min="0" max="180" className={field} value={item.minutes} onChange={e => itemChange(index, { minutes: Number(e.target.value) })} /></label>
+            <label>講評／轉場分鐘<input type="number" min="0" max="30" className={field} value={item.counsel} onChange={e => itemChange(index, { counsel: Number(e.target.value) })} /></label>
+            <label>負責人／學生<input list="meeting-members" className={field} value={item.person} onChange={e => itemChange(index, { person: e.target.value })} /></label><label>助手<input list="meeting-members" className={field} value={item.assistant} onChange={e => itemChange(index, { assistant: e.target.value })} /></label>
+            <label>職務標籤<input className={field} value={item.role} onChange={e => itemChange(index, { role: e.target.value })} /></label>
+            <label>段落<select className={field} value={item.section} onChange={e => itemChange(index, { section: e.target.value as Section })}>{Object.entries(sectionNames).map(([key, name]) => <option key={key} value={key}>{name || '開場'}</option>)}</select></label>
+            <label>節目底色<HighlightSelect value={item.highlight} onChange={highlight => itemChange(index, { highlight })} /></label>
+            <label>時間底色<HighlightSelect value={item.timeHighlight ?? ''} onChange={timeHighlight => itemChange(index, { timeHighlight })} /></label>
+            <label>姓名底色<HighlightSelect value={item.personHighlight ?? ''} onChange={personHighlight => itemChange(index, { personHighlight })} /></label>
+            <div className="flex flex-wrap gap-2 sm:col-span-2"><button className={button} disabled={index === 0} onClick={() => move(index, -1)}>上移</button><button className={button} disabled={index === meeting.items.length - 1} onClick={() => move(index, 1)}>下移</button><button className={`${button} text-red-300`} onClick={() => change({ items: meeting.items.filter((_, i) => i !== index) })}>刪除</button></div>
+          </div></details>)}
+          <button className={button} onClick={() => change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] })}>＋新增節目</button>
+        </fieldset>}
+      </>}
+      {(!management || preview) && <MeetingSheet meeting={meeting} />}
+    </>}
+  </div>
+}
