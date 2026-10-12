@@ -10,5 +10,10 @@ export default async function Page() {
   const user = session?.user as { id?: string; role?: string } | undefined
   if (!user?.id) redirect('/login?callbackUrl=%2Fmidweek%2Fmanage')
   if (user.role !== 'admin') redirect('/bulletin/midweek-meeting')
-  return <DashboardLayout><h1 className="mb-5 text-2xl font-semibold">編排週中聚會</h1><Midweek management /></DashboardLayout>
+  return <DashboardLayout>
+    <div className="mx-auto w-full max-w-7xl px-5 py-6 md:p-8 xl:p-10">
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight md:mb-8">編排週中聚會</h1>
+      <Midweek management />
+    </div>
+  </DashboardLayout>
 }

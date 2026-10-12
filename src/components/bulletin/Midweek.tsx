@@ -6,7 +6,7 @@ import MeetingSheet from './MeetingSheet'
 
 type Week = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
 type Sync = { remaining: number; done: number; imported: number; completedAt: string | null; errors: { url: string; error: string }[]; busy?: boolean }
-const field = 'w-full min-h-11 rounded-lg border border-white/15 bg-mc-card px-3 py-2 text-mc-text'
+const field = 'w-full min-w-0 min-h-11 rounded-lg border border-white/15 bg-mc-card px-3 py-2 text-base font-normal text-mc-text'
 const button = 'min-h-11 rounded-lg border border-white/15 px-4 py-2 disabled:opacity-40'
 async function api(url: string, options?: RequestInit) {
   const response = await fetch(url, { cache: 'no-store', ...options })
@@ -95,7 +95,7 @@ export default function Midweek({ management = false }: { management?: boolean }
   }
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center gap-3">
-      <select aria-label="選擇週次" className={`${field} !w-auto max-w-full flex-1`} value={id} disabled={busy || loading} onChange={e => { if (!dirty || confirm('尚有未儲存修改，確定切換週次？')) setId(e.target.value) }}>
+      <select aria-label="選擇週次" className={`${field} basis-full sm:!w-auto sm:basis-auto sm:flex-1`} value={id} disabled={busy || loading} onChange={e => { if (!dirty || confirm('尚有未儲存修改，確定切換週次？')) setId(e.target.value) }}>
         {!weeks.length && <option value="">{management ? '尚未匯入手冊' : '尚未發布節目'}</option>}
         {weeks.map(w => <option key={w.id} value={w.id}>{w.date}　{w.reading}{management ? w.publishedAt ? '（已發布）' : '（草稿）' : ''}</option>)}
       </select>
@@ -111,7 +111,7 @@ export default function Midweek({ management = false }: { management?: boolean }
         <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布到公布欄</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>
         {source && record && source.hash !== record.sourceHash && <p className="text-amber-300">官方手冊有新版，現有安排已保留。可查看來源後自行調整，或重新建立草稿。</p>}
         {source && <details className="text-sm"><summary className="cursor-pointer py-2">手冊來源與重建草稿</summary><div className="flex flex-wrap items-center gap-3"><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a><button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button></div></details>}
-        {!preview && <fieldset disabled={busy} className="space-y-4">
+        {!preview && <fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
           <datalist id="meeting-members">{members.map(m => <option key={m.id} value={m.name} />)}</datalist>
           <div className="grid gap-3 sm:grid-cols-3"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>主席<input list="meeting-members" className={field} value={meeting.chair} onChange={e => change({ chair: e.target.value })} /></label><label className="sm:col-span-3">每週閱讀經文<input className={field} value={meeting.reading} onChange={e => change({ reading: e.target.value })} /></label><label className="sm:col-span-2">更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label><label>標示底色<HighlightSelect value={meeting.noteHighlight} onChange={noteHighlight => change({ noteHighlight })} /></label></div>
           {meeting.items.map((item, index) => <details key={item.id} className="rounded-xl border border-white/10 bg-mc-card p-3"><summary className="cursor-pointer leading-8"><span className="mr-3 text-mc-text/50">{index + 1}</span>{item.title} <span className="text-mc-text/50">{item.minutes} 分</span><span className="ml-4 text-red-300">{[item.person, item.assistant].filter(Boolean).join('／') || '未安排'}</span></summary><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
