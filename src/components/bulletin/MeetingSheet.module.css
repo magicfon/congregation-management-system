@@ -8,7 +8,7 @@
 .section { display: grid; grid-template-columns: 66% 34%; align-items: center; margin: 20px 0 6px; }
 .section h3 { color: white; font-size: 23px; padding: 4px 18px; font-weight: 600; }
 .section small { text-align: center; }
-.row { display: grid; grid-template-columns: 72px minmax(0,1fr) 380px; gap: 6px; align-items: center; min-height: 55px; padding: 5px 10px; }
+.row { position: relative; display: grid; grid-template-columns: 72px minmax(0,1fr) 380px; gap: 6px; align-items: center; min-height: 55px; padding: 5px 10px; }
 .row time { font-size: 19px; color: #55595b; font-weight: 700; }
 .title { font-size: 25px; line-height: 1.5; overflow-wrap: anywhere; }
 .title > span:first-child { font-size: 20px; margin-right: 5px; }
@@ -16,4 +16,25 @@
 .assignee { display: flex; justify-content: flex-end; align-items: center; gap: 16px; color: red; font-size: 25px; line-height: 1.5; }
 .assignee small { white-space: nowrap; }
 .assignee > span { width: 265px; flex-shrink: 0; overflow-wrap: anywhere; }
+.editable, .nameField, .minuteField, .textField textarea { font: inherit; color: inherit; background: transparent; border: 0; border-radius: 2px; padding: 0; margin: 0; box-shadow: none; }
+.editable, .nameField, .minuteField, .textField { outline: 1px dashed #b5b5b550; outline-offset: 2px; }
+.editable:hover, .nameField:hover, .minuteField:hover, .textField:hover { outline-color: #888; }
+.editable:focus-visible, .nameField:focus, .minuteField:focus, .textField:focus-within { outline: 2px solid #176caa; outline-offset: 2px; }
+.textField { display: inline-grid; position: relative; max-width: 100%; min-width: 2ch; vertical-align: bottom; line-height: inherit; }
+.textField > span { visibility: hidden; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.5em; }
+.textField textarea { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; resize: none; outline: none; line-height: inherit; }
+.textField textarea::placeholder, .nameField::placeholder { color: inherit; opacity: .5; }
+.nameField { max-width: 100%; min-width: 2em; }
+.minuteField { width: 2.1ch; appearance: textfield; text-align: center; }
+.minuteField::-webkit-inner-spin-button, .minuteField::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.rowSettings { position: absolute; right: -22px; top: 50%; transform: translateY(-50%); width: 30px; height: 36px; border-radius: 4px; color: #666; font-size: 24px; background: #f4f4f4; }
+.rowSettings:hover, .rowSettings:focus-visible { background: #dcebf5; color: #176caa; }
+/* Paper fields must override the application's dark input defaults. */
+.sheet .nameField, .sheet .minuteField, .sheet .textField textarea {
+  color: inherit !important; -webkit-text-fill-color: currentColor !important; background: transparent !important;
+}
+.sheet .nameField::placeholder, .sheet .textField textarea::placeholder {
+  color: inherit !important; -webkit-text-fill-color: currentColor !important; opacity: .45;
+}
+.sheet .nameField { padding: 0; }
 @media print { .viewport { overflow: visible; } .sheet { min-width: 0; width: 100%; } .row { grid-template-columns: 55px minmax(0,1fr) 230px; } .title,.assignee { font-size: 18px; } }

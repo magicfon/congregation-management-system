@@ -25,6 +25,12 @@ export default function Midweek({ management = false }: { management?: boolean }
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [syncing, setSyncing] = useState(false)
   const [sync, setSync] = useState<Sync | null>(null), [error, setError] = useState(''), [message, setMessage] = useState('')
   const [preview, setPreview] = useState(false), [isAdmin, setIsAdmin] = useState(management)
+  const [selected, setSelected] = useState<number | null>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    if (selected !== null && dialog.current && !dialog.current.open) dialog.current.showModal()
+    if (selected === null) dialog.current?.close()
+  }, [selected])
   const alive = useRef(true)
   const endpoint = management ? '/api/midweek/manage' : '/api/midweek'
   async function refresh() {
@@ -48,7 +54,7 @@ export default function Midweek({ management = false }: { management?: boolean }
   useEffect(() => {
     if (!id) { setMeeting(null); return }
     const controller = new AbortController()
-    setLoading(true); setMeeting(null); setSource(null); setRecord(null); setError(''); setMessage('')
+    setSelected(null); setLoading(true); setMeeting(null); setSource(null); setRecord(null); setError(''); setMessage('')
     api(`${endpoint}?id=${id}`, { signal: controller.signal }).then(data => {
       if (management) { setSource(data.source); setRecord(data.record); setMeeting(data.record?.draft || newMeeting(data.source)) }
       else setMeeting(data.meeting)
@@ -111,10 +117,9 @@ export default function Midweek({ management = false }: { management?: boolean }
         <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布到公布欄</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>
         {source && record && source.hash !== record.sourceHash && <p className="text-amber-300">官方手冊有新版，現有安排已保留。可查看來源後自行調整，或重新建立草稿。</p>}
         {source && <details className="text-sm"><summary className="cursor-pointer py-2">手冊來源與重建草稿</summary><div className="flex flex-wrap items-center gap-3"><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a><button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button></div></details>}
-        {!preview && <fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
-          <datalist id="meeting-members">{members.map(m => <option key={m.id} value={m.name} />)}</datalist>
-          <div className="grid gap-3 sm:grid-cols-3"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>主席<input list="meeting-members" className={field} value={meeting.chair} onChange={e => change({ chair: e.target.value })} /></label><label className="sm:col-span-3">每週閱讀經文<input className={field} value={meeting.reading} onChange={e => change({ reading: e.target.value })} /></label><label className="sm:col-span-2">更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label><label>標示底色<HighlightSelect value={meeting.noteHighlight} onChange={noteHighlight => change({ noteHighlight })} /></label></div>
-          {meeting.items.map((item, index) => <details key={item.id} className="rounded-xl border border-white/10 bg-mc-card p-3"><summary className="cursor-pointer leading-8"><span className="mr-3 text-mc-text/50">{index + 1}</span>{item.title} <span className="text-mc-text/50">{item.minutes} 分</span><span className="ml-4 text-red-300">{[item.person, item.assistant].filter(Boolean).join('／') || '未安排'}</span></summary><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {!preview && <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
+          {selected === -1 && <div className="grid gap-3 sm:grid-cols-2"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label><label>標示底色<HighlightSelect value={meeting.noteHighlight} onChange={noteHighlight => change({ noteHighlight })} /></label></div>}
+          {meeting.items.map((item, index) => selected === index && <div key={item.id}><div className="grid gap-3 sm:grid-cols-2">
             <label className="sm:col-span-2">節目名稱<input className={field} value={item.title} onChange={e => itemChange(index, { title: e.target.value })} /></label>
             <label>分鐘<input type="number" min="0" max="180" className={field} value={item.minutes} onChange={e => itemChange(index, { minutes: Number(e.target.value) })} /></label>
             <label>講評／轉場分鐘<input type="number" min="0" max="30" className={field} value={item.counsel} onChange={e => itemChange(index, { counsel: Number(e.target.value) })} /></label>
@@ -124,12 +129,15 @@ export default function Midweek({ management = false }: { management?: boolean }
             <label>節目底色<HighlightSelect value={item.highlight} onChange={highlight => itemChange(index, { highlight })} /></label>
             <label>時間底色<HighlightSelect value={item.timeHighlight ?? ''} onChange={timeHighlight => itemChange(index, { timeHighlight })} /></label>
             <label>姓名底色<HighlightSelect value={item.personHighlight ?? ''} onChange={personHighlight => itemChange(index, { personHighlight })} /></label>
-            <div className="flex flex-wrap gap-2 sm:col-span-2"><button className={button} disabled={index === 0} onClick={() => move(index, -1)}>上移</button><button className={button} disabled={index === meeting.items.length - 1} onClick={() => move(index, 1)}>下移</button><button className={`${button} text-red-300`} onClick={() => change({ items: meeting.items.filter((_, i) => i !== index) })}>刪除</button></div>
-          </div></details>)}
-          <button className={button} onClick={() => change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] })}>＋新增節目</button>
-        </fieldset>}
+            <div className="flex flex-wrap gap-2 sm:col-span-2"><button className={button} disabled={index === 0} onClick={() => { move(index, -1); setSelected(index - 1) }}>上移</button><button className={button} disabled={index === meeting.items.length - 1} onClick={() => { move(index, 1); setSelected(index + 1) }}>下移</button><button className={`${button} text-red-300`} disabled={meeting.items.length === 1} onClick={() => { change({ items: meeting.items.filter((_, i) => i !== index) }); setSelected(null) }}>刪除</button></div>
+          </div></div>)}
+        </fieldset></dialog>}
       </>}
-      {(!management || preview) && <MeetingSheet meeting={meeting} />}
+      <fieldset disabled={busy} className="min-w-0">
+        {management && !preview && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>直接點選紙上的文字、分鐘或紅色姓名編輯；時間會自動重算。</p><button className={button} onClick={() => setSelected(-1)}>日期／時間／更新標示</button></div>}
+        <MeetingSheet meeting={meeting} editor={management && !preview ? { change, itemChange, settings: setSelected, members } : undefined} />
+        {management && !preview && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
+      </fieldset>
     </>}
   </div>
 }
