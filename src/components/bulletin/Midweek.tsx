@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { addDays, newMeeting, sectionNames, type Highlight, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
+import { addDays, currentAndFutureWeeks, newMeeting, sectionNames, type Highlight, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 
 type Week = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
@@ -19,6 +19,7 @@ function HighlightSelect({ value, onChange }: { value: Highlight; onChange: (val
 }
 export default function Midweek({ management = false }: { management?: boolean }) {
   const [weeks, setWeeks] = useState<Week[]>([]), [id, setId] = useState('')
+  const [totalWeeks, setTotalWeeks] = useState(0)
   const [members, setMembers] = useState<{ id: string; name: string }[]>([])
   const [source, setSource] = useState<SourceWeek | null>(null), [record, setRecord] = useState<MeetingRecord | null>(null)
   const [meeting, setMeeting] = useState<Meeting | null>(null), [dirty, setDirty] = useState(false)
@@ -36,12 +37,13 @@ export default function Midweek({ management = false }: { management?: boolean }
   async function refresh() {
     const data = await api(endpoint)
     if (!alive.current) return
-    setWeeks(data.weeks); if (management) { setMembers(data.members); setSync(data.sync) }
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+    const choices: Week[] = management ? currentAndFutureWeeks(data.weeks, today) : [...data.weeks].sort((a: Week, b: Week) => a.date.localeCompare(b.date))
+    setWeeks(choices); setTotalWeeks(data.weeks.length); if (management) { setMembers(data.members); setSync(data.sync) }
     setId(current => {
-      if (current && data.weeks.some((w: Week) => w.id === current)) return current
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
-      const upcoming = [...data.weeks].filter((w: Week) => w.date >= addDays(today, -3)).sort((a: Week, b: Week) => a.date.localeCompare(b.date))
-      return upcoming[0]?.id || data.weeks[0]?.id || ''
+      if (current && choices.some(w => w.id === current)) return current
+      if (management) return choices[0]?.id || ''
+      return choices.find(w => w.date >= addDays(today, -3))?.id || choices.at(-1)?.id || ''
     })
   }
   useEffect(() => {
@@ -99,19 +101,25 @@ export default function Midweek({ management = false }: { management?: boolean }
     if (target < 0 || target >= items.length) return
     ;[items[index], items[target]] = [items[target], items[index]]; change({ items })
   }
+  const weekIndex = weeks.findIndex(week => week.id === id)
+  const switchWeek = (nextId?: string) => {
+    if (!nextId || nextId === id || busy || loading) return
+    if (!dirty || confirm('尚有未儲存修改，確定切換週次？')) setId(nextId)
+  }
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center gap-3">
-      <select aria-label="選擇週次" className={`${field} basis-full sm:!w-auto sm:basis-auto sm:flex-1`} value={id} disabled={busy || loading} onChange={e => { if (!dirty || confirm('尚有未儲存修改，確定切換週次？')) setId(e.target.value) }}>
-        {!weeks.length && <option value="">{management ? '尚未匯入手冊' : '尚未發布節目'}</option>}
+      <select aria-label="選擇週次" className={`${field} basis-full sm:!w-auto sm:basis-auto sm:flex-1`} value={id} disabled={busy || loading} onChange={e => switchWeek(e.target.value)}>
+        {!weeks.length && <option value="">{management ? '尚無本週或未來節目' : '尚未發布節目'}</option>}
         {weeks.map(w => <option key={w.id} value={w.id}>{w.date}　{w.reading}{management ? w.publishedAt ? '（已發布）' : '（草稿）' : ''}</option>)}
       </select>
+      <div className="flex shrink-0 gap-2"><button className={button} disabled={busy || loading || weekIndex <= 0} onClick={() => switchWeek(weeks[weekIndex - 1]?.id)}>← 前一週</button><button className={button} disabled={busy || loading || weekIndex < 0 || weekIndex >= weeks.length - 1} onClick={() => switchWeek(weeks[weekIndex + 1]?.id)}>下一週 →</button></div>
       {management ? <><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button><Link className={button} href="/bulletin/midweek-meeting">公開頁</Link></> : isAdmin && <Link className={button} href="/midweek/manage">編排節目</Link>}
     </div>
-    {management && sync && <details className="text-sm text-mc-text/70"><summary className="cursor-pointer py-2">已匯入 {weeks.length} 週 · {sync.remaining ? `待處理 ${sync.remaining} 頁` : sync.errors.length ? `${sync.errors.length} 頁需重試` : '檢查完成'}{sync.completedAt && ` · ${new Date(sync.completedAt).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}`}</summary><p>每月自動檢查來源更新；大量歷史資料分批續跑。</p>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
+    {management && sync && <details className="text-sm text-mc-text/70"><summary className="cursor-pointer py-2">已匯入 {totalWeeks} 週 · {sync.remaining ? `待處理 ${sync.remaining} 頁` : sync.errors.length ? `${sync.errors.length} 頁需重試` : '檢查完成'}{sync.completedAt && ` · ${new Date(sync.completedAt).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}`}</summary><p>每月自動檢查來源更新；大量歷史資料分批續跑。</p>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
     {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
     {message && <p role="status" className="text-green-300">{message}</p>}
     {loading && <p role="status">載入中…</p>}
-    {!loading && !meeting && !error && <p className="py-8 text-mc-text/60">{management ? '請先匯入手冊，再選擇要安排的週次。' : '目前沒有已發布的週中聚會節目。'}</p>}
+    {!loading && !meeting && !error && <p className="py-8 text-mc-text/60">{management ? '目前沒有本週或未來的節目，請按「檢查／匯入手冊」取得新週次。' : '目前沒有已發布的週中聚會節目。'}</p>}
     {meeting && <>
       {management && <>
         <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布到公布欄</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>

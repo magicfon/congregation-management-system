@@ -21,6 +21,11 @@ export function addDays(date: string, days: number) {
 export function newMeeting(source: SourceWeek): Meeting {
   return { date: addDays(source.week, 4), start: '19:30', reading: source.reading, chair: '', note: '', noteHighlight: '', items: structuredClone(source.items) }
 }
+export function currentAndFutureWeeks<T extends { date: string }>(weeks: T[], today: string): T[] {
+  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay()
+  const monday = addDays(today, -((weekday + 6) % 7))
+  return weeks.filter(week => week.date >= monday).sort((a, b) => a.date.localeCompare(b.date))
+}
 export function timeline(meeting: Meeting) {
   let time = Number(meeting.start.slice(0, 2)) * 60 + Number(meeting.start.slice(3))
   return meeting.items.map(item => {
