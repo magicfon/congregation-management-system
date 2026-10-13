@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseWeek, discoverIssues, discoverYears, officialUrl } from '../src/lib/midweek-import'
-import { currentAndFutureWeeks, newMeeting, timeline, validateMeeting } from '../src/lib/midweek'
+import { currentAndFutureWeeks, newMeeting, nextMidweekCheck, timeline, validateMeeting } from '../src/lib/midweek'
 const root = process.argv[2] || 'scripts/fixtures/midweek'
+const completed = { month: '2026-10', completedAt: '2026-10-11T13:49:47Z', remaining: 0, errors: [] }
+assert.equal(nextMidweekCheck(completed, new Date('2026-10-13T10:00:00Z')).toISOString(), '2026-10-31T19:00:00.000Z')
+assert.equal(nextMidweekCheck({ ...completed, month: '2026-12' }, new Date('2026-12-31T10:00:00Z')).toISOString(), '2026-12-31T19:00:00.000Z')
+assert.equal(nextMidweekCheck(completed, new Date('2026-10-31T17:00:00Z')).toISOString(), '2026-10-31T19:00:00.000Z')
+assert.equal(nextMidweekCheck({ ...completed, errors: ['retry'] }, new Date('2026-10-13T19:00:00Z')).toISOString(), '2026-10-14T19:00:00.000Z')
+assert.equal(nextMidweekCheck(null, new Date('2026-10-13T18:00:00Z')).toISOString(), '2026-10-13T19:00:00.000Z')
 const choices = [{ date: '2027-01-08' }, { date: '2026-12-27' }, { date: '2026-12-28' }, { date: '2027-01-03' }]
 assert.deepEqual(currentAndFutureWeeks(choices, '2027-01-03').map(w => w.date), ['2026-12-28', '2027-01-03', '2027-01-08'])
 assert.deepEqual(currentAndFutureWeeks(choices, '2027-01-04').map(w => w.date), ['2027-01-08'])

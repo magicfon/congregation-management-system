@@ -26,6 +26,16 @@ export function currentAndFutureWeeks<T extends { date: string }>(weeks: T[], to
   const monday = addDays(today, -((weekday + 6) % 7))
   return weeks.filter(week => week.date >= monday).sort((a, b) => a.date.localeCompare(b.date))
 }
+export function nextMidweekCheck(state: { month: string; completedAt: string | null; remaining: number; errors: unknown[] } | null, now = new Date()): Date {
+  const local = new Date(now.getTime() + 8 * 3600000)
+  const year = local.getUTCFullYear(), month = local.getUTCMonth(), day = local.getUTCDate()
+  const currentMonth = `${year}-${String(month + 1).padStart(2, '0')}`
+  // Matches the daily 19:00 UTC cron and its once-per-Taipei-month full scan.
+  if (state?.month === currentMonth && state.completedAt && !state.remaining && !state.errors.length) return new Date(Date.UTC(year, month + 1, 1, -5))
+  const next = new Date(Date.UTC(year, month, day, -5))
+  if (next <= now) next.setUTCDate(next.getUTCDate() + 1)
+  return next
+}
 export function timeline(meeting: Meeting) {
   let time = Number(meeting.start.slice(0, 2)) * 60 + Number(meeting.start.slice(3))
   return meeting.items.map(item => {

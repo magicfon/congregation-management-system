@@ -1,11 +1,11 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { addDays, currentAndFutureWeeks, newMeeting, sectionNames, type Highlight, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
+import { addDays, currentAndFutureWeeks, newMeeting, nextMidweekCheck, sectionNames, type Highlight, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 
 type Week = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
-type Sync = { remaining: number; done: number; imported: number; completedAt: string | null; errors: { url: string; error: string }[]; busy?: boolean }
+type Sync = { month: string; remaining: number; done: number; imported: number; completedAt: string | null; errors: { url: string; error: string }[]; busy?: boolean }
 const field = 'w-full min-w-0 min-h-11 rounded-lg border border-white/15 bg-mc-card px-3 py-2 text-base font-normal text-mc-text'
 const button = 'min-h-11 rounded-lg border border-white/15 px-4 py-2 disabled:opacity-40'
 async function api(url: string, options?: RequestInit) {
@@ -19,7 +19,6 @@ function HighlightSelect({ value, onChange }: { value: Highlight; onChange: (val
 }
 export default function Midweek({ management = false }: { management?: boolean }) {
   const [weeks, setWeeks] = useState<Week[]>([]), [id, setId] = useState('')
-  const [totalWeeks, setTotalWeeks] = useState(0)
   const [members, setMembers] = useState<{ id: string; name: string }[]>([])
   const [source, setSource] = useState<SourceWeek | null>(null), [record, setRecord] = useState<MeetingRecord | null>(null)
   const [meeting, setMeeting] = useState<Meeting | null>(null), [dirty, setDirty] = useState(false)
@@ -39,7 +38,7 @@ export default function Midweek({ management = false }: { management?: boolean }
     if (!alive.current) return
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
     const choices: Week[] = management ? currentAndFutureWeeks(data.weeks, today) : [...data.weeks].sort((a: Week, b: Week) => a.date.localeCompare(b.date))
-    setWeeks(choices); setTotalWeeks(data.weeks.length); if (management) { setMembers(data.members); setSync(data.sync) }
+    setWeeks(choices); if (management) { setMembers(data.members); setSync(data.sync) }
     setId(current => {
       if (current && choices.some(w => w.id === current)) return current
       if (management) return choices[0]?.id || ''
@@ -115,7 +114,8 @@ export default function Midweek({ management = false }: { management?: boolean }
       <div className="flex shrink-0 gap-2"><button className={button} disabled={busy || loading || weekIndex <= 0} onClick={() => switchWeek(weeks[weekIndex - 1]?.id)}>← 前一週</button><button className={button} disabled={busy || loading || weekIndex < 0 || weekIndex >= weeks.length - 1} onClick={() => switchWeek(weeks[weekIndex + 1]?.id)}>下一週 →</button></div>
       {management ? <><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button><Link className={button} href="/bulletin/midweek-meeting">公開頁</Link></> : isAdmin && <Link className={button} href="/midweek/manage">編排節目</Link>}
     </div>
-    {management && sync && <details className="text-sm text-mc-text/70"><summary className="cursor-pointer py-2">已匯入 {totalWeeks} 週 · {sync.remaining ? `待處理 ${sync.remaining} 頁` : sync.errors.length ? `${sync.errors.length} 頁需重試` : '檢查完成'}{sync.completedAt && ` · ${new Date(sync.completedAt).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}`}</summary><p>每月自動檢查來源更新；大量歷史資料分批續跑。</p>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
+    {management && !loading && <p className="text-sm text-mc-text/70">預計下次檢查新手冊：{nextMidweekCheck(sync).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}（台北時間）</p>}
+    {management && !!sync?.errors.length && <details className="text-sm text-amber-300"><summary className="cursor-pointer py-2">部分來源待重試，將於下次排程繼續檢查</summary>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
     {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
     {message && <p role="status" className="text-green-300">{message}</p>}
     {loading && <p role="status">載入中…</p>}
