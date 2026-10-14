@@ -16,6 +16,7 @@ function parseTheme(value: string | null): Theme { return value === 'light' || v
 
 export default function BulletinLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const meetingReader = pathname === '/bulletin/midweek-meeting'
   const compact = (pathname === '/bulletin/service-roster' || pathname.startsWith('/bulletin/service-roster/')) || pathname === '/service-roster/manage'
   const [theme, setTheme] = useState<Theme>('system')
   const [user, setUser] = useState<{ role: string } | null>()
@@ -60,7 +61,7 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
   }
 
   return <div data-bulletin-theme={theme} className="bulletin-theme min-h-screen bg-mc-bg text-mc-text">
-    <header className="border-b border-white/10 bg-mc-card">
+    {!meetingReader && <header className="border-b border-white/10 bg-mc-card">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-8">
         <Link href="/bulletin" className="flex min-h-11 items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
           <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/10 text-blue-300">▤</span>
@@ -72,7 +73,7 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
         </fieldset>
         {authError ? <button type="button" onClick={() => setAuthRetry(value => value + 1)} className="min-h-11 rounded-lg border border-white/10 px-3 text-sm">重試登入狀態</button> : user !== undefined && <Link href={user ? compact && user.role === 'admin' ? '/service-roster/manage' : '/dashboard' : `/login?callbackUrl=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-lg border border-white/10 px-4 text-sm text-mc-text/70 hover:bg-mc-accent">{user ? compact && user.role === 'admin' ? '管理安排' : '我的帳號' : '登入'}</Link>}
       </div>
-    </header>
-    <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
+    </header>}
+    <main className={meetingReader ? 'mx-auto max-w-6xl px-3 py-2 md:px-8 md:py-3' : 'mx-auto max-w-6xl p-4 md:p-8'}>{children}</main>
   </div>
 }

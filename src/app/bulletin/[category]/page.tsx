@@ -33,7 +33,7 @@ export default function BulletinCategoryPage({ params }: Props) {
     </section>)}
   </div>
   return <DashboardLayout publicView>
-    {compact ? <div className="mb-4 flex items-center gap-3">
+    {category.slug === 'midweek-meeting' ? <h1 className="sr-only">週中聚會</h1> : compact ? <div className="mb-4 flex items-center gap-3">
       <Link href="/bulletin" aria-label="回公布欄" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 text-mc-text/60"><ArrowLeft aria-hidden="true" className="h-5 w-5" /></Link>
       <h1 className="text-xl font-semibold">{category.title}</h1>
       <details className="relative ml-auto"><summary className="min-h-11 cursor-pointer rounded-lg border border-white/10 px-3 py-3 text-sm">分類</summary><nav aria-label="公布欄分類" className="absolute right-0 z-20 mt-2 grid w-64 grid-cols-2 gap-2 rounded-xl border border-white/10 bg-mc-card p-3 shadow-lg">{categoryLinks}</nav></details>

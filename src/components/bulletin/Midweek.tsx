@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
 import { addDays, currentAndFutureWeeks, newMeeting, nextMidweekCheck, sectionNames, type Highlight, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 
@@ -105,14 +106,16 @@ export default function Midweek({ management = false }: { management?: boolean }
     if (!nextId || nextId === id || busy || loading) return
     if (!dirty || confirm('尚有未儲存修改，確定切換週次？')) setId(nextId)
   }
-  return <div className="space-y-4">
-    <div className="flex flex-wrap items-center gap-3">
-      <select aria-label="選擇週次" className={`${field} basis-full sm:!w-auto sm:basis-auto sm:flex-1`} value={id} disabled={busy || loading} onChange={e => switchWeek(e.target.value)}>
+  const readerButton = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-mc-accent disabled:opacity-30'
+  return <div className={management ? 'space-y-4' : 'space-y-2'}>
+    <div className={management ? 'flex flex-wrap items-center gap-3' : 'flex items-center gap-1 sm:gap-2'}>
+      {!management && <Link href="/bulletin" aria-label="回公布欄" title="回公布欄" className={readerButton}><ArrowLeft className="h-5 w-5" /></Link>}
+      <select aria-label="選擇週次" className={management ? `${field} basis-full sm:!w-auto sm:basis-auto sm:flex-1` : `${field} !w-0 flex-1 !px-2 text-sm`} value={id} disabled={busy || loading} onChange={e => switchWeek(e.target.value)}>
         {!weeks.length && <option value="">{management ? '尚無本週或未來節目' : '尚未發布節目'}</option>}
         {weeks.map(w => <option key={w.id} value={w.id}>{w.date}　{w.reading}{management ? w.publishedAt ? '（已發布）' : '（草稿）' : ''}</option>)}
       </select>
-      <div className="flex shrink-0 gap-2"><button className={button} disabled={busy || loading || weekIndex <= 0} onClick={() => switchWeek(weeks[weekIndex - 1]?.id)}>← 前一週</button><button className={button} disabled={busy || loading || weekIndex < 0 || weekIndex >= weeks.length - 1} onClick={() => switchWeek(weeks[weekIndex + 1]?.id)}>下一週 →</button></div>
-      {management ? <><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button><Link className={button} href="/bulletin/midweek-meeting">公開頁</Link></> : isAdmin && <Link className={button} href="/midweek/manage">編排節目</Link>}
+      <div className="flex shrink-0 gap-1"><button aria-label="前一週" title="前一週" className={management ? button : readerButton} disabled={busy || loading || weekIndex <= 0} onClick={() => switchWeek(weeks[weekIndex - 1]?.id)}>{management ? '← 前一週' : <ChevronLeft className="h-5 w-5" />}</button><button aria-label="下一週" title="下一週" className={management ? button : readerButton} disabled={busy || loading || weekIndex < 0 || weekIndex >= weeks.length - 1} onClick={() => switchWeek(weeks[weekIndex + 1]?.id)}>{management ? '下一週 →' : <ChevronRight className="h-5 w-5" />}</button></div>
+      {management ? <><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button><Link className={button} href="/bulletin/midweek-meeting">公開頁</Link></> : isAdmin && <Link aria-label="編排節目" title="編排節目" className={readerButton} href="/midweek/manage"><Pencil className="h-4 w-4" /></Link>}
     </div>
     {management && !loading && <p className="text-sm text-mc-text/70">預計下次檢查新手冊：{nextMidweekCheck(sync).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}（台北時間）</p>}
     {management && !!sync?.errors.length && <details className="text-sm text-amber-300"><summary className="cursor-pointer py-2">部分來源待重試，將於下次排程繼續檢查</summary>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
