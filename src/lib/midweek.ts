@@ -10,7 +10,7 @@ export type Meeting = {
   noteHighlight: Highlight; items: MeetingItem[]
 }
 export type SourceWeek = { id: string; url: string; week: string; label: string; reading: string; items: MeetingItem[]; hash: string }
-export type MeetingRecord = { revision: number; sourceHash: string; draft: Meeting; published: Meeting | null; publishedAt: string | null }
+export type MeetingRecord = { revision: number; sourceHash: string; draft: Meeting; published: Meeting | null; publishedAt: string | null; versions?: import('./midweek-versions').MeetingVersion[]; versionDates?: Record<string, string | null> }
 export const sectionNames: Record<Section, string> = { opening: '', treasures: '上帝話語的寶藏', ministry: '用心準備傳道工作', living: '基督徒的生活' }
 export const sectionColors: Record<Section, string> = { opening: '#575A5D', treasures: '#575A5D', ministry: '#BE8900', living: '#7E0024' }
 export class MeetingError extends Error {}

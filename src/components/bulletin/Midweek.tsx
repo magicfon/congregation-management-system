@@ -2,8 +2,10 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
-import { addDays, currentAndFutureWeeks, newMeeting, nextMidweekCheck, sectionNames, type Highlight, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
+import { addDays, currentAndFutureWeeks, newMeeting, nextMidweekCheck, sectionNames, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
+import VersionDetails, { versionLabel } from './VersionDetails'
+import { previewVersion, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
 
 type Week = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
 type Sync = { month: string; remaining: number; done: number; imported: number; completedAt: string | null; errors: { url: string; error: string }[]; busy?: boolean }
@@ -15,9 +17,6 @@ async function api(url: string, options?: RequestInit) {
   if (!response.ok) throw new Error(data.error || '讀取失敗')
   return data
 }
-function HighlightSelect({ value, onChange }: { value: Highlight; onChange: (value: Highlight) => void }) {
-  return <select aria-label="更新底色" className={field} value={value} onChange={e => onChange(e.target.value as Highlight)}><option value="">無底色</option><option value="yellow">黃色更新</option><option value="green">綠色更新</option></select>
-}
 export default function Midweek({ management = false }: { management?: boolean }) {
   const [weeks, setWeeks] = useState<Week[]>([]), [id, setId] = useState('')
   const [members, setMembers] = useState<{ id: string; name: string }[]>([])
@@ -27,6 +26,14 @@ export default function Midweek({ management = false }: { management?: boolean }
   const [sync, setSync] = useState<Sync | null>(null), [error, setError] = useState(''), [message, setMessage] = useState('')
   const [preview, setPreview] = useState(false), [isAdmin, setIsAdmin] = useState(management)
   const [selected, setSelected] = useState<number | null>(null)
+  const [publicVersions, setPublicVersions] = useState<MeetingVersion[]>([])
+  const [versionNumber, setVersionNumber] = useState(0)
+  const [palette, setPalette] = useState<Palette>({})
+  const [publicDates, setPublicDates] = useState<Record<string,string | null>>({})
+  const versions = management ? record?.versions || [] : publicVersions
+  const dates = management ? record?.versionDates || {} : publicDates
+  const historical = versions.find(v=>v.number===versionNumber)
+  const shown = historical || (management && meeting ? previewVersion(meeting, versions.at(-1)) : versions.at(-1))
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     if (selected !== null && dialog.current && !dialog.current.open) dialog.current.showModal()
@@ -34,6 +41,13 @@ export default function Midweek({ management = false }: { management?: boolean }
   }, [selected])
   const alive = useRef(true)
   const endpoint = management ? '/api/midweek/manage' : '/api/midweek'
+  useEffect(() => {
+    let active = true
+    const refreshColors = () => { if (document.visibilityState === 'visible') api('/api/midweek?palette=1').then(data=>{if(active)setPalette(data.palette)}).catch(()=>{}) }
+    window.addEventListener('focus', refreshColors)
+    const timer = window.setInterval(refreshColors, 30000)
+    return () => { active=false; window.removeEventListener('focus',refreshColors); window.clearInterval(timer) }
+  }, [])
   async function refresh() {
     const data = await api(endpoint)
     if (!alive.current) return
@@ -56,10 +70,11 @@ export default function Midweek({ management = false }: { management?: boolean }
   useEffect(() => {
     if (!id) { setMeeting(null); return }
     const controller = new AbortController()
-    setSelected(null); setLoading(true); setMeeting(null); setSource(null); setRecord(null); setError(''); setMessage('')
+    setSelected(null); setVersionNumber(0); setPublicVersions([]); setLoading(true); setMeeting(null); setSource(null); setRecord(null); setError(''); setMessage('')
     api(`${endpoint}?id=${id}`, { signal: controller.signal }).then(data => {
       if (management) { setSource(data.source); setRecord(data.record); setMeeting(data.record?.draft || newMeeting(data.source)) }
-      else setMeeting(data.meeting)
+      else { setMeeting(data.meeting); setPublicVersions(data.versions || []); setPublicDates(data.versionDates || {}) }
+      setPalette(data.palette || {})
       setDirty(false)
     }).catch(e => { if (!controller.signal.aborted) setError(e.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
@@ -71,6 +86,16 @@ export default function Midweek({ management = false }: { management?: boolean }
   }, [dirty])
   const change = (patch: Partial<Meeting>) => { setMeeting(current => current && { ...current, ...patch }); setDirty(true); setMessage('') }
   const itemChange = (index: number, patch: Partial<MeetingItem>) => change({ items: meeting!.items.map((r, i) => i === index ? { ...r, ...patch } : r) })
+  async function versionSetting(action: 'palette' | 'version-date', value: unknown) {
+    setBusy(true); setError(''); setMessage('')
+    try {
+      const data = await api(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, action, revision:record?.revision || 0, ...(action==='palette' ? {palette:value} : {meeting:value})}) })
+      if(action==='palette') setPalette(data.palette)
+      else setRecord(data.record)
+      setMessage('設定已儲存')
+      return true
+    } catch(e) { setError((e as Error).message); return false } finally { setBusy(false) }
+  }
   async function save(action: string) {
     if (!meeting || busy) return
     if (action === 'reset' && !confirm('以最新手冊重新建立草稿？目前草稿的人員與修改將被清除，已發布版本會保留。')) return
@@ -106,16 +131,21 @@ export default function Midweek({ management = false }: { management?: boolean }
     if (!nextId || nextId === id || busy || loading) return
     if (!dirty || confirm('尚有未儲存修改，確定切換週次？')) setId(nextId)
   }
-  const readerButton = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-mc-accent disabled:opacity-30'
+  const readerButton = 'flex h-11 w-7 sm:w-11 shrink-0 items-center justify-center rounded-lg hover:bg-mc-accent disabled:opacity-30'
   return <div className={management ? 'space-y-4' : 'space-y-2'}>
     <div className={management ? 'flex flex-wrap items-center gap-3' : 'flex items-center gap-1 sm:gap-2'}>
       {!management && <Link href="/bulletin" aria-label="回公布欄" title="回公布欄" className={readerButton}><ArrowLeft className="h-5 w-5" /></Link>}
       <select aria-label="選擇週次" className={management ? `${field} basis-full sm:!w-auto sm:basis-auto sm:flex-1` : `${field} !w-0 flex-1 !px-2 text-sm`} value={id} disabled={busy || loading} onChange={e => switchWeek(e.target.value)}>
         {!weeks.length && <option value="">{management ? '尚無本週或未來節目' : '尚未發布節目'}</option>}
-        {weeks.map(w => <option key={w.id} value={w.id}>{w.date}　{w.reading}{management ? w.publishedAt ? '（已發布）' : '（草稿）' : ''}</option>)}
+        {weeks.map(w => <option key={w.id} value={w.id}>{management ? `${w.date}　${w.reading}${w.publishedAt ? '（已發布）' : '（草稿）'}` : w.date.slice(5).replace('-', '/')}</option>)}
       </select>
+      {!!versions.length && <select aria-label="選擇版次" className="min-h-11 min-w-0 max-w-[38%] rounded-lg border border-white/15 bg-mc-card px-1 text-xs sm:text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
+        <option value={0}>{management ? '編輯草稿' : versionLabel(versions.at(-1)!.number, versions.at(-1)!.date || dates[versions.at(-1)!.number])}</option>
+        {[...versions].reverse().filter(v=>management || v.number!==versions.at(-1)?.number).map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}</option>)}
+      </select>}
       <div className="flex shrink-0 gap-1"><button aria-label="前一週" title="前一週" className={management ? button : readerButton} disabled={busy || loading || weekIndex <= 0} onClick={() => switchWeek(weeks[weekIndex - 1]?.id)}>{management ? '← 前一週' : <ChevronLeft className="h-5 w-5" />}</button><button aria-label="下一週" title="下一週" className={management ? button : readerButton} disabled={busy || loading || weekIndex < 0 || weekIndex >= weeks.length - 1} onClick={() => switchWeek(weeks[weekIndex + 1]?.id)}>{management ? '下一週 →' : <ChevronRight className="h-5 w-5" />}</button></div>
       {management ? <><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button><Link className={button} href="/bulletin/midweek-meeting">公開頁</Link></> : isAdmin && <Link aria-label="編排節目" title="編排節目" className={readerButton} href="/midweek/manage"><Pencil className="h-4 w-4" /></Link>}
+      {!management && meeting && <VersionDetails key={id} versions={versions} current={shown} dates={dates} palette={palette} management={false} busy={busy} onPalette={async()=>true} onDate={async()=>true} />}
     </div>
     {management && !loading && <p className="text-sm text-mc-text/70">預計下次檢查新手冊：{nextMidweekCheck(sync).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}（台北時間）</p>}
     {management && !!sync?.errors.length && <details className="text-sm text-amber-300"><summary className="cursor-pointer py-2">部分來源待重試，將於下次排程繼續檢查</summary>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
@@ -124,12 +154,14 @@ export default function Midweek({ management = false }: { management?: boolean }
     {loading && <p role="status">載入中…</p>}
     {!loading && !meeting && !error && <p className="py-8 text-mc-text/60">{management ? '目前沒有本週或未來的節目，請按「檢查／匯入手冊」取得新週次。' : '目前沒有已發布的週中聚會節目。'}</p>}
     {meeting && <>
-      {management && <>
-        <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布到公布欄</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>
+      {management && <VersionDetails key={id} versions={versions} current={historical || versions.at(-1)} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />}
+      {management && !historical && shown && <p className="text-sm text-mc-text/60">草稿預覽 · 第{shown.number}版{dirty ? '（尚未發布）' : ''}</p>}
+      {management && !historical && <>
+        <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布新版</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>
         {source && record && source.hash !== record.sourceHash && <p className="text-amber-300">官方手冊有新版，現有安排已保留。可查看來源後自行調整，或重新建立草稿。</p>}
         {source && <details className="text-sm"><summary className="cursor-pointer py-2">手冊來源與重建草稿</summary><div className="flex flex-wrap items-center gap-3"><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a><button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button></div></details>}
         {!preview && <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
-          {selected === -1 && <div className="grid gap-3 sm:grid-cols-2"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label><label>標示底色<HighlightSelect value={meeting.noteHighlight} onChange={noteHighlight => change({ noteHighlight })} /></label></div>}
+          {selected === -1 && <div className="grid gap-3 sm:grid-cols-2"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label></div>}
           {meeting.items.map((item, index) => selected === index && <div key={item.id}><div className="grid gap-3 sm:grid-cols-2">
             <label className="sm:col-span-2">節目名稱<input className={field} value={item.title} onChange={e => itemChange(index, { title: e.target.value })} /></label>
             <label>分鐘<input type="number" min="0" max="180" className={field} value={item.minutes} onChange={e => itemChange(index, { minutes: Number(e.target.value) })} /></label>
@@ -137,17 +169,14 @@ export default function Midweek({ management = false }: { management?: boolean }
             <label>負責人／學生<input list="meeting-members" className={field} value={item.person} onChange={e => itemChange(index, { person: e.target.value })} /></label><label>助手<input list="meeting-members" className={field} value={item.assistant} onChange={e => itemChange(index, { assistant: e.target.value })} /></label>
             <label>職務標籤<input className={field} value={item.role} onChange={e => itemChange(index, { role: e.target.value })} /></label>
             <label>段落<select className={field} value={item.section} onChange={e => itemChange(index, { section: e.target.value as Section })}>{Object.entries(sectionNames).map(([key, name]) => <option key={key} value={key}>{name || '開場'}</option>)}</select></label>
-            <label>節目底色<HighlightSelect value={item.highlight} onChange={highlight => itemChange(index, { highlight })} /></label>
-            <label>時間底色<HighlightSelect value={item.timeHighlight ?? ''} onChange={timeHighlight => itemChange(index, { timeHighlight })} /></label>
-            <label>姓名底色<HighlightSelect value={item.personHighlight ?? ''} onChange={personHighlight => itemChange(index, { personHighlight })} /></label>
             <div className="flex flex-wrap gap-2 sm:col-span-2"><button className={button} disabled={index === 0} onClick={() => { move(index, -1); setSelected(index - 1) }}>上移</button><button className={button} disabled={index === meeting.items.length - 1} onClick={() => { move(index, 1); setSelected(index + 1) }}>下移</button><button className={`${button} text-red-300`} disabled={meeting.items.length === 1} onClick={() => { change({ items: meeting.items.filter((_, i) => i !== index) }); setSelected(null) }}>刪除</button></div>
           </div></div>)}
         </fieldset></dialog>}
       </>}
       <fieldset disabled={busy} className="min-w-0">
-        {management && !preview && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>直接點選紙上的文字、分鐘或紅色姓名編輯；時間會自動重算。</p><button className={button} onClick={() => setSelected(-1)}>日期／時間／更新標示</button></div>}
-        <MeetingSheet meeting={meeting} editor={management && !preview ? { change, itemChange, settings: setSelected, members } : undefined} />
-        {management && !preview && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
+        {management && !historical && !preview && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>直接點選紙上的文字、分鐘或紅色姓名編輯；時間會自動重算。</p><button className={button} onClick={() => setSelected(-1)}>日期／時間／更新標示</button></div>}
+        <MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={management && !historical && !preview ? { change, itemChange, settings: setSelected, members } : undefined} />
+        {management && !historical && !preview && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
       </fieldset>
     </>}
   </div>

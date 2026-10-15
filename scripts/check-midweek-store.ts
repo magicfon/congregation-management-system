@@ -4,6 +4,7 @@ import { prisma } from '../src/lib/db'
 import { parseWeek } from '../src/lib/midweek-import'
 import { MeetingConflict, newMeeting } from '../src/lib/midweek'
 import { editMeeting, getRecord, meetingList, SOURCE_PREFIX } from '../src/lib/midweek-store'
+import { GET as publicMeeting } from '../src/app/api/midweek/route'
 
 // In-memory database boundary: these tests never connect to the live database.
 const rows = new Map<string, { key: string; value: string }>()
@@ -35,6 +36,23 @@ async function main() {
   assert.equal((await getRecord(source.id))?.published?.chair, '測試主席')
   await editMeeting(source.id, 'unpublish', 5)
   assert.equal((await meetingList(false)).length, 0)
+  const hiddenResponse = await publicMeeting(new Request(`http://localhost/api/midweek?id=${source.id}`))
+  assert.equal(hiddenResponse.status,404,'下架後不能透過公開 API 讀取歷史')
+  assert.equal((await getRecord(source.id))?.versions?.length, 1, '下架不刪除歷史')
+  await editMeeting(source.id, 'publish', 6, draft)
+  const version2 = await getRecord(source.id)
+  assert.equal(version2?.versions?.length, 2)
+  assert.equal(version2?.versions?.[0].meeting.chair, '測試主席')
+  assert.equal(version2?.versions?.[1].marks.chair, 2)
+  await assert.rejects(editMeeting(source.id, 'publish', 7, draft), /沒有變更/)
+  const modified = structuredClone(draft); modified.chair = '新版主席'
+  const publishes = await Promise.allSettled([editMeeting(source.id, 'publish', 7, modified), editMeeting(source.id, 'publish', 7, modified)])
+  assert.equal(publishes.filter(r=>r.status==='fulfilled').length, 1, '並行發布只有一筆成功')
+  assert.deepEqual((await getRecord(source.id))?.versions?.map(v=>v.number), [1,2,3])
+  const visible = await (await publicMeeting(new Request(`http://localhost/api/midweek?id=${source.id}`))).json()
+  assert.equal(visible.versions.length,3)
+  assert.equal(visible.draft,undefined,'公開 API 不回傳草稿')
+  await assert.rejects(editMeeting(source.id, 'version-date', 8, { number:3,date:'2026-10-01' }), /只能補填/)
   console.log('週中節目：草稿隔離、發布快照、競爭更新、來源更新、重建與下架檢查通過')
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })
