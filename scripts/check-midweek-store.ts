@@ -136,6 +136,47 @@ async function main() {
   ])
   assert.equal(concurrentRestores.filter(r => r.status === 'fulfilled').length, 1)
   assert.ok(concurrentRestores.some(r => r.status === 'rejected' && r.reason instanceof MeetingConflict))
+  // Standalone deletion must preserve the current publication and both saved/unsaved editing flows.
+  rows.set(recordKey, { key: recordKey, value: JSON.stringify(beforeRestore) })
+  const pendingRestore = await editMeeting(source.id, 'restore', 8, { number: 1 })
+  await assert.rejects(editMeeting(source.id, 'delete-later', 9, undefined, { deleteLaterVersions: true }), /請先發布第1版/)
+  assert.deepEqual(await getRecord(source.id), pendingRestore.record, '不能刪除仍公開的後續版')
+  await editMeeting(source.id, 'publish', 9, pendingRestore.record.draft)
+  const retainedDraft = structuredClone(pendingRestore.record.draft); retainedDraft.chair = '尚未發布的草稿'
+  await editMeeting(source.id, 'save', 10, retainedDraft)
+  const beforeDelete = (await getRecord(source.id))!
+  for (const flag of [undefined, false, 'true']) {
+    await assert.rejects(editMeeting(source.id, 'delete-later', 11, undefined, { deleteLaterVersions: flag }), /確認刪除/)
+    assert.deepEqual(await getRecord(source.id), beforeDelete)
+  }
+  await assert.rejects(editMeeting(source.id, 'delete-later', 10, undefined, { deleteLaterVersions: true }), MeetingConflict)
+  const deletes = await Promise.allSettled([
+    editMeeting(source.id, 'delete-later', 11, { chair: '不可覆蓋草稿' }, { deleteLaterVersions: true }),
+    editMeeting(source.id, 'delete-later', 11, undefined, { deleteLaterVersions: true }),
+  ])
+  assert.equal(deletes.filter(r => r.status === 'fulfilled').length, 1, '並行獨立刪除只成功一次')
+  assert.ok(deletes.some(r => r.status === 'rejected' && r.reason instanceof MeetingConflict))
+  const afterDelete = (await getRecord(source.id))!
+  assert.deepEqual(afterDelete.versions, beforeDelete.versions!.slice(0, 1))
+  assert.deepEqual(afterDelete.versionDates, { 1: '2026-10-01' })
+  assert.deepEqual(afterDelete.draft, retainedDraft, '獨立刪除不覆蓋已保存草稿')
+  assert.deepEqual(afterDelete.published, beforeDelete.published, '獨立刪除不發布草稿')
+  assert.equal(afterDelete.publishedAt, beforeDelete.publishedAt)
+  assert.equal(afterDelete.publishedVersion, 1, '獨立刪除不進版')
+  await assert.rejects(editMeeting(source.id, 'delete-later', 12, undefined, { deleteLaterVersions: true }), /沒有後續版本/)
+  const afterDeletePublish = await editMeeting(source.id, 'publish', 12, retainedDraft)
+  assert.deepEqual(afterDeletePublish.record.versions?.map(v => v.number), [1, 2], '刪除後可從當前版正常進版')
+  rows.set(recordKey, { key: recordKey, value: JSON.stringify(beforeRestore) })
+  await editMeeting(source.id, 'restore', 8, { number: 1 })
+  await editMeeting(source.id, 'unpublish', 9)
+  const hiddenDelete = await editMeeting(source.id, 'delete-later', 10, undefined, { deleteLaterVersions: true })
+  assert.equal(hiddenDelete.record.published, null)
+  assert.equal(hiddenDelete.record.publishedVersion, 1, '下架後刪除不留失效版號')
+  assert.equal(hiddenDelete.record.versions?.length, 1)
+  assert.equal((await publicMeeting(new Request(`http://localhost/api/midweek?id=${source.id}`))).status, 404)
+  const showAgain = await editMeeting(source.id, 'publish', 11, hiddenDelete.record.draft)
+  assert.equal(showAgain.record.publishedVersion, 1)
+  console.log('週中節目：獨立刪除確認、公開版保護、草稿保留、日期清理、競爭更新與再次進版通過')
   console.log('週中節目：退回原版號、保留後續版、確認刪除再進版、公開高亮、舊資料相容與並行保護通過')
   console.log('週中節目：草稿隔離、發布快照、競爭更新、來源更新、重建與下架檢查通過')
 }

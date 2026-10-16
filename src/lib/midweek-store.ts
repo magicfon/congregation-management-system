@@ -37,7 +37,7 @@ export async function meetingList(management: boolean) {
   }).sort((a, b) => b.week.localeCompare(a.week))
 }
 export async function editMeeting(id: string, action: string, revision: number, value?: unknown, options: { deleteLaterVersions?: unknown } = {}) {
-  if (!/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(revision) || revision < 0 || !['save', 'publish', 'unpublish', 'reset', 'restore', 'version-date'].includes(action)) throw new MeetingError('操作格式錯誤')
+  if (!/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(revision) || revision < 0 || !['save', 'publish', 'unpublish', 'reset', 'restore', 'delete-later', 'version-date'].includes(action)) throw new MeetingError('操作格式錯誤')
   const source = await getSource(id)
   const key = RECORD_PREFIX + id
   const oldRow = await prisma.setting.findUnique({ where: { key } })
@@ -51,9 +51,18 @@ export async function editMeeting(id: string, action: string, revision: number, 
     if (!version) throw new MeetingError('找不到已保存的版次，請重新選擇')
     restored = structuredClone(version.meeting)
   }
-  const draft = restored ?? (action === 'reset' ? newMeeting(source) : ['unpublish', 'version-date'].includes(action) ? old.draft : validateMeeting(value))
+  const draft = restored ?? (action === 'reset' ? newMeeting(source) : ['unpublish', 'delete-later', 'version-date'].includes(action) ? old.draft : validateMeeting(value))
   const next: MeetingRecord = { ...old, versions, revision: revision + 1, draft, sourceHash: action === 'reset' || !oldRow ? source.hash : old.sourceHash }
   if (action === 'restore') next.draftBaseVersion = (value as { number: number }).number
+  if (action === 'delete-later') {
+    const base = draftBaseVersionOf(old)
+    if (!base || !versions.some(version => version.number > base.number)) throw new MeetingError('沒有後續版本可刪除')
+    if (options.deleteLaterVersions !== true) throw new MeetingError('請先確認刪除後續版本')
+    if (old.published && publishedVersionOf(old)!.number > base.number) throw new MeetingError(`請先發布第${base.number}版，再刪除後續版本`)
+    next.versions = versions.filter(version => version.number <= base.number)
+    next.versionDates = Object.fromEntries(Object.entries(old.versionDates || {}).filter(([number]) => Number(number) <= base.number))
+    if (!old.published) next.publishedVersion = base.number
+  }
   if (action === 'version-date') {
     const input = value as { number?: number; date?: string }
     const allowed = new Set(versions.flatMap(v => [v.number, ...Object.values(v.marks)]))

@@ -25,7 +25,7 @@ export default function Midweek({ management = false }: { management?: boolean }
   const [meeting, setMeeting] = useState<Meeting | null>(null), [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [syncing, setSyncing] = useState(false)
   const [sync, setSync] = useState<Sync | null>(null), [error, setError] = useState(''), [message, setMessage] = useState('')
-  const [preview, setPreview] = useState(false), [isAdmin, setIsAdmin] = useState(management)
+  const [isAdmin, setIsAdmin] = useState(management)
   const [selected, setSelected] = useState<number | null>(null)
   const [publicVersionNumber, setPublicVersionNumber] = useState<number | null>(null)
   const [publicVersions, setPublicVersions] = useState<MeetingVersion[]>([])
@@ -36,6 +36,8 @@ export default function Midweek({ management = false }: { management?: boolean }
   const historical = versions.find(v=>v.number===versionNumber)
   const baseVersion = record ? draftBaseVersionOf(record) : undefined
   const publishedVersion = record ? publishedVersionOf(record) : undefined
+  const laterVersions = baseVersion ? versions.filter(version => version.number > baseVersion.number) : []
+  const deleteNeedsPublish = Boolean(record?.published && baseVersion && publishedVersion && publishedVersion.number > baseVersion.number)
   const shown = historical || (management && meeting ? previewVersion(meeting, baseVersion) : versions.find(version => version.number === publicVersionNumber) || versions.at(-1))
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -60,6 +62,8 @@ export default function Midweek({ management = false }: { management?: boolean }
     setId(current => {
       if (current && choices.some(w => w.id === current)) return current
       if (management) return choices[0]?.id || ''
+      const requested = new URLSearchParams(window.location.search).get('week')
+      if (requested && choices.some(w => w.id === requested)) return requested
       return choices.find(w => w.date >= addDays(today, -3))?.id || choices.at(-1)?.id || ''
     })
   }
@@ -105,6 +109,12 @@ export default function Midweek({ management = false }: { management?: boolean }
     if (action === 'reset' && !confirm('以最新手冊重新建立草稿？目前草稿的人員與修改將被清除，已發布版本會保留。')) return
     if (action === 'unpublish' && !confirm('下架這週節目？公開公布欄將不再顯示。')) return
     let deleteLaterVersions = false
+    if (action === 'delete-later') {
+      if (!baseVersion || !laterVersions.length) return
+      if (deleteNeedsPublish) { setError(`請先發布第${baseVersion.number}版，再刪除後續版本`); return }
+      if (!confirm(`保留第${baseVersion.number}版及之前的版本，刪除第${laterVersions[0].number}～第${laterVersions.at(-1)!.number}版。刪除後無法復原，確定繼續？`)) return
+      deleteLaterVersions = true
+    }
     if (action === 'publish' && baseVersion && !sameContent(meeting, baseVersion.meeting)) {
       const later = versions.filter(version => version.number > baseVersion.number)
       if (later.length) {
@@ -116,9 +126,9 @@ export default function Midweek({ management = false }: { management?: boolean }
     try {
       const data = await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, revision: record?.revision || 0, deleteLaterVersions, meeting: action === 'restore' ? { number: historical!.number } : meeting }) })
       setRecord(data.record); setSource(data.source)
-      if (action !== 'unpublish') { setMeeting(data.record.draft); setDirty(false) }
-      if (action === 'restore') { setVersionNumber(0); setSelected(null); setPreview(true) }
-      setMessage(action === 'restore' ? `已將第${historical!.number}版退回為草稿，後續版本已保留，確認後請按「發布第${historical!.number}版」` : action === 'publish' ? `已發布第${data.record.publishedVersion}版到公布欄` : action === 'unpublish' ? '已下架' : '草稿已儲存')
+      if (!['unpublish', 'delete-later'].includes(action)) { setMeeting(data.record.draft); setDirty(false) }
+      if (action === 'restore') { setVersionNumber(0); setSelected(null) }
+      setMessage(action === 'restore' ? `已將第${historical!.number}版退回為草稿，後續版本已保留，確認後請按「發布第${historical!.number}版」` : action === 'publish' ? `已發布第${data.record.publishedVersion}版到公布欄` : action === 'unpublish' ? '已下架' : action === 'delete-later' ? `已刪除第${baseVersion!.number}版之後的版本` : '草稿已儲存')
       await refresh()
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
@@ -172,12 +182,13 @@ export default function Midweek({ management = false }: { management?: boolean }
     {meeting && <>
       {management && <VersionDetails key={id} versions={versions} current={historical || baseVersion} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />}
       {management && historical && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-mc-text/60">正在查看第{historical.number}版</p><button className={button} disabled={busy || loading} onClick={() => save('restore')}>退回此版為草稿</button></div>}
-      {management && !historical && shown && <p className="text-sm text-mc-text/60">草稿預覽 · 第{shown.number}版{baseVersion && `（以第${baseVersion.number}版為基準）`}{dirty ? '（尚未發布）' : ''}</p>}
+      {management && !historical && shown && <p className="text-sm text-mc-text/60">編輯草稿 · 第{shown.number}版{baseVersion && `（以第${baseVersion.number}版為基準）`}{dirty ? '（尚未發布）' : ''}</p>}
       {management && !historical && <>
-        <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布第{shown?.number || 1}版</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>
+        <div className="flex flex-wrap gap-2"><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布第{shown?.number || 1}版</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}{!!laterVersions.length && <button className={`${button} text-red-400`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除後續版本</button>}</div>
+        {!!laterVersions.length && baseVersion && <p className="text-sm text-mc-text/60">{deleteNeedsPublish ? `請先發布第${baseVersion.number}版，再刪除後續版本。` : `可刪除第${baseVersion.number}版之後保留的歷史版本。`}</p>}
         {source && record && source.hash !== record.sourceHash && <p className="text-amber-300">官方手冊有新版，現有安排已保留。可查看來源後自行調整，或重新建立草稿。</p>}
         {source && <details className="text-sm"><summary className="cursor-pointer py-2">手冊來源與重建草稿</summary><div className="flex flex-wrap items-center gap-3"><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a><button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button></div></details>}
-        {!preview && <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
+        <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
           {selected === -1 && <div className="grid gap-3 sm:grid-cols-2"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label></div>}
           {meeting.items.map((item, index) => selected === index && <div key={item.id}><div className="grid gap-3 sm:grid-cols-2">
             <label className="sm:col-span-2">節目名稱<input className={field} value={item.title} onChange={e => itemChange(index, { title: e.target.value })} /></label>
@@ -188,12 +199,12 @@ export default function Midweek({ management = false }: { management?: boolean }
             <label>段落<select className={field} value={item.section} onChange={e => itemChange(index, { section: e.target.value as Section })}>{Object.entries(sectionNames).map(([key, name]) => <option key={key} value={key}>{name || '開場'}</option>)}</select></label>
             <div className="flex flex-wrap gap-2 sm:col-span-2"><button className={button} disabled={index === 0} onClick={() => { move(index, -1); setSelected(index - 1) }}>上移</button><button className={button} disabled={index === meeting.items.length - 1} onClick={() => { move(index, 1); setSelected(index + 1) }}>下移</button><button className={`${button} text-red-300`} disabled={meeting.items.length === 1} onClick={() => { change({ items: meeting.items.filter((_, i) => i !== index) }); setSelected(null) }}>刪除</button></div>
           </div></div>)}
-        </fieldset></dialog>}
+        </fieldset></dialog>
       </>}
       <fieldset disabled={busy} className="min-w-0">
-        {management && !historical && !preview && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>直接點選紙上的文字、分鐘或紅色姓名編輯；時間會自動重算。</p><button className={button} onClick={() => setSelected(-1)}>日期／時間／更新標示</button></div>}
-        <MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={management && !historical && !preview ? { change, itemChange, settings: setSelected, members } : undefined} />
-        {management && !historical && !preview && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
+        {management && !historical && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>直接點選紙上的文字、分鐘或紅色姓名編輯；時間會自動重算。</p><button className={button} onClick={() => setSelected(-1)}>日期／時間／更新標示</button></div>}
+        <MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={management && !historical ? { change, itemChange, settings: setSelected, members } : undefined} />
+        {management && !historical && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
       </fieldset>
     </>}
   </div>
