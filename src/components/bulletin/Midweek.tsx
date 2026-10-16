@@ -29,9 +29,8 @@ export default function Midweek({ management = false }: { management?: boolean }
   const [publicVersions, setPublicVersions] = useState<MeetingVersion[]>([])
   const [versionNumber, setVersionNumber] = useState(0)
   const [palette, setPalette] = useState<Palette>({})
-  const [publicDates, setPublicDates] = useState<Record<string,string | null>>({})
   const versions = management ? record?.versions || [] : publicVersions
-  const dates = management ? record?.versionDates || {} : publicDates
+  const dates = record?.versionDates || {}
   const historical = versions.find(v=>v.number===versionNumber)
   const shown = historical || (management && meeting ? previewVersion(meeting, versions.at(-1)) : versions.at(-1))
   const dialog = useRef<HTMLDialogElement>(null)
@@ -73,7 +72,7 @@ export default function Midweek({ management = false }: { management?: boolean }
     setSelected(null); setVersionNumber(0); setPublicVersions([]); setLoading(true); setMeeting(null); setSource(null); setRecord(null); setError(''); setMessage('')
     api(`${endpoint}?id=${id}`, { signal: controller.signal }).then(data => {
       if (management) { setSource(data.source); setRecord(data.record); setMeeting(data.record?.draft || newMeeting(data.source)) }
-      else { setMeeting(data.meeting); setPublicVersions(data.versions || []); setPublicDates(data.versionDates || {}) }
+      else { setMeeting(data.meeting); setPublicVersions(data.versions || []) }
       setPalette(data.palette || {})
       setDirty(false)
     }).catch(e => { if (!controller.signal.aborted) setError(e.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
@@ -133,7 +132,7 @@ export default function Midweek({ management = false }: { management?: boolean }
     if (!nextId || nextId === id || busy || loading) return
     if (!dirty || confirm('尚有未儲存修改，確定切換週次？')) setId(nextId)
   }
-  const weekButton = 'flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-mc-highlight bg-mc-highlight/20 px-5 py-3 text-base font-semibold text-mc-text transition-colors hover:bg-mc-highlight/35 active:bg-mc-highlight/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mc-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-mc-bg disabled:cursor-not-allowed disabled:border-mc-text/10 disabled:bg-mc-accent/40 disabled:text-mc-text/35'
+  const weekButton = 'flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-mc-highlight bg-mc-highlight/30 px-5 py-3 text-base font-semibold text-mc-text transition-colors hover:bg-mc-highlight/35 active:bg-mc-highlight/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mc-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-mc-bg disabled:cursor-not-allowed disabled:border-mc-text/10 disabled:bg-mc-accent/40 disabled:text-mc-text/35'
   const readerButton = 'flex h-11 w-7 sm:w-11 shrink-0 items-center justify-center rounded-lg hover:bg-mc-accent disabled:opacity-30'
   return <div className={management ? 'space-y-4' : 'space-y-2'}>
     <div className={management ? 'flex flex-wrap items-center gap-3' : 'flex items-center gap-1 sm:gap-2'}>
@@ -142,14 +141,13 @@ export default function Midweek({ management = false }: { management?: boolean }
         {!weeks.length && <option value="">{management ? '尚無本週或未來節目' : '尚未發布節目'}</option>}
         {weeks.map(w => <option key={w.id} value={w.id}>{management ? `${w.date}　${w.reading}${w.publishedAt ? '（已發布）' : '（草稿）'}` : w.date.slice(5).replace('-', '/')}</option>)}
       </select>
-      {!!versions.length && <select aria-label="選擇版次" className="min-h-11 min-w-0 max-w-[38%] rounded-lg border border-white/15 bg-mc-card px-1 text-xs sm:text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
-        <option value={0}>{management ? '編輯草稿' : versionLabel(versions.at(-1)!.number, versions.at(-1)!.date || dates[versions.at(-1)!.number])}</option>
-        {[...versions].reverse().filter(v=>management || v.number!==versions.at(-1)?.number).map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}</option>)}
+      {management && !!versions.length && <select aria-label="選擇版次" className="min-h-11 min-w-0 max-w-[38%] rounded-lg border border-white/15 bg-mc-card px-1 text-xs sm:text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
+        <option value={0}>編輯草稿</option>
+        {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}</option>)}
       </select>}
       {management ? <><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button><Link className={button} href="/bulletin/midweek-meeting">公開頁</Link></> : isAdmin && <Link aria-label="編排節目" title="編排節目" className={readerButton} href="/midweek/manage"><Pencil className="h-4 w-4" /></Link>}
-      {!management && meeting && <VersionDetails key={id} versions={versions} current={shown} dates={dates} palette={palette} management={false} busy={busy} onPalette={async()=>true} onDate={async()=>true} />}
     </div>
-    <nav aria-label="切換週次" className="grid grid-cols-2 gap-3 sm:max-w-md">
+    <nav aria-label="切換週次" className="grid grid-cols-2 gap-3">
       <button aria-label="前一週" className={weekButton} disabled={busy || loading || weekIndex <= 0} onClick={() => switchWeek(weeks[weekIndex - 1]?.id)}><ChevronLeft aria-hidden="true" className="h-6 w-6 shrink-0" />前一週</button>
       <button aria-label="下一週" className={weekButton} disabled={busy || loading || weekIndex < 0 || weekIndex >= weeks.length - 1} onClick={() => switchWeek(weeks[weekIndex + 1]?.id)}>下一週<ChevronRight aria-hidden="true" className="h-6 w-6 shrink-0" /></button>
     </nav>
