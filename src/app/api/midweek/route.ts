@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { publishedVersionOf } from '@/lib/midweek-versions'
 import { getPalette, getRecord, meetingList } from '@/lib/midweek-store'
 export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
@@ -9,6 +10,6 @@ export async function GET(request: Request) {
     if (!/^[a-f0-9]{24}$/.test(id)) return NextResponse.json({ error: '找不到節目' }, { status: 404 })
     const record = await getRecord(id)
     if (!record?.published) return NextResponse.json({ error: '此週尚未發布' }, { status: 404 })
-    return NextResponse.json({ meeting: record.published, publishedAt: record.publishedAt, versions: record.versions, versionDates: record.versionDates || {}, palette: await getPalette() }, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ meeting: record.published, publishedAt: record.publishedAt, publishedVersion: publishedVersionOf(record)?.number, versions: record.versions, versionDates: record.versionDates || {}, palette: await getPalette() }, { headers: { 'Cache-Control': 'no-store' } })
   } catch { return NextResponse.json({ error: '節目暫時無法讀取' }, { status: 503 }) }
 }

@@ -6,7 +6,7 @@ import { addDays, currentAndFutureWeeks, newMeeting, nextMidweekCheck, sectionNa
 import MeetingSheet from './MeetingSheet'
 import styles from './Midweek.module.css'
 import VersionDetails, { versionLabel } from './VersionDetails'
-import { previewVersion, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
+import { draftBaseVersionOf, publishedVersionOf, sameContent, previewVersion, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
 
 type Week = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
 type Sync = { month: string; remaining: number; done: number; imported: number; completedAt: string | null; errors: { url: string; error: string }[]; busy?: boolean }
@@ -27,13 +27,16 @@ export default function Midweek({ management = false }: { management?: boolean }
   const [sync, setSync] = useState<Sync | null>(null), [error, setError] = useState(''), [message, setMessage] = useState('')
   const [preview, setPreview] = useState(false), [isAdmin, setIsAdmin] = useState(management)
   const [selected, setSelected] = useState<number | null>(null)
+  const [publicVersionNumber, setPublicVersionNumber] = useState<number | null>(null)
   const [publicVersions, setPublicVersions] = useState<MeetingVersion[]>([])
   const [versionNumber, setVersionNumber] = useState(0)
   const [palette, setPalette] = useState<Palette>({})
   const versions = management ? record?.versions || [] : publicVersions
   const dates = record?.versionDates || {}
   const historical = versions.find(v=>v.number===versionNumber)
-  const shown = historical || (management && meeting ? previewVersion(meeting, versions.at(-1)) : versions.at(-1))
+  const baseVersion = record ? draftBaseVersionOf(record) : undefined
+  const publishedVersion = record ? publishedVersionOf(record) : undefined
+  const shown = historical || (management && meeting ? previewVersion(meeting, baseVersion) : versions.find(version => version.number === publicVersionNumber) || versions.at(-1))
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     if (selected !== null && dialog.current && !dialog.current.open) dialog.current.showModal()
@@ -70,10 +73,10 @@ export default function Midweek({ management = false }: { management?: boolean }
   useEffect(() => {
     if (!id) { setMeeting(null); return }
     const controller = new AbortController()
-    setSelected(null); setVersionNumber(0); setPublicVersions([]); setLoading(true); setMeeting(null); setSource(null); setRecord(null); setError(''); setMessage('')
+    setSelected(null); setVersionNumber(0); setPublicVersions([]); setPublicVersionNumber(null); setLoading(true); setMeeting(null); setSource(null); setRecord(null); setError(''); setMessage('')
     api(`${endpoint}?id=${id}`, { signal: controller.signal }).then(data => {
       if (management) { setSource(data.source); setRecord(data.record); setMeeting(data.record?.draft || newMeeting(data.source)) }
-      else { setMeeting(data.meeting); setPublicVersions(data.versions || []) }
+      else { setMeeting(data.meeting); setPublicVersions(data.versions || []); setPublicVersionNumber(data.publishedVersion ?? null) }
       setPalette(data.palette || {})
       setDirty(false)
     }).catch(e => { if (!controller.signal.aborted) setError(e.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
@@ -98,16 +101,24 @@ export default function Midweek({ management = false }: { management?: boolean }
   }
   async function save(action: string) {
     if (!meeting || busy) return
-    if (action === 'restore' && (!historical || !confirm(`將第${historical.number}版退回為草稿？目前草稿（含尚未儲存修改）會被取代，公開內容維持不變；確認後可再發布新版。`))) return
+    if (action === 'restore' && (!historical || !confirm(`將第${historical.number}版退回為草稿？目前草稿（含尚未儲存修改）會被取代，後續版本全部保留；公開內容暫時不變，確認後可按「發布第${historical.number}版」恢復原版號。`))) return
     if (action === 'reset' && !confirm('以最新手冊重新建立草稿？目前草稿的人員與修改將被清除，已發布版本會保留。')) return
     if (action === 'unpublish' && !confirm('下架這週節目？公開公布欄將不再顯示。')) return
+    let deleteLaterVersions = false
+    if (action === 'publish' && baseVersion && !sameContent(meeting, baseVersion.meeting)) {
+      const later = versions.filter(version => version.number > baseVersion.number)
+      if (later.length) {
+        if (!confirm(`將刪除第${later[0].number}～第${later.at(-1)!.number}版的歷史紀錄，並發布新的第${baseVersion.number + 1}版。刪除後無法復原，確定繼續？`)) return
+        deleteLaterVersions = true
+      }
+    }
     setBusy(true); setError(''); setMessage('')
     try {
-      const data = await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, revision: record?.revision || 0, meeting: action === 'restore' ? { number: historical!.number } : meeting }) })
+      const data = await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, revision: record?.revision || 0, deleteLaterVersions, meeting: action === 'restore' ? { number: historical!.number } : meeting }) })
       setRecord(data.record); setSource(data.source)
       if (action !== 'unpublish') { setMeeting(data.record.draft); setDirty(false) }
       if (action === 'restore') { setVersionNumber(0); setSelected(null); setPreview(true) }
-      setMessage(action === 'restore' ? `已將第${historical!.number}版退回為草稿，確認後請按「發布新版」` : action === 'publish' ? '已發布到公布欄' : action === 'unpublish' ? '已下架' : '草稿已儲存')
+      setMessage(action === 'restore' ? `已將第${historical!.number}版退回為草稿，後續版本已保留，確認後請按「發布第${historical!.number}版」` : action === 'publish' ? `已發布第${data.record.publishedVersion}版到公布欄` : action === 'unpublish' ? '已下架' : '草稿已儲存')
       await refresh()
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
@@ -144,7 +155,7 @@ export default function Midweek({ management = false }: { management?: boolean }
       </select>
       {management && !!versions.length && <select aria-label="選擇版次" className="min-h-11 min-w-0 max-w-[38%] rounded-lg border border-white/15 bg-mc-card px-1 text-xs sm:text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
         <option value={0}>編輯草稿</option>
-        {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}</option>)}
+        {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
       </select>}
       {management ? <><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button><Link className={button} href="/bulletin/midweek-meeting">公開頁</Link></> : isAdmin && <Link aria-label="編排節目" title="編排節目" className={readerButton} href="/midweek/manage"><Pencil className="h-4 w-4" /></Link>}
     </div>
@@ -159,11 +170,11 @@ export default function Midweek({ management = false }: { management?: boolean }
     {loading && <p role="status">載入中…</p>}
     {!loading && !meeting && !error && <p className="py-8 text-mc-text/60">{management ? '目前沒有本週或未來的節目，請按「檢查／匯入手冊」取得新週次。' : '目前沒有已發布的週中聚會節目。'}</p>}
     {meeting && <>
-      {management && <VersionDetails key={id} versions={versions} current={historical || versions.at(-1)} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />}
+      {management && <VersionDetails key={id} versions={versions} current={historical || baseVersion} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />}
       {management && historical && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-mc-text/60">正在查看第{historical.number}版</p><button className={button} disabled={busy || loading} onClick={() => save('restore')}>退回此版為草稿</button></div>}
-      {management && !historical && shown && <p className="text-sm text-mc-text/60">草稿預覽 · 第{shown.number}版{dirty ? '（尚未發布）' : ''}</p>}
+      {management && !historical && shown && <p className="text-sm text-mc-text/60">草稿預覽 · 第{shown.number}版{baseVersion && `（以第${baseVersion.number}版為基準）`}{dirty ? '（尚未發布）' : ''}</p>}
       {management && !historical && <>
-        <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布新版</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>
+        <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布第{shown?.number || 1}版</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>
         {source && record && source.hash !== record.sourceHash && <p className="text-amber-300">官方手冊有新版，現有安排已保留。可查看來源後自行調整，或重新建立草稿。</p>}
         {source && <details className="text-sm"><summary className="cursor-pointer py-2">手冊來源與重建草稿</summary><div className="flex flex-wrap items-center gap-3"><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a><button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button></div></details>}
         {!preview && <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">

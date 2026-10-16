@@ -50,6 +50,13 @@ export function legacyVersion(meeting: Meeting): MeetingVersion {
 export function versionsOf(record: MeetingRecord): MeetingVersion[] {
   return record.versions ?? (record.published ? [legacyVersion(record.published)] : [])
 }
+export function publishedVersionOf(record: MeetingRecord): MeetingVersion | undefined {
+  const versions = versionsOf(record)
+  return versions.find(version => version.number === record.publishedVersion) ?? versions.at(-1)
+}
+export function draftBaseVersionOf(record: MeetingRecord): MeetingVersion | undefined {
+  return versionsOf(record).find(version => version.number === record.draftBaseVersion) ?? publishedVersionOf(record)
+}
 export function previewVersion(meeting: Meeting, previous?: MeetingVersion): MeetingVersion {
   if (!previous) return { number: 1, date: null, meeting, marks: {} }
   const before = contentFields(previous.meeting), after = contentFields(meeting)
