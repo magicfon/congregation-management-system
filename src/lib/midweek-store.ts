@@ -37,14 +37,21 @@ export async function meetingList(management: boolean) {
   }).sort((a, b) => b.week.localeCompare(a.week))
 }
 export async function editMeeting(id: string, action: string, revision: number, value?: unknown) {
-  if (!/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(revision) || revision < 0 || !['save', 'publish', 'unpublish', 'reset', 'version-date'].includes(action)) throw new MeetingError('操作格式錯誤')
+  if (!/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(revision) || revision < 0 || !['save', 'publish', 'unpublish', 'reset', 'restore', 'version-date'].includes(action)) throw new MeetingError('操作格式錯誤')
   const source = await getSource(id)
   const key = RECORD_PREFIX + id
   const oldRow = await prisma.setting.findUnique({ where: { key } })
   const old: MeetingRecord = oldRow ? JSON.parse(oldRow.value) : { revision: 0, sourceHash: source.hash, draft: newMeeting(source), published: null, publishedAt: null }
   if (old.revision !== revision) throw new MeetingConflict()
   const versions = versionsOf(old)
-  const draft = action === 'reset' ? newMeeting(source) : ['unpublish', 'version-date'].includes(action) ? old.draft : validateMeeting(value)
+  let restored: MeetingRecord['draft'] | undefined
+  if (action === 'restore') {
+    const number = (value as { number?: unknown } | null)?.number
+    const version = Number.isInteger(number) ? versions.find(v => v.number === number) : undefined
+    if (!version) throw new MeetingError('找不到已保存的版次，請重新選擇')
+    restored = structuredClone(version.meeting)
+  }
+  const draft = restored ?? (action === 'reset' ? newMeeting(source) : ['unpublish', 'version-date'].includes(action) ? old.draft : validateMeeting(value))
   if (action === 'publish' && old.published && versions.length && sameContent(draft, versions.at(-1)!.meeting)) throw new MeetingError('沒有變更，不需發布新版')
   const next: MeetingRecord = { ...old, versions, revision: revision + 1, draft, sourceHash: action === 'reset' || !oldRow ? source.hash : old.sourceHash }
   if (action === 'version-date') {

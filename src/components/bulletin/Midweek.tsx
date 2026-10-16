@@ -98,14 +98,16 @@ export default function Midweek({ management = false }: { management?: boolean }
   }
   async function save(action: string) {
     if (!meeting || busy) return
+    if (action === 'restore' && (!historical || !confirm(`將第${historical.number}版退回為草稿？目前草稿（含尚未儲存修改）會被取代，公開內容維持不變；確認後可再發布新版。`))) return
     if (action === 'reset' && !confirm('以最新手冊重新建立草稿？目前草稿的人員與修改將被清除，已發布版本會保留。')) return
     if (action === 'unpublish' && !confirm('下架這週節目？公開公布欄將不再顯示。')) return
     setBusy(true); setError(''); setMessage('')
     try {
-      const data = await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, revision: record?.revision || 0, meeting }) })
+      const data = await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, revision: record?.revision || 0, meeting: action === 'restore' ? { number: historical!.number } : meeting }) })
       setRecord(data.record); setSource(data.source)
       if (action !== 'unpublish') { setMeeting(data.record.draft); setDirty(false) }
-      setMessage(action === 'publish' ? '已發布到公布欄' : action === 'unpublish' ? '已下架' : '草稿已儲存')
+      if (action === 'restore') { setVersionNumber(0); setSelected(null); setPreview(true) }
+      setMessage(action === 'restore' ? `已將第${historical!.number}版退回為草稿，確認後請按「發布新版」` : action === 'publish' ? '已發布到公布欄' : action === 'unpublish' ? '已下架' : '草稿已儲存')
       await refresh()
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
@@ -155,6 +157,7 @@ export default function Midweek({ management = false }: { management?: boolean }
     {!loading && !meeting && !error && <p className="py-8 text-mc-text/60">{management ? '目前沒有本週或未來的節目，請按「檢查／匯入手冊」取得新週次。' : '目前沒有已發布的週中聚會節目。'}</p>}
     {meeting && <>
       {management && <VersionDetails key={id} versions={versions} current={historical || versions.at(-1)} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />}
+      {management && historical && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-mc-text/60">正在查看第{historical.number}版</p><button className={button} disabled={busy || loading} onClick={() => save('restore')}>退回此版為草稿</button></div>}
       {management && !historical && shown && <p className="text-sm text-mc-text/60">草稿預覽 · 第{shown.number}版{dirty ? '（尚未發布）' : ''}</p>}
       {management && !historical && <>
         <div className="flex flex-wrap gap-2"><button className={button} onClick={() => setPreview(!preview)}>{preview ? '回到編輯' : '預覽版面'}</button><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布新版</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}</div>
