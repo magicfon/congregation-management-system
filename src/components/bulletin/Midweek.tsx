@@ -163,31 +163,50 @@ export default function Midweek({ management = false }: { management?: boolean }
         {!weeks.length && <option value="">{management ? '尚無本週或未來節目' : '尚未發布節目'}</option>}
         {weeks.map(w => <option key={w.id} value={w.id}>{management ? `${w.date}　${w.reading}${w.publishedAt ? '（已發布）' : '（草稿）'}` : w.date.slice(5).replace('-', '/')}</option>)}
       </select>
-      {management && !!versions.length && <select aria-label="選擇版次" className="min-h-11 min-w-0 max-w-[38%] rounded-lg border border-white/15 bg-mc-card px-1 text-xs sm:text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
-        <option value={0}>編輯草稿</option>
-        {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
-      </select>}
-      {management ? <><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button><Link className={button} href="/bulletin/midweek-meeting">公開頁</Link></> : isAdmin && <Link aria-label="編排節目" title="編排節目" className={readerButton} href="/midweek/manage"><Pencil className="h-4 w-4" /></Link>}
+      {management ? <Link className="shrink-0 px-2 py-3 text-sm text-mc-text/70 hover:text-mc-text" href="/bulletin/midweek-meeting">查看公開頁 ↗</Link> : isAdmin && <Link aria-label="編排節目" title="編排節目" className={readerButton} href="/midweek/manage"><Pencil className="h-4 w-4" /></Link>}
     </div>
     <nav aria-label="切換週次" className="grid grid-cols-2 gap-3">
       <button aria-label="前一週" className={`${weekButton} ${styles.previous}`} disabled={busy || loading || weekIndex <= 0} onClick={() => switchWeek(weeks[weekIndex - 1]?.id)}><ChevronLeft aria-hidden="true" className="h-6 w-6 shrink-0" />前一週</button>
       <button aria-label="下一週" className={weekButton} disabled={busy || loading || weekIndex < 0 || weekIndex >= weeks.length - 1} onClick={() => switchWeek(weeks[weekIndex + 1]?.id)}>下一週<ChevronRight aria-hidden="true" className="h-6 w-6 shrink-0" /></button>
     </nav>
-    {management && !loading && <p className="text-sm text-mc-text/70">預計下次檢查新手冊：{nextMidweekCheck(sync).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}（台北時間）</p>}
-    {management && !!sync?.errors.length && <details className="text-sm text-amber-300"><summary className="cursor-pointer py-2">部分來源待重試，將於下次排程繼續檢查</summary>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
     {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
     {message && <p role="status" className="text-green-300">{message}</p>}
     {loading && <p role="status">載入中…</p>}
-    {!loading && !meeting && !error && <p className="py-8 text-mc-text/60">{management ? '目前沒有本週或未來的節目，請按「檢查／匯入手冊」取得新週次。' : '目前沒有已發布的週中聚會節目。'}</p>}
+    {!loading && !meeting && !error && <p className="py-8 text-mc-text/60">{management ? '目前沒有本週或未來的節目，請展開「更多管理」匯入手冊。' : '目前沒有已發布的週中聚會節目。'}</p>}
+    {management && <details key={id} className="rounded-xl border border-white/10 px-4">
+      <summary className="cursor-pointer py-3 text-sm text-mc-text/70">更多管理</summary>
+      <div className="space-y-5 border-t border-white/10 py-4">
+        {meeting && <section className="space-y-3">
+          <h2 className="text-sm font-semibold">版次紀錄</h2>
+          <p className="text-sm text-mc-text/60">{record?.published ? `目前公開：第${publishedVersion?.number || 1}版` : '尚未公開'}{baseVersion && ` · 草稿基準：第${baseVersion.number}版`}</p>
+      {management && !!versions.length && <select aria-label="選擇版次" className="min-h-11 w-full min-w-0 rounded-lg border border-white/15 bg-mc-card px-3 text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
+        <option value={0}>編輯草稿</option>
+        {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
+      </select>}
+      <VersionDetails key={id} versions={versions} current={historical || baseVersion} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />
+          {!historical && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除後續版本</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">請先發布第{baseVersion?.number}版，再刪除後續版本。</p>}</div>}
+        </section>}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">手冊與發布管理</h2>
+          <div className="flex flex-wrap gap-2"><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button>{meeting && !historical && record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架這週</button>}</div>
+    {management && !loading && <p className="text-sm text-mc-text/70">預計下次檢查新手冊：{nextMidweekCheck(sync).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}（台北時間）</p>}
+    {management && !!sync?.errors.length && <details className="text-sm text-amber-300"><summary className="cursor-pointer py-2">部分來源待重試，將於下次排程繼續檢查</summary>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
+
+        {source && !historical && <details className="text-sm"><summary className="cursor-pointer py-2">手冊來源與重建草稿</summary><div className="flex flex-wrap items-center gap-3"><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a><button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button></div></details>}
+        </section>
+      </div>
+    </details>}
     {meeting && <>
-      {management && <VersionDetails key={id} versions={versions} current={historical || baseVersion} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />}
-      {management && historical && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-mc-text/60">正在查看第{historical.number}版</p><button className={button} disabled={busy || loading} onClick={() => save('restore')}>退回此版為草稿</button></div>}
-      {management && !historical && shown && <p className="text-sm text-mc-text/60">編輯草稿 · 第{shown.number}版{baseVersion && `（以第${baseVersion.number}版為基準）`}{dirty ? '（尚未發布）' : ''}</p>}
+      {management && <>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-mc-card p-3 sm:p-4">
+          <p className="text-sm text-mc-text/70">{historical ? `查看第${historical.number}版（唯讀）` : dirty ? '有未儲存的修改' : '編輯草稿'}</p>
+          <div className="flex w-full gap-2 sm:w-auto">
+            {historical ? <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => setVersionNumber(0)}>返回編輯</button><button className={`${button} flex-1 sm:flex-none`} disabled={busy || loading} onClick={() => save('restore')}>退回此版</button></> : <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => save('save')}>儲存草稿</button><button className={`${button} flex-1 bg-blue-600 font-semibold text-white sm:flex-none`} disabled={busy} onClick={() => save('publish')}>發布第{shown?.number || 1}版</button></>}
+          </div>
+        </div>
+      </>}
       {management && !historical && <>
-        <div className="flex flex-wrap gap-2"><button className={button} disabled={busy} onClick={() => save('save')}>儲存草稿{dirty ? '＊' : ''}</button><button className={`${button} bg-blue-600 text-white`} disabled={busy} onClick={() => save('publish')}>發布第{shown?.number || 1}版</button>{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架</button>}{!!laterVersions.length && <button className={`${button} text-red-400`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除後續版本</button>}</div>
-        {!!laterVersions.length && baseVersion && <p className="text-sm text-mc-text/60">{deleteNeedsPublish ? `請先發布第${baseVersion.number}版，再刪除後續版本。` : `可刪除第${baseVersion.number}版之後保留的歷史版本。`}</p>}
-        {source && record && source.hash !== record.sourceHash && <p className="text-amber-300">官方手冊有新版，現有安排已保留。可查看來源後自行調整，或重新建立草稿。</p>}
-        {source && <details className="text-sm"><summary className="cursor-pointer py-2">手冊來源與重建草稿</summary><div className="flex flex-wrap items-center gap-3"><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a><button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button></div></details>}
+        {source && record && source.hash !== record.sourceHash && <p className="text-sm text-amber-300">手冊已更新，現有安排已保留。可至「更多管理」查看來源。</p>}
         <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
           {selected === -1 && <div className="grid gap-3 sm:grid-cols-2"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label></div>}
           {meeting.items.map((item, index) => selected === index && <div key={item.id}><div className="grid gap-3 sm:grid-cols-2">
@@ -202,7 +221,7 @@ export default function Midweek({ management = false }: { management?: boolean }
         </fieldset></dialog>
       </>}
       <fieldset disabled={busy} className="min-w-0">
-        {management && !historical && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>直接點選紙上的文字、分鐘或紅色姓名編輯；時間會自動重算。</p><button className={button} onClick={() => setSelected(-1)}>日期／時間／更新標示</button></div>}
+        {management && !historical && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>點選節目或姓名即可編輯。</p><button className={button} onClick={() => setSelected(-1)}>節目表設定</button></div>}
         <MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={management && !historical ? { change, itemChange, settings: setSelected, members } : undefined} />
         {management && !historical && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
       </fieldset>
