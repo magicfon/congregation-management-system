@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import SearchableSelect from './SearchableSelect'
+
 type Identity = { uid: string; displayName: string | null; createdAt: string }
-type Member = { id: string; name: string; active: boolean; lineuid?: string | null }
+type Member = { id: string; name: string; active: boolean; email: string; lineuid?: string | null }
 
 export default function PendingLinePanel({ onLinked }: { onLinked: () => void }) {
   const [pending, setPending] = useState<Identity[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [names, setNames] = useState<Record<string, string>>({})
+  const [queries, setQueries] = useState<Record<string, string>>({})
   const [roles, setRoles] = useState<Record<string, 'admin' | 'publisher'>>({})
   const [targets, setTargets] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -22,7 +25,7 @@ export default function PendingLinePanel({ onLinked }: { onLinked: () => void })
       const responses = await Promise.all([fetch('/api/members/pending-line', { cache: 'no-store' }), fetch('/api/members', { cache: 'no-store' })])
       if (responses.some(r => !r.ok)) throw new Error('無法載入待確認名單，請重新整理')
       const [identities, people] = await Promise.all(responses.map(r => r.json()))
-      setPending(identities); setMembers(people); setTargets({})
+      setPending(identities); setMembers(people); setTargets({}); setQueries({})
     } catch (e) { setError(e instanceof Error ? e.message : '載入失敗') }
     finally { setLoading(false) }
   }, [])
@@ -32,7 +35,7 @@ export default function PendingLinePanel({ onLinked }: { onLinked: () => void })
   }, [])
 
   async function link(identity: Identity) {
-    const target = members.find(m => m.id === targets[identity.uid])
+    const target = members.find(m => m.id === targets[identity.uid] && m.active && !m.lineuid)
     const create = targets[identity.uid] === '__new__'
     const name = (names[identity.uid] ?? identity.displayName ?? '').trim()
     const role = roles[identity.uid] ?? 'publisher'
@@ -68,12 +71,18 @@ export default function PendingLinePanel({ onLinked }: { onLinked: () => void })
           <p className="mt-1 text-xs text-mc-text/40">登記於 {new Date(identity.createdAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}</p>
         </div>
         <div className="mt-3 flex max-w-full flex-wrap gap-2 sm:mt-0 sm:w-80">
-          <select aria-label={`為 ${identity.displayName || identity.uid} 選擇成員`} disabled={busy || loading} value={targets[identity.uid] || ''} onChange={e => setTargets(t => ({ ...t, [identity.uid]: e.target.value }))} className="min-h-11 min-w-0 flex-1 rounded-lg bg-mc-accent px-3 text-sm sm:w-44">
-            <option value="">選擇成員</option>
-            <option value="__new__">＋ 建立新成員</option>
-            {members.filter(m => m.active && !m.lineuid).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-          <button disabled={busy || loading || !targets[identity.uid] || (targets[identity.uid] === '__new__' && !(names[identity.uid] ?? identity.displayName ?? '').trim())} onClick={() => void link(identity)} className="min-h-11 shrink-0 rounded-lg bg-mc-highlight px-4 text-sm disabled:opacity-40">{targets[identity.uid] === '__new__' ? '建立並連結' : '連結'}</button>
+          {targets[identity.uid] !== '__new__' && <SearchableSelect label={`為 ${identity.displayName || identity.uid} 選擇成員`} placeholder="輸入成員姓名搜尋" disabled={busy || loading}
+            value={targets[identity.uid] || ''} onChange={value => { setTargets(old => ({ ...old, [identity.uid]: value })); if (value) setQueries(old => ({ ...old, [identity.uid]: '' })) }}
+            onQueryChange={query => setQueries(old => ({ ...old, [identity.uid]: query }))}
+            options={members.filter(member => member.active && !member.lineuid).map(member => ({ value: member.id, label: member.name, description: member.email }))} />}
+          <button disabled={busy || loading || !targets[identity.uid] || (targets[identity.uid] === '__new__' && !(names[identity.uid] ?? identity.displayName ?? '').trim())} onClick={() => void link(identity)} className="min-h-11 shrink-0 self-start rounded-lg bg-mc-highlight px-4 text-sm disabled:opacity-40">{targets[identity.uid] === '__new__' ? '建立並連結' : '連結'}</button>
+          <button type="button" disabled={busy || loading} onClick={() => {
+            if (targets[identity.uid] === '__new__') { setTargets(old => ({ ...old, [identity.uid]: '' })); setQueries(old => ({ ...old, [identity.uid]: '' })) }
+            else {
+              setNames(old => ({ ...old, [identity.uid]: queries[identity.uid]?.trim() || identity.displayName || '' }))
+              setTargets(old => ({ ...old, [identity.uid]: '__new__' }))
+            }
+          }} className="min-h-11 w-full rounded-lg border border-white/10 px-3 text-sm text-blue-300 disabled:opacity-40">{targets[identity.uid] === '__new__' ? '改選既有成員' : '＋ 建立新成員'}</button>
           {targets[identity.uid] === '__new__' && <div className="flex w-full gap-2">
             <input aria-label="新成員姓名" placeholder="姓名" maxLength={100} disabled={busy || loading} value={names[identity.uid] ?? identity.displayName ?? ''} onChange={e => setNames(old => ({ ...old, [identity.uid]: e.target.value }))} className="min-h-11 min-w-0 flex-1 rounded-lg bg-mc-accent px-3 text-sm" />
             <select aria-label="新成員權限" disabled={busy || loading} value={roles[identity.uid] ?? 'publisher'} onChange={e => setRoles(old => ({ ...old, [identity.uid]: e.target.value as 'admin' | 'publisher' }))} className="min-h-11 rounded-lg bg-mc-accent px-2 text-sm">

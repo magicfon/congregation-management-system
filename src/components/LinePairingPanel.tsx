@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 
+import SearchableSelect from './SearchableSelect'
+
 type PairingMember = {
   id: string; name: string; email: string; active: boolean
   lineuid: string | null; lineDisplayName: string | null
@@ -22,7 +24,7 @@ export default function LinePairingPanel({ onPaired }: { onPaired: () => void })
     try {
       const res = await fetch('/api/members')
       if (!res.ok) throw new Error('無法載入配對名單')
-      setMembers(await res.json())
+      setMembers(await res.json()); setSourceId(''); setTargetId('')
     } catch (e) {
       setError(e instanceof Error ? e.message : '載入失敗')
     } finally { setLoading(false) }
@@ -30,7 +32,7 @@ export default function LinePairingPanel({ onPaired }: { onPaired: () => void })
   useEffect(() => { void load() }, [])
 
   const source = members.find((m) => m.id === sourceId)
-  const target = members.find((m) => m.id === targetId)
+  const target = members.find((m) => m.id === targetId && m.active && !m.lineuid && m.id !== sourceId)
   async function pair(e: React.FormEvent) {
     e.preventDefault()
     if (saving || !source?.lineuid || !target) return
@@ -60,20 +62,13 @@ export default function LinePairingPanel({ onPaired }: { onPaired: () => void })
       {error && <p role="alert" className="mt-2 text-sm text-mc-error">{error} <button type="button" disabled={saving || loading} onClick={() => void load()} className="underline">重新載入</button></p>}
       {message && <p role="status" className="mt-2 text-sm text-emerald-300">{message}</p>}
       <form onSubmit={pair} className="mt-3 grid gap-3 md:grid-cols-2">
-        <label className="text-xs text-mc-text/60">LINE 帳號（目前配對姓名）
-          <select required value={sourceId} disabled={loading || saving} onChange={(e) => { setSourceId(e.target.value); setTargetId('') }} className="mt-1 w-full rounded-lg bg-mc-accent p-2 text-sm text-mc-text">
-            <option value="">{loading ? '載入中…' : '選擇 LINE 帳號'}</option>
-            {members.filter((m) => m.lineuid).map((m) => <option key={m.id} value={m.id}>{m.lineDisplayName || '尚未記錄名稱'}（{m.name}） · {m.lineuid}</option>)}
-          </select>
-        </label>
-        <label className="text-xs text-mc-text/60">配對到成員
-          <select required value={targetId} disabled={loading || saving || !sourceId} onChange={(e) => setTargetId(e.target.value)} className="mt-1 w-full rounded-lg bg-mc-accent p-2 text-sm text-mc-text">
-            <option value="">選擇尚未綁定的成員</option>
-            {members.filter((m) => m.active && !m.lineuid && m.id !== sourceId).map((m) => <option key={m.id} value={m.id}>{m.name} · {m.email}</option>)}
-          </select>
-        </label>
+        <SearchableSelect label="LINE 帳號（目前配對姓名）" placeholder={loading ? '載入中…' : '輸入 LINE 名稱、成員姓名或 UID'}
+          value={sourceId} disabled={loading || saving} onChange={value => { setSourceId(value); setTargetId('') }}
+          options={members.filter(member => member.lineuid).map(member => ({ value: member.id, label: `${member.lineDisplayName || '尚未記錄名稱'}（${member.name}）`, description: member.lineuid || '' }))} />
+        <SearchableSelect key={sourceId} label="配對到成員" placeholder="輸入尚未綁定的成員姓名" value={targetId} disabled={loading || saving || !sourceId}
+          onChange={setTargetId} options={members.filter(member => member.active && !member.lineuid && member.id !== sourceId).map(member => ({ value: member.id, label: member.name, description: member.email }))} />
         {source && <p className="md:col-span-2 break-all text-xs text-mc-text/60">LINE：{source.lineDisplayName || '下次登入後記錄名稱'} · UID：{source.lineuid}</p>}
-        <button type="submit" disabled={loading || saving || !sourceId || !targetId} className="w-fit rounded-lg bg-mc-highlight px-4 py-2 text-sm text-white disabled:opacity-40">{saving ? '配對中…' : '確認配對'}</button>
+        <button type="submit" disabled={loading || saving || !source?.lineuid || !target} className="w-fit rounded-lg bg-mc-highlight px-4 py-2 text-sm text-white disabled:opacity-40">{saving ? '配對中…' : '確認配對'}</button>
       </form>
     </details>
   )
