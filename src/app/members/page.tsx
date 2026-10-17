@@ -211,37 +211,64 @@ export default function MembersPage() {
     return () => clearTimeout(t)
   }, [fetchMembers])
 
-  const [genderSaving, setGenderSaving] = useState<string | null>(null)
+  const [genderSaving, setGenderSaving] = useState(false)
+  const [genderDrafts, setGenderDrafts] = useState<Record<string, { gender: string; expectedGender: string }>>({})
   const [genderError, setGenderError] = useState('')
+  const [genderStatus, setGenderStatus] = useState('')
+  const genderCount = Object.keys(genderDrafts).length
 
-  async function handleGender(member: Member, gender: string) {
-    if (!isAdmin || genderSaving || member.gender === gender) return
-    setGenderSaving(member.id)
+  useEffect(() => {
+    if (!genderCount) return
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [genderCount])
+
+  function handleGender(member: Member, gender: string) {
+    if (!isAdmin || genderSaving) return
+    setGenderStatus('')
     setGenderError('')
+    setGenderDrafts(current => {
+      const next = { ...current }
+      const expectedGender = current[member.id]?.expectedGender ?? member.gender ?? 'unspecified'
+      if (gender === expectedGender) delete next[member.id]
+      else next[member.id] = { gender, expectedGender }
+      return next
+    })
+  }
+
+  async function saveGenders() {
+    if (!isAdmin || genderSaving || !genderCount) return
+    setGenderSaving(true)
+    setGenderError('')
+    setGenderStatus('')
+    const changes = Object.entries(genderDrafts).map(([id, change]) => ({ id, ...change }))
     try {
-      const res = await fetch(`/api/members/${member.id}`, {
+      const res = await fetch('/api/members/gender-batch', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gender }),
+        body: JSON.stringify({ changes }),
       })
       const result = await res.json()
-      if (!res.ok) throw new Error(result.error || '無法更新')
-      setMembers(current => current.map(item => item.id === member.id ? { ...item, gender: result.gender } : item))
+      if (!res.ok) throw new Error(result.error || '無法儲存，請稍後重試')
+      setMembers(current => current.map(item => genderDrafts[item.id] ? { ...item, gender: genderDrafts[item.id].gender } : item))
+      setGenderDrafts({})
+      setGenderStatus(`已儲存 ${changes.length} 位人員`)
     } catch (error) {
-      setGenderError(`${member.name}：${error instanceof Error ? error.message : '無法更新'}`)
-    } finally { setGenderSaving(null) }
+      setGenderError(error instanceof Error ? error.message : '無法儲存，請稍後重試')
+    } finally { setGenderSaving(false) }
   }
 
   function genderButtons(member: Member) {
-    return isAdmin && <fieldset disabled={genderSaving !== null} className="mt-2">
+    return isAdmin && <fieldset disabled={genderSaving} className="mt-2">
       <legend className="sr-only">{member.name}的弟兄／姊妹設定</legend>
       <div className="flex flex-wrap gap-1">
         {[{ value: 'brother', label: '弟兄' }, { value: 'sister', label: '姊妹' }, { value: 'unspecified', label: '未設定' }].map(option => <button key={option.value} type="button"
-          aria-pressed={(member.gender ?? 'unspecified') === option.value}
+          aria-pressed={(genderDrafts[member.id]?.gender ?? member.gender ?? 'unspecified') === option.value}
           onClick={() => void handleGender(member, option.value)}
-          className={`min-h-11 rounded-lg border px-3 text-xs whitespace-nowrap disabled:opacity-50 ${(member.gender ?? 'unspecified') === option.value ? 'border-blue-400/40 bg-blue-400/15 text-blue-300' : 'border-white/10 text-mc-text/50'}`}
+          className={`min-h-11 rounded-lg border px-3 text-xs whitespace-nowrap disabled:opacity-50 ${(genderDrafts[member.id]?.gender ?? member.gender ?? 'unspecified') === option.value ? 'border-blue-400/40 bg-blue-400/15 text-blue-300' : 'border-white/10 text-mc-text/50'}`}
         >{option.label}</button>)}
       </div>
-      {genderSaving === member.id && <span role="status" className="text-xs text-mc-text/50">儲存中…</span>}
+      {genderDrafts[member.id] && <span className="text-xs text-amber-300">未儲存</span>}
     </fieldset>
   }
 
@@ -284,6 +311,7 @@ export default function MembersPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '刪除失敗')
       setMembers(current => current.filter(item => item.id !== member.id))
+      setGenderDrafts(current => { const next = { ...current }; delete next[member.id]; return next })
     } catch (error) {
       setDispatchError(error instanceof Error ? error.message : '刪除失敗')
     } finally { setDeleting(null) }
@@ -337,6 +365,11 @@ export default function MembersPage() {
 
         </div>
 
+        {isAdmin && <div className="sticky top-4 z-20 mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-mc-card p-3 shadow-lg">
+          <span className="flex-1 text-sm text-mc-text/70" role="status">{genderCount ? `${genderCount} 位人員尚未儲存` : genderStatus || '弟兄／姊妹設定完成後，按儲存變更'}</span>
+          <button type="button" disabled={!genderCount || genderSaving} onClick={() => { setGenderDrafts({}); setGenderError(''); setGenderStatus('已取消變更'); void fetchMembers() }} className="min-h-11 rounded-lg border border-white/10 px-3 text-sm text-mc-text/60 disabled:opacity-40">取消變更</button>
+          <button type="button" disabled={!genderCount || genderSaving} onClick={() => void saveGenders()} className="min-h-11 rounded-lg bg-blue-600 px-4 text-sm text-white disabled:opacity-40">{genderSaving ? '儲存中…' : '儲存變更'}</button>
+        </div>}
         {genderError && <p role="alert" className="mb-3 text-sm text-red-300">{genderError}</p>}
         {dispatchError && <p role="alert" className="mb-3 text-sm text-red-300">{dispatchError}</p>}
         {/* Mobile card list */}
