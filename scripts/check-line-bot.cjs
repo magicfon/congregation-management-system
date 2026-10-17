@@ -9,7 +9,7 @@ const notify=load('src/lib/line-notifications.ts',{'./personal-territory-reminde
 const allocation=load('src/lib/allocation.ts'),week=load('src/lib/ministry-week.ts');
 const ministry=load('src/lib/ministry.ts',{'./line-notifications':notify,'./line-bot-client':client,'./allocation':allocation});
 const dates={taipeiDate:d=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)};
-const queries=load('src/lib/line-bot-queries.ts',{'./pending-line-identities':{pendingLineMessage:'待管理員確認權限，等待配對',recordPendingLineIdentity:async()=>{}},'./line-bot-client':client,'./allocation':allocation,'./ministry':ministry,'./ministry-week':week,'./google-sheets':dates});
+const queries=load('src/lib/line-bot-queries.ts',{'./personal-assignments':{},'./pending-line-identities':{pendingLineMessage:'待管理員確認權限，等待配對',recordPendingLineIdentity:async()=>{}},'./line-bot-client':client,'./allocation':allocation,'./ministry':ministry,'./ministry-week':week,'./google-sheets':dates});
 const now=new Date('2026-09-30T04:00:00Z');
 let jobs=[],member={id:'m',active:true,lineuid:'Utest',lineNotificationsEnabled:true};
 const db={member:{findUnique:async()=>member},lineNotification:{

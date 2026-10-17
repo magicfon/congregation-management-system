@@ -32,10 +32,10 @@ export default function LineRichMenu() {
   }
   return <details className="mt-4 border-t border-white/10 pt-3">
     <summary className="cursor-pointer text-sm">底部圖文選單 · {status?.installed ? '已發布' : status ? '待發布' : '尚未確認'}</summary>
-    <p className="mt-3 text-xs leading-6 text-mc-text/60">前三格直接查詢，公布欄開啟網站。未確認身分的使用者仍需由管理員連結成員。</p>
+    <p className="mt-3 text-xs leading-6 text-mc-text/60">我的委派直接在 LINE 列出服務安排與週中節目；其他選單開啟對應網頁，傳道地圖直達地圖交接。未確認身分的使用者仍需由管理員連結成員。</p>
     {/* A fixed PNG is also the exact image uploaded to LINE. */}
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src="/line/rich-menu-v1.png" alt="四格圖文選單：我的地圖、本週行程、待交接、公布欄" width={1000} height={674} className="mt-3 w-full max-w-sm rounded-xl border border-white/10" />
+    <img src="/line/rich-menu-v1.png" alt="四格圖文選單：公佈欄、我的看板、我的委派、傳道地圖" width={1000} height={674} className="mt-3 w-full max-w-sm rounded-xl border border-white/10" />
     <div className="mt-3 flex flex-wrap gap-2">
       <button disabled={busy || !status?.enabled || status.installed} onClick={() => void publish()} className="min-h-11 rounded-lg bg-mc-highlight px-4 text-sm disabled:opacity-40">{busy ? '發布中…' : status?.installed ? '已發布至 LINE' : '發布至 LINE'}</button>
       <button disabled={busy} onClick={() => void load()} className="min-h-11 rounded-lg bg-white/5 px-4 text-sm disabled:opacity-40">重新整理狀態</button>

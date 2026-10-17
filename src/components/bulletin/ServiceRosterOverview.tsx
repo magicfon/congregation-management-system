@@ -9,9 +9,9 @@ import useRosterIdentity from './useRosterIdentity'
 
 type Snapshot = { initialized: boolean; weeks: ServiceWeekData[] }
 
-export default function ServiceRosterOverview() {
+export default function ServiceRosterOverview({ initialTab = 'microphones' }: { initialTab?: string }) {
   const { personId: ownPersonId, signedIn } = useRosterIdentity()
-  const [tab, setTab] = useState('microphones')
+  const [tab, setTab] = useState(initialTab)
   const [data, setData] = useState<Snapshot | null>(null)
   const [personId, setPersonId] = useState('')
   const [error, setError] = useState('')

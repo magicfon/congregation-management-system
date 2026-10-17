@@ -3,22 +3,22 @@ import { randomUUID } from 'crypto'
 import { readFile } from 'fs/promises'
 import path from 'path'
 import { botSite, lineBotReady } from './line-bot-client'
-import { configuredLiffId } from './liff-settings'
+import { configuredLiffId, liffDestination } from './liff-settings'
 
 const liffId = configuredLiffId()
-const stateKey = liffId ? `line_rich_menu_liff_${liffId}` : 'line_rich_menu_v2'
-const menuUrl = (view: string) => liffId ? `https://liff.line.me/${liffId}/?view=${view}` : view === 'bulletin' ? `${botSite}/bulletin` : `${botSite}/dashboard?view=${view}`
+const stateKey = liffId ? `line_rich_menu_v4_liff_${liffId}` : 'line_rich_menu_v4'
+const menuUrl = (view: string) => liffId ? `https://liff.line.me/${liffId}/?view=${view}` : `${botSite}${liffDestination(view)}`
 const lockKey = 'line_rich_menu_publish_lock'
 const api = 'https://api.line.me/v2/bot'
 const dataApi = 'https://api-data.line.me/v2/bot'
 export const menuDefinition = {
   size: { width: 1000, height: 674 }, selected: true,
-  name: liffId ? '楠梓會眾 LIFF 選單' : '楠梓會眾功能選單 v2', chatBarText: '開啟功能選單',
+  name: liffId ? '楠梓會眾 LIFF 選單 v4' : '楠梓會眾功能選單 v4', chatBarText: '開啟功能選單',
   areas: [
-    { bounds: { x: 0, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('maps') } },
-    { bounds: { x: 500, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('week') } },
-    { bounds: { x: 0, y: 337, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('handoffs') } },
-    { bounds: { x: 500, y: 337, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('bulletin') } },
+    { bounds: { x: 0, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('bulletin') } },
+    { bounds: { x: 500, y: 0, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('dashboard') } },
+    { bounds: { x: 0, y: 337, width: 500, height: 337 }, action: { type: 'message', text: '我的委派' } },
+    { bounds: { x: 500, y: 337, width: 500, height: 337 }, action: { type: 'uri', uri: menuUrl('handoffs') } },
   ],
 }
 export class RichMenuError extends Error {

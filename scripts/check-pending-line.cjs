@@ -26,12 +26,12 @@ const db={member:{
  await service.recordPendingLineIdentity(db,uid,'暱稱');await service.recordPendingLineIdentity(db,uid,null);
  assert.equal(identities.length,1);assert.equal(identities[0].displayName,'暱稱');assert.equal(people.length,1);
  await service.recordPendingLineIdentity(db,uid,'新暱稱');assert.equal(identities[0].displayName,'新暱稱');
- const auth=load('src/lib/auth.ts',{'./db':{prisma:db},'./pending-line-identities':service}).authOptions.callbacks;
+ const auth=load('src/lib/auth.ts',{'./liff-auth':{},'./liff-settings':{configuredLiffId:()=>null},'./db':{prisma:db},'./pending-line-identities':service}).authOptions.callbacks;
  const account={provider:'line',providerAccountId:uid};
  assert.equal(await auth.signIn({account,profile:{name:'OAuth暱稱'}}),'/pending-access');assert.equal(people.length,1);
  assert.equal((await auth.jwt({token:{sub:uid},account})).id,undefined);
  let profileCalls=0, reads=0;
- const queries=load('src/lib/line-bot-queries.ts',{'./pending-line-identities':service,'./line-bot-client':{botSite:'https://test',lineDisplayName:async()=>{profileCalls++;return null}},'./allocation':{},'./ministry':{},'./ministry-week':{},'./google-sheets':{}});
+ const queries=load('src/lib/line-bot-queries.ts',{'./personal-assignments':{},'./pending-line-identities':service,'./line-bot-client':{botSite:'https://test',lineDisplayName:async()=>{profileCalls++;return null}},'./allocation':{},'./ministry':{},'./ministry-week':{},'./google-sheets':{}});
  db.area={findMany:async()=>{reads++;throw Error('must not read private data')}};
  assert.match(await queries.lineBotAnswer(db,uid,'我的地圖'),/待管理員確認權限/);assert.equal(reads,0);assert.equal(profileCalls,0);
  const unknown='U'+'b'.repeat(32);assert.match(await queries.lineBotAnswer(db,unknown,'我的地圖'),/待管理員/);assert.equal(profileCalls,1);assert(identities.some(r=>r.uid===unknown));

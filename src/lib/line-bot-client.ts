@@ -30,5 +30,5 @@ export async function lineRequest(kind: 'reply' | 'push', body: unknown, retryKe
   return { accepted: response.ok || (kind === 'push' && response.status === 409 && !!response.headers.get('x-line-accepted-request-id')), status: response.status }
 }
 export function botText(text: string) {
-  return { type: 'text', text: text.slice(0,4500), quickReply: { items: [...['我的地圖','本週行程','待交接'].map(label=>({ type: 'action', action: { type: 'message', label, text: label } })), { type: 'action', action: { type: 'uri', label: '通知設定', uri: `${botSite}/dashboard` } }] } }
+  return { type: 'text', text: text.slice(0,4500), quickReply: { items: [...['我的委派','我的地圖','本週行程','待交接'].map(label=>({ type: 'action', action: { type: 'message', label, text: label } })), { type: 'action', action: { type: 'uri', label: '通知設定', uri: `${botSite}/dashboard` } }] } }
 }

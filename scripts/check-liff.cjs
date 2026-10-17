@@ -17,6 +17,7 @@ function reset(){identity={iss:'https://access.line.me',aud:'123',sub:uid,exp:Da
 (async()=>{
  reset();assert.equal(settings.configuredLiffId(),'123-test');env.LINE_LIFF_ID='456-other';assert.equal(settings.configuredLiffId(),null);assert.equal(await auth.authorizeLiff(db,'raw-token'),null);env.LINE_LIFF_ID='123-test';
  assert.equal(settings.liffDestination('https://evil.test'),'/dashboard');assert.equal(settings.liffDestination('week'),'/dashboard?view=week');assert.equal(settings.liffDestination('bulletin'),'/bulletin');
+ assert.equal(settings.liffDestination('dashboard'),'/dashboard');assert.equal(settings.liffDestination('assignments'),'/dashboard/assignments/service');assert.equal(settings.liffDestination('handoffs'),'/dashboard?view=handoffs');
  const user=await auth.authorizeLiff(db,'raw-token');assert.equal(user.id,'m1');assert.equal(user.name,'Real Name');assert.equal(user.role,'publisher');assert.equal(user.lineUid,uid);assert.equal(updates[0].lineDisplayName,'LINE Name');
  for(const [key,value] of [['aud','456'],['iss','https://evil.test'],['exp',0],['sub','forged']]) {reset();identity[key]=value;assert.equal(await auth.authorizeLiff(db,'raw-token'),null);assert.equal(updates.length,0);assert.equal(pending.length,0);}
  reset();status=400;assert.equal(await auth.authorizeLiff(db,'raw-token'),null);assert.equal(updates.length,0);

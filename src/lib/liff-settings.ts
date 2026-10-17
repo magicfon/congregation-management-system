@@ -6,5 +6,6 @@ export function configuredLiffId(): string | null {
 
 export function liffDestination(view: string | null): string {
   if (view === 'bulletin') return '/bulletin'
+  if (view === 'assignments') return '/dashboard/assignments/service'
   return ['maps', 'week', 'handoffs'].includes(view || '') ? `/dashboard?view=${view}` : '/dashboard'
 }

@@ -7,7 +7,9 @@ import WeeklyMinistry from '../../components/dashboard/WeeklyMinistry'
 import LineBotStatus from '../../components/dashboard/LineBotStatus'
 import LineNotificationPreference from '../../components/dashboard/LineNotificationPreference'
 import SyncCheck from '../../components/dashboard/SyncCheck'
-type Dashboard = { today: string; handoffs: { areaId: string; label: string; publisher: string; submittedDate: string | null; next: {name: string; date: string} | null }[]; tasks: { id: string; areaId: string; label: string; date: string; status: string }[]; name: string; isAdmin: boolean; maps: { id: string; label: string; sheetNo: number | null; dispatchedDate: string | null; heldDays: number | null; ministryPending: number; ministryActive: boolean; report: { date: string; status: string } | null }[]; pendingRequests: { id: string; label: string; date: string }[]; reviewCount: number | null }
+import PersonalAssignmentsPanel from '../../components/dashboard/PersonalAssignments'
+import type { PersonalAssignments } from '../../lib/personal-assignments'
+type Dashboard = { assignments: PersonalAssignments; today: string; handoffs: { areaId: string; label: string; publisher: string; submittedDate: string | null; next: {name: string; date: string} | null }[]; tasks: { id: string; areaId: string; label: string; date: string; status: string }[]; name: string; isAdmin: boolean; maps: { id: string; label: string; sheetNo: number | null; dispatchedDate: string | null; heldDays: number | null; ministryPending: number; ministryActive: boolean; report: { date: string; status: string } | null }[]; pendingRequests: { id: string; label: string; date: string }[]; reviewCount: number | null }
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null)
   const [error, setError] = useState('')
@@ -25,15 +27,16 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!data) return
     const view = new URLSearchParams(window.location.search).get('view')
-    if (!view || !['maps', 'week', 'handoffs'].includes(view)) return
+    if (!view || !['maps', 'week', 'handoffs', 'assignments'].includes(view)) return
     const frame = requestAnimationFrame(() => document.getElementById(view)?.scrollIntoView({ block: 'start' }))
     return () => cancelAnimationFrame(frame)
   }, [data])
   return <DashboardLayout><div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8 text-mc-text">
-    <header className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">{data ? `${data.name}的地圖` : '我的地圖'}</h1><p className="mt-1 text-sm text-mc-text/50">查看領取進度與待辦事項</p></div><a href="/area-status" className="flex items-center gap-2 rounded-lg bg-mc-highlight px-3 py-2 text-sm"><MapPinned size={16} />申請領圖</a></header>
+    <header className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">{data ? `${data.name}的看板` : '我的看板'}</h1><p className="mt-1 text-sm text-mc-text/50">查看個人委派、領取進度與待辦事項</p></div><a href="/area-status" className="flex items-center gap-2 rounded-lg bg-mc-highlight px-3 py-2 text-sm"><MapPinned size={16} />申請領圖</a></header>
     {error && <div role="alert" className="rounded-xl bg-red-400/10 p-4 text-red-300">{error}<button className="ml-3 underline" onClick={() => setRevision(v => v + 1)}>重試</button></div>}
-    {!data && !error && <p role="status" className="py-12 text-center text-mc-text/50">正在載入你的地圖…</p>}
+    {!data && !error && <p role="status" className="py-12 text-center text-mc-text/50">正在載入你的看板…</p>}
     {data && <>
+      <PersonalAssignmentsPanel data={data.assignments} />
       {data.isAdmin && <AdminTaskCenter />}
       {!data.isAdmin && <section id="handoffs" className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4"><h2 className="mb-3 font-semibold text-amber-300">待交接 · {data.handoffs.length} 張</h2><div className="space-y-2">{!data.handoffs.length && <p className="text-sm text-mc-text/50">暫無待交接地圖</p>}{data.handoffs.map(item => <a key={item.areaId} href={`/map/ministry/${item.areaId}`} className="flex items-center justify-between gap-3 rounded-lg bg-black/10 p-3"><div><strong>{item.label}</strong><p className="mt-1 text-xs text-mc-text/60">{item.publisher} 已提交 · {item.submittedDate || '日期未記錄'}</p><p className="mt-1 text-xs text-amber-200">{item.next ? `下一位：${item.next.name} · ${item.next.date}` : '尚未安排下一位'}</p></div><span className="shrink-0 text-sm">查看交接 →</span></a>)}</div></section>}
       <div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-white/10 bg-mc-card p-4"><Map className="mb-2 text-blue-300" size={20} /><strong className="text-3xl">{data.maps.length}</strong><p className="mt-1 text-sm text-mc-text/60">我持有的地圖</p></div><a href="/map-requests" className="rounded-xl border border-white/10 bg-mc-card p-4"><Clock3 className="mb-2 text-amber-300" size={20} /><strong className="text-3xl">{data.pendingRequests.length}</strong><p className="mt-1 text-sm text-mc-text/60">我的待審申請</p></a></div>
