@@ -5,22 +5,23 @@ import type { MeetingRecord } from './midweek'
 
 export type AssignmentKind = 'service' | 'program'
 export type PersonalAssignment = { kind: AssignmentKind; id: string; date: string; endDate: string; category: string; title: string; role: string; href: string }
-export type PersonalAssignments = { upcoming: PersonalAssignment[]; past: PersonalAssignment[]; notices: string[] }
+export type PersonalAssignments = { showBrotherService: boolean; upcoming: PersonalAssignment[]; past: PersonalAssignment[]; notices: string[] }
 
 export async function personalAssignments(db: PrismaClient, memberId: string, now = new Date()): Promise<PersonalAssignments> {
   const [members, person, weeks, records] = await Promise.all([
-    db.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true } }),
+    db.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true, gender: true } }),
     db.servicePerson.findUnique({ where: { memberId }, select: { id: true } }),
     db.serviceWeek.findMany({ where: { stopped: false }, orderBy: { startDate: 'asc' } }),
     db.setting.findMany({ where: { key: { startsWith: 'midweek:record:' } } }),
   ])
   const member = members.find(m => m.id === memberId)
-  if (!member) return { upcoming: [], past: [], notices: [] }
+  if (!member) return { showBrotherService: false, upcoming: [], past: [], notices: [] }
+  const showBrotherService = member.gender !== 'sister'
   const name = member.name.trim()
   const uniqueName = !!name && members.filter(m => m.name.trim() === name).length === 1
   const notices = []
   if (!uniqueName) notices.push('週中節目姓名無法唯一對應，請管理員確認成員姓名。')
-  if (!person) notices.push('帳號尚未連結服務安排人員，請管理員確認。')
+  if (!person && showBrotherService) notices.push('帳號尚未連結服務安排人員，請管理員確認。')
   const entries: PersonalAssignment[] = []
   for (const week of weeks) {
     if (week.stopped || !person) continue
@@ -44,14 +45,15 @@ export async function personalAssignments(db: PrismaClient, memberId: string, no
   const monday = addDays(today, -((new Date(`${today}T04:00:00Z`).getUTCDay() + 6) % 7))
   const isUpcoming = (item: PersonalAssignment) => item.category === '服務安排' ? item.endDate >= today : item.date >= monday
   entries.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
-  return { upcoming: entries.filter(isUpcoming), past: entries.filter(item => !isUpcoming(item)).reverse(), notices }
+  const visible = entries.filter(item => showBrotherService || item.kind === 'program')
+  return { showBrotherService, upcoming: visible.filter(isUpcoming), past: visible.filter(item => !isUpcoming(item)).reverse(), notices }
 }
 
 export function assignmentsText(data: PersonalAssignments, dashboardUrl: string): string {
   const base = new URL(dashboardUrl).origin
-  const sections = ([['service', '弟兄服務'], ['program', '節目委派']] as const).map(([kind, label]) => {
+  const sections = ([['service', '弟兄服務'], ['program', '節目委派']] as const).filter(([kind]) => data.showBrotherService || kind === 'program').map(([kind, label]) => {
     const items = data.upcoming.filter(item => item.kind === kind)
-    let text = `【${label}】本週起 · ${items.length} 項`
+    let text = `【${data.showBrotherService ? label : '我的委派'}】本週起 · ${items.length} 項`
     let count = 0
     for (const item of items) {
       const line = `\n• ${item.date}${item.endDate !== item.date ? `～${item.endDate}` : ''}｜${item.category}｜${item.title}${item.role ? `（${item.role}）` : ''}`

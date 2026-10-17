@@ -51,6 +51,9 @@ export async function PUT(
 
   try {
     const body = await request.json()
+    if (body.gender !== undefined && !["brother", "sister", "unspecified"].includes(body.gender)) {
+      return NextResponse.json({ error: "請選擇弟兄、姊妹或未設定" }, { status: 400 })
+    }
     if (body.showInDispatch !== undefined && typeof body.showInDispatch !== 'boolean') {
       return NextResponse.json({ error: '派發按鈕設定必須為布林值' }, { status: 400 })
     }
@@ -80,6 +83,7 @@ export async function PUT(
           ...(body.showInDispatch !== undefined ? { showInDispatch: body.showInDispatch } : {}),
           name: name.trim(), email: email?.trim() || existing.email, phone: phone?.trim() || null,
           active: nextActive, role: nextRole,
+          ...(body.gender !== undefined ? { gender: body.gender } : {}),
         },
       })
       return NextResponse.json(member)

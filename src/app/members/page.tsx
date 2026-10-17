@@ -16,6 +16,7 @@ interface Member {
   lineDisplayName?: string | null
   showInDispatch?: boolean
   active: boolean
+  gender?: string
   role?: string
   createdAt: string
   _count: { schedules: number; reports: number }
@@ -31,6 +32,7 @@ function MemberModal({
   onClose: () => void
   onSave: () => void
 }) {
+  const [gender, setGender] = useState(member?.gender ?? 'unspecified')
   const [role, setRole] = useState(member?.role ?? 'publisher')
   const [name, setName] = useState(member?.name ?? '')
   const [email, setEmail] = useState(member?.email ?? '')
@@ -48,7 +50,7 @@ function MemberModal({
     try {
       const url = member ? `/api/members/${member.id}` : '/api/members'
       const method = member ? 'PUT' : 'POST'
-      const body: Record<string, unknown> = { name, email, phone, active }
+      const body: Record<string, unknown> = { name, email, phone, active, gender }
       if (member && role !== member.role) { body.role = role; body.expectedRole = member.role }
       if (!member) body.showInDispatch = showInDispatch
       if (!member || password) body.password = password
@@ -134,6 +136,13 @@ function MemberModal({
               className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
             />
           </div>
+
+          <fieldset disabled={loading}>
+            <legend className="mb-1.5 text-sm text-mc-text/70">弟兄／姊妹</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {[{ value: 'unspecified', label: '未設定' }, { value: 'brother', label: '弟兄' }, { value: 'sister', label: '姊妹' }].map(option => <button key={option.value} type="button" aria-pressed={gender === option.value} onClick={() => setGender(option.value)} className={`min-h-11 rounded-lg border text-sm ${gender === option.value ? 'border-blue-400/40 bg-blue-400/10 text-blue-300' : 'border-white/10 text-mc-text/60'}`}>{option.label}</button>)}
+            </div>
+          </fieldset>
 
           {member && <fieldset disabled={loading}>
             <legend className="mb-1.5 text-sm text-mc-text/70">權限</legend>

@@ -5,7 +5,7 @@ import { lineBotAnswer } from '../src/lib/line-bot-queries'
 import type { Meeting } from '../src/lib/midweek'
 
 async function main() {
-  let members = [{ id: 'me', name: '王小明' }, { id: 'other', name: '陳小華' }]
+  let members: { id: string; name: string; gender?: string }[] = [{ id: 'me', name: '王小明' }, { id: 'other', name: '陳小華' }]
   let person: { id: string } | null = { id: 'person' }
   let active = true
   const meeting: Meeting = { date: '2026-10-16', start: '19:30', chair: '王小明', reading: '', note: '', noteHighlight: '', items: [
@@ -50,6 +50,27 @@ async function main() {
   const monday = await personalAssignments(db, 'me', new Date('2026-10-18T16:00:00Z'))
   assert.equal(sunday.upcoming.length, 9)
   assert.equal(monday.upcoming.length, 3)
+  assert.equal(data.showBrotherService, true)
+  members[0].gender = 'brother'
+  assert.deepEqual(await personalAssignments(db, 'me', now), data)
+  members[0].gender = 'sister'
+  const sister = await personalAssignments(db, 'me', now)
+  assert.equal(sister.showBrotherService, false)
+  assert.equal(sister.upcoming.length, 7)
+  assert.equal(sister.past.length, 3)
+  assert(sister.upcoming.every(item => item.kind === 'program'))
+  assert(sister.past.every(item => item.kind === 'program'))
+  assert(sister.upcoming.some(item => item.role === '學生'))
+  assert(sister.upcoming.some(item => item.role === '助手'))
+  const reply = await lineBotAnswer(db, 'uid', '我的委派', now)
+  assert(!reply.includes('弟兄服務'))
+  assert(!reply.includes('/assignments/service'))
+  assert(reply.includes('/assignments/program'))
+  person = null
+  assert(!(await personalAssignments(db, 'me', now)).notices.some(text => text.includes('服務安排')))
+  person = { id: 'person' }
+  members[0].gender = 'unspecified'
+  assert.deepEqual(await personalAssignments(db, 'me', now), data)
   members = [...members, { id: 'duplicate', name: ' 王小明 ' }]
   assert.equal((await personalAssignments(db, 'me', now)).upcoming.length, 3)
   assert.match((await personalAssignments(db, 'me', now)).notices.join(''), /姓名/)

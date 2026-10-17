@@ -94,6 +94,7 @@ model Member {
   name      String
   email     String   @unique
   password  String
+  gender    String   @default("unspecified") // brother, sister, unspecified
   phone     String?
   role      String   @default("publisher") // admin, publisher, elder
   active    Boolean  @default(true)

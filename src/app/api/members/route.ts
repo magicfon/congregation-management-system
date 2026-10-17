@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
+    if (body.gender !== undefined && !["brother", "sister", "unspecified"].includes(body.gender)) {
+      return NextResponse.json({ error: "請選擇弟兄、姊妹或未設定" }, { status: 400 })
+    }
     if (body.showInDispatch !== undefined && typeof body.showInDispatch !== 'boolean') {
       return NextResponse.json({ error: '派發按鈕設定必須為布林值' }, { status: 400 })
     }
@@ -64,6 +67,7 @@ export async function POST(request: NextRequest) {
         password: passwordHash,
         phone: phone?.trim() || null,
         role: 'publisher',
+        gender: body.gender ?? 'unspecified',
         showInDispatch: body.showInDispatch ?? true,
         active: true,
       },
