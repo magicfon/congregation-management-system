@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
+import MemberLineDetails from '../../components/MemberLineDetails'
 import LinePairingPanel from '../../components/LinePairingPanel'
 import PendingLinePanel from '../../components/PendingLinePanel'
 import DashboardLayout from '../../components/layout/DashboardLayout'
@@ -359,9 +360,7 @@ export default function MembersPage() {
                         <HoldingStatus count={m.heldMapCount} />
                         {!m.active && <span className="text-xs text-mc-text/30">已停用</span>}
                       </div>
-                      <div className="text-xs text-mc-text/50 mt-0.5 truncate">{m.email}</div>
-                      {isAdmin && <LineIdentity member={m} />}
-                      {m.phone && <div className="text-xs text-mc-text/40">{m.phone}</div>}
+                      {isAdmin && <MemberLineDetails member={m} />}
                       <div className="mt-2">{dispatchButton(m)}</div>
                       <div className="text-xs text-mc-text/40 mt-1">
                         {m._count.schedules} 排班 · {m._count.reports} 回報
@@ -398,17 +397,16 @@ export default function MembersPage() {
               <thead>
                 <tr className="border-b border-white/5 bg-mc-accent/50">
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">姓名</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">聯絡方式</th>
-                  {isAdmin && <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50">LINE 名稱 / UID</th>}
+                  {isAdmin && <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50">LINE 名稱</th>}
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider hidden lg:table-cell">活動記錄</th>
                   <th className="text-right px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {loading ? (
-                  <tr><td colSpan={isAdmin ? 5 : 4} className="text-center py-16 text-mc-text/30 text-sm">載入中…</td></tr>
+                  <tr><td colSpan={isAdmin ? 4 : 3} className="text-center py-16 text-mc-text/30 text-sm">載入中…</td></tr>
                 ) : members.length === 0 ? (
-                  <tr><td colSpan={isAdmin ? 5 : 4} className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</td></tr>
+                  <tr><td colSpan={isAdmin ? 4 : 3} className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</td></tr>
                 ) : (
                   members.map((m) => (
                     <tr key={m.id} className={`hover:bg-mc-accent/30 transition-colors ${!m.active ? 'opacity-50' : ''}`}>
@@ -424,11 +422,7 @@ export default function MembersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="text-xs text-mc-text/50">{m.email}</div>
-                        {m.phone && <div className="text-xs text-mc-text/40">{m.phone}</div>}
-                      </td>
-                      {isAdmin && <td className="px-5 py-4 max-w-64"><LineIdentity member={m} /></td>}
+                      {isAdmin && <td className="px-5 py-4 max-w-64"><MemberLineDetails member={m} /></td>}
                       <td className="px-5 py-4 hidden lg:table-cell">
                         <span className="text-xs text-mc-text/50">
                           {m._count.schedules} 排班 · {m._count.reports} 回報
@@ -482,12 +476,4 @@ function HoldingStatus({ count }: { count: number }) {
   return <span className={`whitespace-nowrap rounded px-2 py-0.5 text-xs font-normal ${count > 0 ? 'bg-amber-400/10 text-amber-200' : 'text-mc-text/40'}`}>
     {count > 0 ? `持有 ${count} 張` : '未持有'}
   </span>
-}
-
-function LineIdentity({ member }: { member: Member }) {
-  if (!member.lineuid) return <div className="text-xs text-mc-text/40">未綁定 LINE</div>
-  return <div className="mt-1 text-xs text-mc-text/60">
-    <div>{member.lineDisplayName || '顯示名稱待下次登入更新'}</div>
-    <div className="break-all font-mono select-all">{member.lineuid}</div>
-  </div>
 }
