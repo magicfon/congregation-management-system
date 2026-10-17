@@ -210,6 +210,40 @@ export default function MembersPage() {
     return () => clearTimeout(t)
   }, [fetchMembers])
 
+  const [genderSaving, setGenderSaving] = useState<string | null>(null)
+  const [genderError, setGenderError] = useState('')
+
+  async function handleGender(member: Member, gender: string) {
+    if (!isAdmin || genderSaving || member.gender === gender) return
+    setGenderSaving(member.id)
+    setGenderError('')
+    try {
+      const res = await fetch(`/api/members/${member.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gender }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || '無法更新')
+      setMembers(current => current.map(item => item.id === member.id ? { ...item, gender: result.gender } : item))
+    } catch (error) {
+      setGenderError(`${member.name}：${error instanceof Error ? error.message : '無法更新'}`)
+    } finally { setGenderSaving(null) }
+  }
+
+  function genderButtons(member: Member) {
+    return isAdmin && <fieldset disabled={genderSaving !== null} className="mt-2">
+      <legend className="sr-only">{member.name}的弟兄／姊妹設定</legend>
+      <div className="flex flex-wrap gap-1">
+        {[{ value: 'brother', label: '弟兄' }, { value: 'sister', label: '姊妹' }, { value: 'unspecified', label: '未設定' }].map(option => <button key={option.value} type="button"
+          aria-pressed={(member.gender ?? 'unspecified') === option.value}
+          onClick={() => void handleGender(member, option.value)}
+          className={`min-h-11 rounded-lg border px-3 text-xs whitespace-nowrap disabled:opacity-50 ${(member.gender ?? 'unspecified') === option.value ? 'border-blue-400/40 bg-blue-400/15 text-blue-300' : 'border-white/10 text-mc-text/50'}`}
+        >{option.label}</button>)}
+      </div>
+      {genderSaving === member.id && <span role="status" className="text-xs text-mc-text/50">儲存中…</span>}
+    </fieldset>
+  }
+
   async function handleToggleDispatch(member: Member) {
     if (!isAdmin || dispatchSaving) return
     setDispatchSaving(member.id)
@@ -302,6 +336,7 @@ export default function MembersPage() {
 
         </div>
 
+        {genderError && <p role="alert" className="mb-3 text-sm text-red-300">{genderError}</p>}
         {dispatchError && <p role="alert" className="mb-3 text-sm text-red-300">{dispatchError}</p>}
         {/* Mobile card list */}
         <div className="md:hidden space-y-3">
@@ -347,6 +382,7 @@ export default function MembersPage() {
                     {deleteButton(m)}
                   </div>
                 </div>
+                {genderButtons(m)}
               </div>
             ))
           )}
@@ -383,6 +419,7 @@ export default function MembersPage() {
                           </div>
                           <div>
                             <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-mc-text">{m.name}{isAdmin && <MemberRole role={m.role} />}<HoldingStatus count={m.heldMapCount} /></div>
+                            {genderButtons(m)}
                             {!m.active && <div className="text-xs text-mc-text/30">已停用</div>}
                           </div>
                         </div>

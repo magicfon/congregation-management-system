@@ -3,6 +3,7 @@ function load(file,mocks){const exports={};vm.runInNewContext(ts.transpileModule
 let role='publisher',written=null;const fields={memberLineFields:{id:true,name:true,showInDispatch:true},memberFields:{id:true,name:true}};
 const auth={requireApiUser:async()=>role==='admin'?{user:{id:'actor',role}}:{response:new Response('{}',{status:403})}};
 const prisma={member:{findUnique:async q=>q.where.id==='actor'?{id:'actor',role:'admin',active:true,deletedAt:null}:{id:'m1',email:'test@example.com',role:'publisher',active:true},update:async q=>{written=q.data;return q.data},create:async q=>{written=q.data;return q.data}}};
+prisma.member.updateMany=async q=>{written=q.data;assert.equal(q.where.deletedAt,null);return {count:1}};
 prisma.$transaction=async fn=>fn(prisma);
 const update=load('src/app/api/members/[id]/route.ts',{'../../../../lib/member-deletion':{},'../../../../lib/db':{prisma},'../../../../lib/api-auth':auth,'../../../../lib/member-fields':fields});
 const create=load('src/app/api/members/route.ts',{'../../../lib/allocation':{},'../../../lib/db':{prisma},'../../../lib/api-auth':auth,'../../../lib/member-fields':fields,'bcryptjs':{hash:async()=> 'test-hash'}});
@@ -26,5 +27,14 @@ const req=body=>({json:async()=>body}),ctx={params:{id:'m1'}};
  }
  await create.POST(req(body));assert.equal(written.gender,'unspecified');
  await update.PUT(req({name:'測試'}),ctx);assert(!('gender' in written));
- console.log('PASS: gender choices, invalid values, default and omitted update; admin-only setting, strict boolean, default visible, omitted update preserves setting, account activation unchanged.');
+ role='publisher';written=null;
+ assert.equal((await update.PATCH(req({gender:'sister'}),ctx)).status,403);assert.equal(written,null);
+ role='admin';
+ for(const gender of ['brother','sister','unspecified']) {
+  assert.equal((await update.PATCH(req({gender}),ctx)).status,200);
+  assert.equal(written.gender,gender);assert.deepEqual(Object.keys(written),['gender']);
+ }
+ for(const body of [{},{gender:null},{gender:'invalid'},{gender:'sister',showInDispatch:'false'}]) assert.equal((await update.PATCH(req(body),ctx)).status,400);
+ assert.equal((await update.PATCH(req({showInDispatch:false}),ctx)).status,200);assert.deepEqual(Object.keys(written),['showInDispatch']);
+ console.log('PASS: inline admin-only gender updates, omitted fields preserved; gender choices, invalid values, default and omitted update; admin-only setting, strict boolean, default visible, omitted update preserves setting, account activation unchanged.');
 })().catch(e=>{console.error(e);process.exitCode=1});

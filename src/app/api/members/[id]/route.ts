@@ -100,17 +100,23 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if ('response' in auth) return auth.response
   try {
     const body = await request.json()
-    if (typeof body.showInDispatch !== 'boolean') {
-      return NextResponse.json({ error: '派發設定格式錯誤' }, { status: 400 })
+    if ((body.showInDispatch === undefined && body.gender === undefined) ||
+      (body.showInDispatch !== undefined && typeof body.showInDispatch !== 'boolean') ||
+      (body.gender !== undefined && !['brother', 'sister', 'unspecified'].includes(body.gender))) {
+      return NextResponse.json({ error: '人員設定格式錯誤' }, { status: 400 })
+    }
+    const data = {
+      ...(body.showInDispatch !== undefined ? { showInDispatch: body.showInDispatch } : {}),
+      ...(body.gender !== undefined ? { gender: body.gender } : {}),
     }
     const result = await prisma.member.updateMany({
       where: { id: params.id, deletedAt: null },
-      data: { showInDispatch: body.showInDispatch },
+      data,
     })
     if (!result.count) return NextResponse.json({ error: '成員不存在' }, { status: 404 })
-    return NextResponse.json({ showInDispatch: body.showInDispatch })
+    return NextResponse.json(data)
   } catch {
-    return NextResponse.json({ error: '無法更新派發設定' }, { status: 500 })
+    return NextResponse.json({ error: '無法更新人員設定' }, { status: 500 })
   }
 }
 
