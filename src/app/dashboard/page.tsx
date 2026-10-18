@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Map, Clock3, MapPinned } from 'lucide-react'
+import { ArrowRight, ChevronDown, MapPinned, Settings2 } from 'lucide-react'
 import AdminTaskCenter from '../../components/dashboard/AdminTaskCenter'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import LineBotStatus from '../../components/dashboard/LineBotStatus'
@@ -31,22 +31,44 @@ export default function DashboardPage() {
     const frame = requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }))
     return () => cancelAnimationFrame(frame)
   }, [data])
-  return <DashboardLayout><div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8 text-mc-text">
-    <header className="flex items-center justify-between gap-3"><div><h1 className="text-xl font-semibold">{data ? `${data.name}的看板` : '我的看板'}</h1><p className="mt-1 text-sm text-mc-text/50">{data?.showTerritory ? '查看個人委派、領取進度與待辦事項' : '查看個人委派'}</p></div>{data?.showTerritory && <a href="/area-status" className="flex items-center gap-2 rounded-lg bg-mc-highlight px-3 py-2 text-sm"><MapPinned size={16} />申請領圖</a>}</header>
-    {error && <div role="alert" className="rounded-xl bg-red-400/10 p-4 text-red-300">{error}<button className="ml-3 underline" onClick={() => setRevision(v => v + 1)}>重試</button></div>}
-    {!data && !error && <p role="status" className="py-12 text-center text-mc-text/50">正在載入你的看板…</p>}
+  return <DashboardLayout><div className="mx-auto max-w-5xl space-y-8 p-4 pb-10 text-mc-text selection:bg-blue-300/25 md:space-y-10 md:p-8 md:pb-14">
+    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
+      <div><h1 className="text-2xl font-semibold tracking-tight">我的看板</h1>{data && <p className="mt-2 text-sm text-mc-text/70">{data.name}</p>}</div>
+      {data?.showTerritory && <a href="/area-status" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/15 px-4 text-sm text-blue-200 hover:bg-white/5"><MapPinned size={16} aria-hidden="true" />申請領圖</a>}
+    </header>
+    {error && <div role="alert" className="rounded-xl bg-red-400/10 p-4 text-red-200">{error}<button className="ml-3 min-h-11 underline underline-offset-4" onClick={() => setRevision(v => v + 1)}>重新載入</button></div>}
+    {!data && !error && <div role="status" className="space-y-4"><span className="text-sm text-mc-text/70">正在載入看板…</span><div aria-hidden="true" className="h-48 rounded-xl bg-mc-card motion-safe:animate-pulse" /></div>}
     {data && <>
       <PersonalAssignmentsPanel data={data.assignments} />
       {data.isAdmin && <AdminTaskCenter />}
       {data.showTerritory && <>
-      {!data.isAdmin && <section id="handoffs" className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4"><h2 className="mb-3 font-semibold text-amber-300">待交接 · {data.handoffs.length} 張</h2><div className="space-y-2">{!data.handoffs.length && <p className="text-sm text-mc-text/50">暫無待交接地圖</p>}{data.handoffs.map(item => <a key={item.areaId} href={`/map/ministry/${item.areaId}`} className="flex items-center justify-between gap-3 rounded-lg bg-black/10 p-3"><div><strong>{item.label}</strong><p className="mt-1 text-xs text-mc-text/60">{item.publisher} 已提交 · {item.submittedDate || '日期未記錄'}</p><p className="mt-1 text-xs text-amber-200">{item.next ? `下一位：${item.next.name} · ${item.next.date}` : '尚未安排下一位'}</p></div><span className="shrink-0 text-sm">查看交接 →</span></a>)}</div></section>}
-      <div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-white/10 bg-mc-card p-4"><Map className="mb-2 text-blue-300" size={20} /><strong className="text-3xl">{data.maps.length}</strong><p className="mt-1 text-sm text-mc-text/60">我持有的地圖</p></div><a href="/map-requests" className="rounded-xl border border-white/10 bg-mc-card p-4"><Clock3 className="mb-2 text-amber-300" size={20} /><strong className="text-3xl">{data.pendingRequests.length}</strong><p className="mt-1 text-sm text-mc-text/60">我的待審申請</p></a></div>
-      <section id="maps" className="scroll-mt-16"><h2 className="mb-3 font-semibold">尚待完成交回</h2>{!data.maps.length ? <div className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-mc-text/50">目前沒有持有地圖，可前往區域狀況申請。</div> : <div className="grid gap-3 md:grid-cols-2">{data.maps.map(map => <article key={map.id} className="rounded-xl border border-white/10 bg-mc-card p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-semibold">{map.label}</h3><span className="rounded-full bg-blue-400/10 px-2 py-1 text-xs text-blue-300">持有中</span></div><p className="mt-3 text-sm">{map.heldDays === null ? '領取日期未記錄' : <>已領取 <strong className="text-xl tabular-nums">{map.heldDays}</strong> 天</>}</p><p className="mt-1 text-xs text-mc-text/40">{map.dispatchedDate || '日期待確認'}</p><div className="my-3 border-t border-white/5 pt-3 text-xs">{map.report ? <p className="text-emerald-300">{map.report.date} 已提交系統回報</p> : <p className="text-amber-300">{map.dispatchedDate ? '本輪尚無系統回報' : '無領取日期，無法判斷本輪回報'}</p>}</div><p className="mb-3 text-xs text-blue-300">{map.ministryActive ? '傳道者進行中' : map.ministryPending ? `${map.ministryPending} 筆預排待交接` : '尚無待執行安排'}</p><div className="flex flex-wrap gap-2 text-sm"><a className="rounded-lg bg-mc-highlight px-3 py-2" href={`/map/ministry/${map.id}`}>管理／傳道進度</a>{map.sheetNo && map.sheetNo !== 2 && <a className="rounded-lg bg-white/5 px-3 py-2" href={`/maps/areas/${map.sheetNo}.jpg`} target="_blank" rel="noreferrer">查看小地圖 ↗</a>}<a className="rounded-lg border border-white/10 px-3 py-2 text-blue-300" href="/reports">查看／提交回報</a></div></article>)}</div>}<p className="mt-3 text-xs text-mc-text/40">系統回報不等於整張地圖已完成；完成交回後，地圖才會移出此清單。</p></section>
-      {!!data.pendingRequests.length && <section className="rounded-xl border border-white/10 bg-mc-card p-4"><h2 className="mb-3 font-semibold">我的領圖申請</h2>{data.pendingRequests.map(r => <div key={r.id} className="flex items-center justify-between border-t border-white/5 py-2 text-sm"><span>{r.label}</span><span className="text-xs text-amber-300">待審核 · {r.date}</span></div>)}</section>}
+        {!data.isAdmin && <section id="handoffs" className="scroll-mt-20 border-t border-white/10 pt-6">
+          <div className="flex items-baseline justify-between gap-3"><h2 className="text-lg font-semibold">待交接</h2><span className={`text-sm ${data.handoffs.length ? 'text-amber-200' : 'text-mc-text/70'}`}>{data.handoffs.length} 張</span></div>
+          {!data.handoffs.length ? <p className="mt-3 text-sm text-mc-text/70">目前無待交接地圖</p> : <div className="mt-3 divide-y divide-white/10">{data.handoffs.map(item => <details key={item.areaId} className="group">
+            <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 py-3 [&::-webkit-details-marker]:hidden"><span className="font-medium">{item.label}</span><span className="ml-auto text-sm text-amber-200">{item.next ? '已有下一位' : '待安排'}</span><ChevronDown size={16} aria-hidden="true" className="shrink-0 text-mc-text/70 transition-transform group-open:rotate-180" /></summary>
+            <div className="space-y-2 pb-5 text-sm text-mc-text/70"><p>{item.publisher} 已提交 · {item.submittedDate || '日期未記錄'}</p><p>{item.next ? `下一位：${item.next.name} · ${item.next.date}` : '尚未安排下一位'}</p><a href={`/map/ministry/${item.areaId}`} className="inline-flex min-h-11 items-center gap-2 text-blue-200">處理交接<ArrowRight size={16} aria-hidden="true" /></a></div>
+          </details>)}</div>}
+        </section>}
+        <section id="maps" className="scroll-mt-20 border-t border-white/10 pt-6">
+          <header className="flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-lg font-semibold">我的地圖 <span className="ml-2 text-sm font-normal text-mc-text/70">{data.maps.length} 張</span></h2><a href="/map-requests" className="inline-flex min-h-11 items-center gap-2 text-sm text-blue-200">領圖申請{data.pendingRequests.length > 0 && <span className="text-amber-200">{data.pendingRequests.length} 待審</span>}<ArrowRight size={15} aria-hidden="true" /></a></header>
+          {!data.maps.length ? <p className="py-5 text-sm text-mc-text/70">目前沒有持有地圖</p> : <div className="divide-y divide-white/10">{data.maps.map(map => <details key={map.id} className="group">
+            <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 py-4 [&::-webkit-details-marker]:hidden">
+              <div className="min-w-0 flex-1"><h3 className="break-words font-medium">{map.label}</h3><p className="mt-1 text-sm text-mc-text/70">{map.ministryActive ? '傳道進行中' : map.ministryPending ? `${map.ministryPending} 筆預排` : '尚無預排'}</p></div>
+              <span className="shrink-0 text-sm tabular-nums text-mc-text/70">{map.heldDays === null ? '日期待補' : `持有 ${map.heldDays} 天`}</span><ChevronDown size={16} aria-hidden="true" className="shrink-0 text-mc-text/70 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="space-y-4 pb-6">
+              <dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-mc-text/70">領取日期</dt><dd className="mt-1">{map.dispatchedDate || '未記錄'}</dd></div><div><dt className="text-mc-text/70">本輪回報</dt><dd className="mt-1">{map.report ? `${map.report.date} 已提交` : map.dispatchedDate ? '尚未提交' : '無領取日期，無法判斷'}</dd></div></dl>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm"><a className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-blue-300/15 px-4 text-blue-200 hover:bg-blue-300/25" href={`/map/ministry/${map.id}`}>管理／傳道進度<ArrowRight size={15} aria-hidden="true" /></a>{map.sheetNo && map.sheetNo !== 2 && <a className="inline-flex min-h-11 items-center text-mc-text/80 underline underline-offset-4" href={`/maps/areas/${map.sheetNo}.jpg`} target="_blank" rel="noreferrer">查看小地圖</a>}<a className="inline-flex min-h-11 items-center text-mc-text/80 underline underline-offset-4" href="/reports">查看／提交回報</a></div>
+              <p className="text-xs leading-relaxed text-mc-text/70">提交回報不代表整張完成；交回後才會移出清單。</p>
+            </div>
+          </details>)}</div>}
+          {data.pendingRequests.length > 0 && <details className="group border-t border-white/10"><summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden">待審申請明細 · {data.pendingRequests.length} 張<ChevronDown size={16} aria-hidden="true" className="transition-transform group-open:rotate-180" /></summary><ul className="space-y-3 py-3">{data.pendingRequests.map(r => <li key={r.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{r.label}</span><time className="text-mc-text/70">{r.date}</time></li>)}</ul></details>}
+        </section>
       </>}
-      {data.isAdmin && <SyncCheck />}
-      <LineNotificationPreference />
-      {data.isAdmin && <LineBotStatus />}
+      <footer className="space-y-3 border-t border-white/10 pt-6">
+        <LineNotificationPreference />
+        {data.isAdmin && <details className="group"><summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden"><Settings2 size={16} aria-hidden="true" />管理工具<ChevronDown size={16} aria-hidden="true" className="ml-auto transition-transform group-open:rotate-180" /></summary><div className="space-y-4 py-4"><SyncCheck /><LineBotStatus /></div></details>}
+      </footer>
     </>}
   </div></DashboardLayout>
 }
