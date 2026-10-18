@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { UserRound, CalendarDays, Send, ClipboardPlus } from 'lucide-react'
+import { UserRound, CalendarDays, Send, ClipboardPlus, ChevronDown } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import DispatchSubmitBar from '../../components/map/DispatchSubmitBar'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
@@ -11,6 +11,8 @@ import { DISTRICT_NAMES } from '../../lib/allocation'
 import { type AreaStatusData } from '../../lib/area-status'
 
 export default function AreaStatusPage() {
+  const [infoOpen, setInfoOpen] = useState(true)
+  const [queueOpen, setQueueOpen] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminMode, setAdminMode] = useState<'dispatch' | 'request'>('dispatch')
@@ -77,7 +79,7 @@ export default function AreaStatusPage() {
       <div className="min-h-0 min-w-0 relative">
         {loading && <div role="status" className="h-full rounded-xl bg-mc-card flex items-center justify-center text-sm text-mc-text/60">正在載入分區…</div>}
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
-        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={setSelectedId} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} />}
+        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setSelectedId(id); setInfoOpen(true) }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} />}
       </div>
       <aside aria-label="區塊明細與領圖操作" className="min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card">
         {isAdmin && <div className="shrink-0 border-b border-white/10 p-2">
@@ -86,7 +88,11 @@ export default function AreaStatusPage() {
           </div>
           <p className="mt-1 text-center text-[11px] text-mc-text/50">{queue.length > 5 ? '選取降至 5 張以內，即可切換申請' : dispatchMode ? '為成員直接派發地圖' : '為自己申請領取 · 最多 5 張'}</p>
         </div>}
-        <div ref={detailPanel} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <section className={`min-h-0 flex flex-col ${infoOpen ? 'flex-1' : 'shrink-0'}`}>
+        <h2><button type="button" aria-expanded={infoOpen} aria-controls="area-info-content" onClick={() => setInfoOpen(open => !open)} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold hover:bg-white/5">
+          地圖資訊<ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform ${infoOpen ? 'rotate-180' : ''}`} />
+        </button></h2>
+        <div id="area-info-content" ref={detailPanel} hidden={!infoOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <section aria-live="polite" className="p-3">
           {selected ? <>
             <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-semibold">{DISTRICT_NAMES[mapId]} {selected.numbers.length ? `${selected.numbers.join('、')} 號` : '未配對區塊'}</h2><button aria-label="取消查看區塊" onClick={() => setSelectedId(null)} className="px-2 py-1 text-mc-text/50">×</button></div>
@@ -117,9 +123,15 @@ export default function AreaStatusPage() {
           {!!data.unlocatedNumbers.length && <p>尚未定位：{data.unlocatedNumbers.join('、')} 號</p>}
         </div></details>}
         </div>
-        <div className={`shrink-0 border-t border-white/10 max-h-[45%] overflow-y-auto ${dispatchMode ? 'lg:max-h-[70%]' : ''}`}>
+        </section>
+        <section className={`min-h-0 flex flex-col border-t border-white/10 ${queueOpen ? `flex-1 ${infoOpen && dispatchMode ? 'lg:flex-[2]' : ''}` : 'shrink-0'}`}>
+          <h2><button type="button" aria-expanded={queueOpen} aria-controls="area-queue-content" onClick={() => setQueueOpen(open => !open)} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold hover:bg-white/5">
+            <span>{dispatchMode ? '派發清單' : '申請清單'}<span className="ml-2 text-blue-300">已選 {queue.length} 張</span></span><ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform ${queueOpen ? 'rotate-180' : ''}`} />
+          </button></h2>
+          <div id="area-queue-content" hidden={!queueOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {dispatchMode ? <DispatchSubmitBar items={queue} onBusy={setActionBusy} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} /> : <RequestSubmitBar compact onBusy={setActionBusy} items={queue} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} />}
-        </div>
+          </div>
+        </section>
       </aside>
     </div>
   </div></DashboardLayout>
