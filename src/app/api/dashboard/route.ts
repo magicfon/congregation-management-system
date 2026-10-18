@@ -13,12 +13,13 @@ export async function GET() {
   try {
     const memberId = auth.user.id!
     const isAdmin = auth.user.role === 'admin'
-    const [areas, pendingRequests, reviewCount, assignedVisits, assignments] = await Promise.all([
+    const [areas, pendingRequests, reviewCount, assignedVisits, assignments, member] = await Promise.all([
       prisma.area.findMany({ where: { assignedMemberId: memberId }, select: { id: true, name: true, mapId: true, mapAreaId: true, sheetNo: true, assignedMemberId: true, dispatchedAt: true, completedAt: true, ministryVisits: { select: { status: true, cycleKey: true, publisherName: true, scheduledDate: true, submittedAt: true } }, reports: { where: { memberId }, orderBy: { submittedAt: 'desc' }, take: 1, select: { submittedAt: true, status: true } } }, orderBy: { dispatchedAt: 'asc' } }),
       prisma.mapRequest.findMany({ where: { memberId, status: 'pending' }, select: { id: true, createdAt: true, area: { select: { name: true, mapId: true, mapAreaId: true, sheetNo: true } } }, orderBy: { createdAt: 'asc' } }),
       isAdmin ? prisma.mapRequest.count({ where: { status: 'pending' } }) : Promise.resolve(null),
       prisma.ministryVisit.findMany({ where: { publisherId: memberId, status: { in: ['planned', 'active'] } }, include: { area: { select: { id: true, name: true, mapId: true, sheetNo: true, mapAreaId: true, assignedMemberId: true, dispatchedAt: true, completedAt: true } } }, orderBy: { scheduledDate: 'asc' } }),
       personalAssignments(prisma, memberId),
+      prisma.member.findUnique({ where: { id: memberId }, select: { showInDispatch: true } }),
     ])
     const today = taipeiDate(new Date())
     const maps = areas.filter(isAreaDispatched).map(area => {
@@ -30,6 +31,6 @@ export async function GET() {
       return handoff ? [handoff] : []
     })
     const tasks = assignedVisits.filter(v => isAreaDispatched(v.area) && v.cycleKey === ministryCycle(v.area)).map(v => ({ id: v.id, areaId: v.areaId, label: allocationLabel(v.area), date: v.scheduledDate, status: v.status }))
-    return NextResponse.json({ today, assignments, handoffs, tasks, name: auth.user.name || '成員', isAdmin, maps, pendingRequests: pendingRequests.map(r => ({ id: r.id, label: allocationLabel(r.area), date: taipeiDate(r.createdAt) })), reviewCount }, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ showTerritory: member?.showInDispatch === true, today, assignments, handoffs, tasks, name: auth.user.name || '成員', isAdmin, maps, pendingRequests: pendingRequests.map(r => ({ id: r.id, label: allocationLabel(r.area), date: taipeiDate(r.createdAt) })), reviewCount }, { headers: { 'Cache-Control': 'no-store' } })
   } catch { return NextResponse.json({ error: '暫時無法讀取你的地圖，請稍後重試。' }, { status: 503 }) }
 }
