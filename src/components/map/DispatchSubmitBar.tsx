@@ -1,5 +1,5 @@
 'use client'
-import DispatchMemberPicker, { visibleDispatchMembers } from './DispatchMemberPicker'
+import DispatchMemberPicker, { activeDispatchMembers } from './DispatchMemberPicker'
 import { useEffect, useRef, useState } from 'react'
 
 export default function DispatchSubmitBar({ items, onRemove, onSubmitted, onBusy }: { items: { id: string; label: string }[]; onRemove: (id: string) => void; onSubmitted: () => void; onBusy: (busy: boolean) => void }) {
@@ -16,7 +16,7 @@ export default function DispatchSubmitBar({ items, onRemove, onSubmitted, onBusy
     void fetch('/api/members?active=true', { signal: controller.signal }).then(async r => {
       if (!r.ok) throw new Error()
       const value = await r.json()
-      if (!controller.signal.aborted) setMembers(visibleDispatchMembers(value))
+      if (!controller.signal.aborted) setMembers(activeDispatchMembers(value))
     }).catch(() => { if (!controller.signal.aborted) setLoadError(true) })
     return () => controller.abort()
   }, [retry])

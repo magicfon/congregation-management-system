@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AllocationArea, allocationLabel, DISTRICT_NAMES } from '../../lib/allocation'
 
-import DispatchMemberPicker, { visibleDispatchMembers } from './DispatchMemberPicker'
+import DispatchMemberPicker, { activeDispatchMembers } from './DispatchMemberPicker'
 import RequestSubmitBar from './RequestSubmitBar'
 
 type Member = { id: string; name: string }
@@ -41,8 +41,8 @@ export default function MapAllocationList() {
       setAreas(data.areas)
       setSyncedAt(data.syncedAt)
       setIsAdmin(user.isAdmin === true)
-      setMembers(visibleDispatchMembers(memberList))
-      setMemberId((current) => visibleDispatchMembers(memberList).some((m: Member) => m.id === current) ? current : '')
+      setMembers(activeDispatchMembers(memberList))
+      setMemberId((current) => activeDispatchMembers(memberList).some((m: Member) => m.id === current) ? current : '')
     } catch (e) { setError(e instanceof Error ? e.message : '載入失敗') }
     finally { setLoading(false) }
   }, [])
