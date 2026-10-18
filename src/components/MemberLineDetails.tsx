@@ -62,7 +62,7 @@ export default function MemberLineDetails({ member }: { member: MemberDetails })
         <button type="button" onClick={() => setOpen(false)} aria-label="關閉詳細資訊" className="min-h-8 min-w-8 rounded text-mc-text/60 hover:bg-white/10">×</button>
       </div>
       <dl className="space-y-3 text-xs">
-        {[['LINE 名稱', member.lineDisplayName || (member.lineuid ? '待下次登入更新' : '未綁定 LINE')], ['UID', member.lineuid || '未綁定'], ['Email', member.email || '未設定'], ['電話', member.phone || '未設定']].map(([label, value]) => <div key={label}>
+        {[['LINE 名稱', member.lineDisplayName || (member.lineuid ? '待下次登入更新' : '未綁定 LINE')], ['UID', member.lineuid || '未綁定'], ['電話', member.phone || '未設定']].map(([label, value]) => <div key={label}>
           <dt className="mb-1 text-mc-text/40">{label}</dt>
           <dd className={`break-all select-text ${label === 'UID' ? 'font-mono' : ''}`}>{value}</dd>
         </div>)}

@@ -13,8 +13,10 @@ const req=body=>({json:async()=>body}),ctx={params:{id:'m1'}};
  for(const value of ['false',null,0]) assert.equal((await update.PUT(req({name:'測試',showInDispatch:value}),ctx)).status,400);
  assert.equal((await update.PUT(req({name:'測試',showInDispatch:false}),ctx)).status,200);assert.equal(written.showInDispatch,false);assert.equal(written.active,true);
  await update.PUT(req({name:'測試'}),ctx);assert(!('showInDispatch' in written),'omitted setting must remain unchanged');
- const body={name:'測試',email:'test@example.com',password:'abcdef'};
- assert.equal((await create.POST(req(body))).status,201);assert.equal(written.showInDispatch,true);
+ const body={name:'測試'};
+ assert.equal((await create.POST(req(body))).status,201);assert.equal(written.showInDispatch,true);assert.match(written.email,/^line-[a-f0-9-]+@members\.invalid$/);assert(written.password);
+ const firstEmail=written.email;await create.POST(req(body));assert.notEqual(written.email,firstEmail);
+ for(const name of ['',null,123])assert.equal((await create.POST(req({name}))).status,400);
  await create.POST(req({...body,showInDispatch:false}));assert.equal(written.showInDispatch,false);
  assert.equal((await create.POST(req({...body,showInDispatch:'false'}))).status,400);
  for (const gender of ['sister','brother','unspecified']) {

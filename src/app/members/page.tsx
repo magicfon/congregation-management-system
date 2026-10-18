@@ -36,8 +36,6 @@ function MemberModal({
   const [gender, setGender] = useState(member?.gender ?? 'unspecified')
   const [role, setRole] = useState(member?.role ?? 'publisher')
   const [name, setName] = useState(member?.name ?? '')
-  const [email, setEmail] = useState(member?.email ?? '')
-  const [password, setPassword] = useState('')
   const [phone, setPhone] = useState(member?.phone ?? '')
   const [showInDispatch, setShowInDispatch] = useState(member?.showInDispatch ?? true)
   const [active, setActive] = useState(member?.active ?? true)
@@ -51,10 +49,9 @@ function MemberModal({
     try {
       const url = member ? `/api/members/${member.id}` : '/api/members'
       const method = member ? 'PUT' : 'POST'
-      const body: Record<string, unknown> = { name, email, phone, active, gender }
+      const body: Record<string, unknown> = { name, phone, active, gender }
       if (member && role !== member.role) { body.role = role; body.expectedRole = member.role }
       if (!member) body.showInDispatch = showInDispatch
-      if (!member || password) body.password = password
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -97,33 +94,6 @@ function MemberModal({
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="例：王大明"
-              className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-mc-text/70 mb-1.5">電子郵件 *</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="example@congregation.local"
-              className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-mc-text/70 mb-1.5">
-              {member ? '新密碼（留空則不更改）' : '密碼 *（最少 6 個字元）'}
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required={!member}
-              minLength={member ? 0 : 6}
-              placeholder={member ? '留空則不更改' : '請輸入密碼'}
               className="w-full px-4 py-2.5 rounded-lg bg-mc-accent border border-white/10 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition-colors text-sm"
             />
           </div>
@@ -296,7 +266,7 @@ export default function MembersPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜尋姓名、郵件、電話或 LINE…"
+              placeholder="搜尋姓名、電話或 LINE…"
               className="w-full pl-10 pr-4 py-3 md:py-2.5 rounded-lg bg-mc-card border border-white/5 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/40 transition-colors text-sm min-h-[44px]"
             />
           </div>

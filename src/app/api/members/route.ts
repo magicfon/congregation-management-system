@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'crypto'
 import { hash } from 'bcryptjs'
 import { prisma } from '../../../lib/db'
 import { requireApiUser } from '../../../lib/api-auth'
@@ -51,19 +52,19 @@ export async function POST(request: NextRequest) {
     if (body.showInDispatch !== undefined && typeof body.showInDispatch !== 'boolean') {
       return NextResponse.json({ error: '派發按鈕設定必須為布林值' }, { status: 400 })
     }
-    const { name, email, password, phone } = body
+    const { name, phone } = body
 
-    if (!name?.trim() || !email?.trim() || !password?.trim()) {
-      return NextResponse.json({ error: '姓名、Email 和密碼為必填' }, { status: 400 })
+    if (typeof name !== 'string' || !name.trim()) {
+      return NextResponse.json({ error: '姓名為必填' }, { status: 400 })
     }
 
-    const passwordHash = await hash(password.trim(), 10)
+    const passwordHash = await hash(randomUUID(), 10)
 
     const member = await prisma.member.create({
       select: memberLineFields,
       data: {
         name: name.trim(),
-        email: email.trim(),
+        email: `line-${randomUUID()}@members.invalid`,
         password: passwordHash,
         phone: phone?.trim() || null,
         role: 'publisher',
