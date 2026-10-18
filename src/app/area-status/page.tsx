@@ -75,7 +75,7 @@ export default function AreaStatusPage() {
       <label className="flex items-center gap-1.5"><input type="checkbox" checked={grayDispatched} onChange={e => setGrayDispatched(e.target.checked)} />已分發地圖顯示灰色</label>
       <span className="hidden lg:inline text-mc-text/50">距上次完成回報 · 三區共用色階</span>
     </div>
-    <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:grid-rows-1 md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] gap-2">
+    <div className={`flex-1 min-h-0 grid ${queueOpen ? 'grid-rows-[minmax(0,0.35fr)_minmax(0,1.65fr)]' : 'grid-rows-[minmax(0,0.9fr)_minmax(0,1.1fr)]'} md:grid-rows-1 md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] gap-2`}>
       <div className="min-h-0 min-w-0 relative">
         {loading && <div role="status" className="h-full rounded-xl bg-mc-card flex items-center justify-center text-sm text-mc-text/60">正在載入分區…</div>}
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
@@ -124,7 +124,7 @@ export default function AreaStatusPage() {
         </div></details>}
         </div>
         </section>
-        <section className={`min-h-0 flex flex-col border-t border-white/10 ${queueOpen ? `flex-1 ${infoOpen && dispatchMode ? 'lg:flex-[2]' : ''}` : 'shrink-0'}`}>
+        <section className={`min-h-0 flex flex-col border-t border-white/10 ${queueOpen ? `flex-[3] md:flex-1 ${infoOpen && dispatchMode ? 'lg:flex-[2]' : ''}` : 'shrink-0'}`}>
           <h2><button type="button" aria-expanded={queueOpen} aria-controls="area-queue-content" onClick={() => setQueueOpen(open => !open)} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold hover:bg-white/5">
             <span>{dispatchMode ? '派發清單' : '申請清單'}<span className="ml-2 text-blue-300">已選 {queue.length} 張</span></span><ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform ${queueOpen ? 'rotate-180' : ''}`} />
           </button></h2>
