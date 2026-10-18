@@ -117,7 +117,7 @@ export default function AreaStatusPage() {
           {!!data.unlocatedNumbers.length && <p>尚未定位：{data.unlocatedNumbers.join('、')} 號</p>}
         </div></details>}
         </div>
-        <div className="shrink-0 border-t border-white/10 max-h-[45%] overflow-y-auto">
+        <div className={`shrink-0 border-t border-white/10 max-h-[45%] overflow-y-auto ${dispatchMode ? 'lg:max-h-[60%]' : ''}`}>
           {dispatchMode ? <DispatchSubmitBar items={queue} onBusy={setActionBusy} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} /> : <RequestSubmitBar compact onBusy={setActionBusy} items={queue} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} />}
         </div>
       </aside>

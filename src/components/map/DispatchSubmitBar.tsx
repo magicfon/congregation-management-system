@@ -34,7 +34,7 @@ export default function DispatchSubmitBar({ items, onRemove, onSubmitted, onBusy
     } catch (e) { setMessage(e instanceof Error ? e.message : '連線中斷，請先重新整理確認分發結果。') }
     finally { lock.current = false; setBusy(false); onBusy(false) }
   }
-  return <section aria-label="待分發清單" className="space-y-2 bg-mc-card p-3 text-sm">
+  return <section aria-label="待分發清單" className="space-y-2 bg-mc-card p-3 text-sm lg:[&_[role=group]]:max-h-60">
     <div className="flex justify-between"><strong>待分發 <span className="text-blue-300">{items.length}</span> 張</strong><span className="text-xs text-mc-text/50">選地圖 → 選成員 → 分發</span></div>
     {!!items.length && <div className="flex max-h-20 overflow-y-auto flex-wrap gap-1">{items.map(i => <button key={i.id} disabled={busy} onClick={() => onRemove(i.id)} aria-label={`取消選取${i.label}`} className="rounded bg-white/5 px-2 py-1 text-xs">{i.label} ×</button>)}</div>}
     {loadError ? <button className="text-amber-300" onClick={() => setRetry(v => v + 1)}>成員載入失敗，點此重試</button> : <div className="space-y-2">
