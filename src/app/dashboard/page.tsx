@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, ChevronDown, MapPinned, Settings2 } from 'lucide-react'
 import AdminTaskCenter from '../../components/dashboard/AdminTaskCenter'
-import DashboardLayout from '../../components/layout/DashboardLayout'
+import DashboardLayout, { DashboardAppearance } from '../../components/layout/DashboardLayout'
 import LineBotStatus from '../../components/dashboard/LineBotStatus'
 import LineNotificationPreference from '../../components/dashboard/LineNotificationPreference'
 import SyncCheck from '../../components/dashboard/SyncCheck'
@@ -32,9 +32,11 @@ export default function DashboardPage() {
     return () => cancelAnimationFrame(frame)
   }, [data])
   return <DashboardLayout appearance><div className="mx-auto max-w-5xl space-y-8 p-4 pb-10 text-mc-text selection:bg-blue-300/25 md:space-y-10 md:p-8 md:pb-14">
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
-      <div><h1 className="text-2xl font-semibold tracking-tight">我的看板</h1>{data && <p className="mt-2 text-sm text-mc-text/70">{data.name}</p>}</div>
-      {data?.showTerritory && <a href="/area-status" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/15 px-4 text-sm text-blue-200 hover:bg-white/5"><MapPinned size={16} aria-hidden="true" />申請領圖</a>}
+    <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-white/10 pb-5">
+      <h1 className="text-2xl font-semibold tracking-tight">我的看板</h1>
+      <DashboardAppearance />
+      {data && <p className="min-w-0 break-words text-sm text-mc-text/70">{data.name}</p>}
+      {data?.showTerritory && <a href="/area-status" className="inline-flex min-h-11 items-center justify-self-end gap-2 rounded-lg border border-white/15 px-4 text-sm text-blue-200 hover:bg-white/5"><MapPinned size={16} aria-hidden="true" />申請領圖</a>}
     </header>
     {error && <div role="alert" className="rounded-xl bg-red-400/10 p-4 text-red-200">{error}<button className="ml-3 min-h-11 underline underline-offset-4" onClick={() => setRevision(v => v + 1)}>重新載入</button></div>}
     {!data && !error && <div role="status" className="space-y-4"><span className="text-sm text-mc-text/70">正在載入看板…</span><div aria-hidden="true" className="h-48 rounded-xl bg-mc-card motion-safe:animate-pulse" /></div>}

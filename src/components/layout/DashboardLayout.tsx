@@ -1,10 +1,21 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
 import Sidebar from './Sidebar'
 import BulletinLayout from '@/components/bulletin/BulletinLayout'
 import { type CurrentUserState } from './CurrentUser'
+
+type Theme = 'system' | 'light' | 'dark'
+const AppearanceContext = createContext<{ theme: Theme; chooseTheme: (value: Theme) => void } | null>(null)
+
+export function DashboardAppearance() {
+  const appearance = useContext(AppearanceContext)
+  if (!appearance) return null
+  return <fieldset className="flex shrink-0 gap-1" aria-label="看板外觀">
+    {([{ value: 'system', label: '跟隨裝置', Icon: Monitor }, { value: 'light', label: '淺色', Icon: Sun }, { value: 'dark', label: '深色', Icon: Moon }] as const).map(({ value, label, Icon }) => <button key={value} type="button" aria-label={label} title={label} aria-pressed={appearance.theme === value} onClick={() => appearance.chooseTheme(value)} className={`flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-current ${appearance.theme === value ? 'bg-mc-accent text-mc-text' : 'text-mc-text/70 hover:bg-mc-accent'}`}><Icon size={16} aria-hidden="true" /><span className="hidden sm:inline">{label}</span></button>)}
+  </fieldset>
+}
 
 export default function DashboardLayout({ children, publicView = false, appearance = false }: { children: React.ReactNode; publicView?: boolean; appearance?: boolean }) {
   if (publicView) return <BulletinLayout>{children}</BulletinLayout>
@@ -12,7 +23,7 @@ export default function DashboardLayout({ children, publicView = false, appearan
 }
 
 function MemberDashboardLayout({ children, appearance }: { children: React.ReactNode; appearance: boolean }) {
-  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system')
+  const [theme, setTheme] = useState<Theme>('system')
   useEffect(() => {
     const read = () => {
       try {
@@ -24,7 +35,7 @@ function MemberDashboardLayout({ children, appearance }: { children: React.React
     window.addEventListener('storage', read)
     return () => window.removeEventListener('storage', read)
   }, [])
-  function chooseTheme(value: 'system' | 'light' | 'dark') {
+  function chooseTheme(value: Theme) {
     setTheme(value)
     try { localStorage.setItem('bulletin-theme', value) } catch { /* Keep the current session usable. */ }
   }
@@ -70,7 +81,7 @@ function MemberDashboardLayout({ children, appearance }: { children: React.React
   }
 
   return (
-    <div data-bulletin-theme={theme} className={`min-h-screen bg-mc-bg text-mc-text ${appearance ? 'bulletin-theme dashboard-theme' : ''}`}>
+    <AppearanceContext.Provider value={{ theme, chooseTheme }}><div data-bulletin-theme={theme} className={`min-h-screen bg-mc-bg text-mc-text ${appearance ? 'bulletin-theme dashboard-theme' : ''}`}>
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-mc-card border-b border-white/5 flex items-center gap-3 px-4 z-20">
         <button
@@ -108,13 +119,8 @@ function MemberDashboardLayout({ children, appearance }: { children: React.React
           desktopCollapsed ? 'md:ml-16' : 'md:ml-64'
         }`}
       >
-        {appearance && <div className="mx-auto flex max-w-5xl justify-end px-4 pt-4 md:px-8">
-          <fieldset className="flex gap-1" aria-label="看板外觀">
-            {([{ value: 'system', label: '跟隨裝置', Icon: Monitor }, { value: 'light', label: '淺色', Icon: Sun }, { value: 'dark', label: '深色', Icon: Moon }] as const).map(({ value, label, Icon }) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => chooseTheme(value)} className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-current ${theme === value ? 'bg-mc-accent text-mc-text' : 'text-mc-text/70 hover:bg-mc-accent'}`}><Icon size={16} aria-hidden="true" />{label}</button>)}
-          </fieldset>
-        </div>}
         {children}
       </main>
-    </div>
+    </div></AppearanceContext.Provider>
   )
 }
