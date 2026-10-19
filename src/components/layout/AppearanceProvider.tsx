@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Check, ChevronDown, Monitor, Moon, Sun } from 'lucide-react'
 
 type Theme = 'system' | 'light' | 'dark'
@@ -12,12 +13,15 @@ const choices = [
 ] as const
 const parseTheme = (value: string | null): Theme => value === 'light' || value === 'dark' ? value : 'system'
 
+const AppearanceContext = createContext<{
+  theme: Theme
+  deviceTheme: 'light' | 'dark'
+  setTheme: (value: Theme) => void
+} | null>(null)
+
 export default function AppearanceProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('system')
   const [deviceTheme, setDeviceTheme] = useState<'light' | 'dark'>('dark')
-  const [open, setOpen] = useState(false)
-  const control = useRef<HTMLDivElement>(null)
-  const trigger = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const syncDevice = () => setDeviceTheme(media.matches ? 'dark' : 'light')
@@ -38,6 +42,24 @@ export default function AppearanceProvider({ children }: { children: React.React
     document.body.classList.add('bulletin-theme', 'dashboard-theme')
     document.body.dataset.bulletinTheme = theme
   }, [theme])
+  const pathname = usePathname()
+  const integratedHeader = (pathname.startsWith('/bulletin') && pathname !== '/bulletin/midweek-meeting') || pathname === '/service-roster/manage'
+  return <AppearanceContext.Provider value={{ theme, deviceTheme, setTheme }}>
+    <div data-bulletin-theme={theme} className={`appearance-shell bulletin-theme dashboard-theme min-h-screen bg-mc-bg text-mc-text ${integratedHeader ? '' : 'pt-14'}`}>
+      {!integratedHeader && <>
+        <div className="appearance-toolbar fixed inset-x-0 top-0 z-20 h-14 border-b border-white/10 bg-mc-card" />
+        <AppearanceControl />
+      </>}
+      {children}
+    </div>
+  </AppearanceContext.Provider>
+}
+
+export function AppearanceControl({ inline = false }: { inline?: boolean }) {
+  const appearance = useContext(AppearanceContext)
+  const [open, setOpen] = useState(false)
+  const control = useRef<HTMLDivElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!open) return
     const dismiss = (event: PointerEvent) => {
@@ -53,13 +75,14 @@ export default function AppearanceProvider({ children }: { children: React.React
       document.removeEventListener('keydown', escape)
     }
   }, [open])
+  if (!appearance) return null
+  const { theme, deviceTheme, setTheme } = appearance
   const selected = choices.find(choice => choice.value === theme)!
   const SelectedIcon = selected.Icon
   const currentLabel = (theme === 'system' ? deviceTheme : theme) === 'dark' ? '深色' : '淺色'
 
-  return <div data-bulletin-theme={theme} className="appearance-shell bulletin-theme dashboard-theme min-h-screen bg-mc-bg pt-14 text-mc-text">
-    <div className="appearance-toolbar fixed inset-x-0 top-0 z-20 h-14 border-b border-white/10 bg-mc-card" />
-    <div ref={control} className="appearance-toolbar fixed right-3 top-1.5 z-40 md:right-8" onBlur={event => {
+  return (
+    <div ref={control} className={inline ? 'appearance-toolbar relative shrink-0' : 'appearance-toolbar fixed right-3 top-1.5 z-40 md:right-8'} onBlur={event => {
       if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false)
     }}>
       <button ref={trigger} type="button" aria-label={theme === 'system' ? `${currentLabel}，跟隨裝置` : currentLabel} aria-expanded={open} aria-controls="appearance-options" onClick={() => setOpen(value => !value)} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
@@ -77,6 +100,5 @@ export default function AppearanceProvider({ children }: { children: React.React
         </button>)}
       </fieldset>}
     </div>
-    {children}
-  </div>
+  )
 }
