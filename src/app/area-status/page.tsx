@@ -60,7 +60,7 @@ export default function AreaStatusPage() {
   const selected = data?.regions.find(r => r.candidateId === selectedId)
   const known = data?.regions.filter(r => r.days !== null && !(grayDispatched && r.isDispatched)) || []
   const synchronized = data?.syncedAt ? new Date(data.syncedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false }) : '尚未同步'
-  return <DashboardLayout><div className="h-[calc(100dvh-3.5rem)] md:h-dvh max-w-[1920px] mx-auto p-2 md:p-3 flex flex-col gap-2 overflow-hidden text-mc-text">
+  return <DashboardLayout><div className="h-[calc(100dvh-3.5rem)] max-w-[1920px] mx-auto p-2 md:p-3 flex flex-col gap-2 overflow-hidden text-mc-text">
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-2">
       <h1 className="text-lg font-semibold">區域狀況</h1>
       <div className="flex items-center gap-2">

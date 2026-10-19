@@ -80,7 +80,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, cu
   return (
     <aside
       className={`
-        fixed left-0 top-0 h-full bg-mc-card border-r border-white/5 flex flex-col z-30
+        fixed left-0 top-14 h-[calc(100dvh-3.5rem)] bg-mc-card border-r border-white/5 flex flex-col z-30
         overflow-hidden
         transition-[width,transform] duration-200 ease-in-out
         w-64

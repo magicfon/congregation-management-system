@@ -424,7 +424,7 @@ export default function ActiveAssignmentsPage() {
       {collectError && <p role="alert" className="text-sm text-mc-error">{collectError}</p>}
       {collectMessage && <p role="status" className="text-sm text-emerald-300">{collectMessage}</p>}
       {isAdmin && selectedAreas.length > 0 && !loading && !error && (
-        <div className="sticky top-14 md:top-0 z-10 flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-mc-card px-3 py-2">
+        <div className="sticky top-14 z-10 flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-mc-card px-3 py-2">
           <span className="text-sm text-mc-text">已選 {selectedAreas.length} 張</span>
           <div className="flex gap-2">
             <button type="button" disabled={collecting} onClick={() => setSelected(new Set())} className="px-3 py-2 text-sm text-mc-text-secondary disabled:opacity-50">取消選取</button>

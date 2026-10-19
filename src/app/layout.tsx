@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import AppearanceProvider from '@/components/layout/AppearanceProvider'
 
 export const metadata: Metadata = {
   title: '地圖分配系統',
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <body className="bg-mc-bg text-mc-text antialiased">
-        {children}
+        <AppearanceProvider>{children}</AppearanceProvider>
       </body>
     </html>
   )

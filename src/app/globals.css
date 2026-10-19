@@ -20,7 +20,7 @@ body {
   box-sizing: border-box;
 }
 
-/* Bulletin theme tokens are scoped to the public layout, including fullscreen readers. */
+/* Shared appearance tokens, also inherited by fullscreen readers and portals. */
 .bulletin-theme {
   color-scheme: dark;
   --mc-bg: 240 10% 3.9%;
@@ -172,15 +172,27 @@ input:-webkit-autofill:focus {
   caret-color: hsl(0, 0%, 90%);
 }
 
-.bulletin-theme :is(input[type="text"], input[type="date"], select, textarea) {
+.bulletin-theme :is(input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="time"], input[type="number"], input[type="search"], select, textarea) {
   color: hsl(var(--mc-text)) !important;
   background-color: hsl(var(--mc-surface)) !important;
   -webkit-text-fill-color: hsl(var(--mc-text)) !important;
 }
 .bulletin-theme select option { color: hsl(var(--mc-text)); background-color: hsl(var(--mc-card)); }
-.bulletin-theme input::placeholder {
+.bulletin-theme :is(input, textarea)::placeholder {
   color: hsl(var(--mc-text) / 0.6) !important;
   -webkit-text-fill-color: hsl(var(--mc-text) / 0.6) !important;
+}
+.bulletin-theme input:-webkit-autofill {
+  -webkit-text-fill-color: hsl(var(--mc-text)) !important;
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--mc-surface)) inset !important;
+  caret-color: hsl(var(--mc-text));
+}
+.bulletin-theme :is(input[type="date"], input[type="time"])::-webkit-calendar-picker-indicator { filter: none; }
+.bulletin-theme .bg-mc-accent.text-white { color: hsl(var(--mc-text)); }
+.bulletin-theme { accent-color: hsl(var(--bulletin-blue)); }
+@media print {
+  .appearance-toolbar { display: none; }
+  .appearance-shell { padding-top: 0; }
 }
 
 /* Date/time picker icon */

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, ChevronDown, MapPinned, Settings2 } from 'lucide-react'
 import AdminTaskCenter from '../../components/dashboard/AdminTaskCenter'
-import DashboardLayout, { DashboardAppearance } from '../../components/layout/DashboardLayout'
+import DashboardLayout from '../../components/layout/DashboardLayout'
 import LineBotStatus from '../../components/dashboard/LineBotStatus'
 import LineNotificationPreference from '../../components/dashboard/LineNotificationPreference'
 import SyncCheck from '../../components/dashboard/SyncCheck'
@@ -31,10 +31,9 @@ export default function DashboardPage() {
     const frame = requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }))
     return () => cancelAnimationFrame(frame)
   }, [data])
-  return <DashboardLayout appearance><div className="mx-auto max-w-5xl space-y-6 p-4 pb-10 text-mc-text selection:bg-blue-300/25 md:space-y-6 md:p-8 md:pb-14">
+  return <DashboardLayout><div className="mx-auto max-w-5xl space-y-6 p-4 pb-10 text-mc-text selection:bg-blue-300/25 md:space-y-6 md:p-8 md:pb-14">
     <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-white/10 pb-5">
-      <h1 className="text-2xl font-semibold tracking-tight">我的看板</h1>
-      <DashboardAppearance />
+      <h1 className="col-span-full text-2xl font-semibold tracking-tight">我的看板</h1>
       {data && <p className="min-w-0 break-words text-sm text-mc-text/70">{data.name}</p>}
       {data?.showTerritory && <a href="/area-status" className="inline-flex min-h-11 items-center justify-self-end gap-2 rounded-lg border border-white/15 px-4 text-sm text-blue-200 hover:bg-white/5"><MapPinned size={16} aria-hidden="true" />申請領圖</a>}
     </header>

@@ -141,7 +141,7 @@ export default function MapAllocationList() {
 
       {!loading && !isAdmin && <RequestSubmitBar items={selectedAreas.map(a => ({ id: a.id, label: allocationLabel(a) }))} onRemove={id => setSelected(previous => new Set([...previous].filter(v => v !== id)))} onSubmitted={() => setSelected(new Set())} />}
       {isAdmin && selectedAreas.length > 0 && (
-        <div className="sticky top-14 md:top-0 z-10 space-y-2 rounded-xl border border-blue-400/30 bg-mc-card p-3 shadow-lg">
+        <div className="sticky top-14 z-10 space-y-2 rounded-xl border border-blue-400/30 bg-mc-card p-3 shadow-lg">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm">已選 {selectedAreas.length} 張</span>
             <DispatchMemberPicker members={members} value={memberId} disabled={disabled} onChange={setMemberId} />
