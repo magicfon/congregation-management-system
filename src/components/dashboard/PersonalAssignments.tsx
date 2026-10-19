@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CalendarDays, ChevronDown } from 'lucide-react'
+import { ArrowUpRight, CalendarDays, ChevronDown } from 'lucide-react'
 import type { AssignmentKind, PersonalAssignment, PersonalAssignments } from '@/lib/personal-assignments'
 
 function shortDate(date: string) {
@@ -22,9 +22,10 @@ function AssignmentList({ items }: { items: PersonalAssignment[] }) {
         {first.endDate !== first.date && <p className="mt-1 text-xs text-mc-text/70">至 <time dateTime={first.endDate}>{first.endDate.slice(0, 4) !== first.date.slice(0, 4) ? first.endDate : shortDate(first.endDate)}</time></p>}
       </div>
       <div className="min-w-0"><p className="px-3 text-xs text-mc-text/70">{[...new Set(group.map(item => item.category))].join(' · ')}</p><ul className="mt-1 space-y-1">{group.map(item => <li key={item.id}>
-        <div className="flex min-h-14 items-center gap-3 px-3 py-2">
+        <a href={item.href} className="group flex min-h-14 items-center justify-between gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-300">
           <div className="min-w-0"><p className="break-words text-base font-medium leading-relaxed">{item.title}</p>{item.role && <p className="mt-0.5 text-sm text-blue-200">{item.role}</p>}</div>
-        </div>
+          <ArrowUpRight size={16} aria-hidden="true" className="shrink-0 text-mc-text/70 group-hover:text-blue-200" />
+        </a>
       </li>)}</ul></div>
     </div>
   })}</div>
