@@ -31,7 +31,7 @@ export default function DashboardPage() {
     const frame = requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }))
     return () => cancelAnimationFrame(frame)
   }, [data])
-  return <DashboardLayout appearance><div className="mx-auto max-w-5xl space-y-8 p-4 pb-10 text-mc-text selection:bg-blue-300/25 md:space-y-10 md:p-8 md:pb-14">
+  return <DashboardLayout appearance><div className="mx-auto max-w-5xl space-y-6 p-4 pb-10 text-mc-text selection:bg-blue-300/25 md:space-y-6 md:p-8 md:pb-14">
     <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-white/10 pb-5">
       <h1 className="text-2xl font-semibold tracking-tight">我的看板</h1>
       <DashboardAppearance />
@@ -44,14 +44,14 @@ export default function DashboardPage() {
       <PersonalAssignmentsPanel data={data.assignments} kind={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('kind') === 'program' ? 'program' : 'service'} />
       {data.isAdmin && <AdminTaskCenter />}
       {data.showTerritory && <>
-        {!data.isAdmin && <section id="handoffs" className="scroll-mt-20 border-t border-white/10 pt-6">
+        {!data.isAdmin && <section id="handoffs" data-dashboard-section="handoffs" className="dashboard-section scroll-mt-20">
           <div className="flex items-baseline justify-between gap-3"><h2 className="text-lg font-semibold">待交接</h2><span className={`text-sm ${data.handoffs.length ? 'text-amber-200' : 'text-mc-text/70'}`}>{data.handoffs.length} 張</span></div>
           {!data.handoffs.length ? <p className="mt-3 text-sm text-mc-text/70">目前無待交接地圖</p> : <div className="mt-3 divide-y divide-white/10">{data.handoffs.map(item => <details key={item.areaId} className="group">
             <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 py-3 [&::-webkit-details-marker]:hidden"><span className="font-medium">{item.label}</span><span className="ml-auto text-sm text-amber-200">{item.next ? '已有下一位' : '待安排'}</span><ChevronDown size={16} aria-hidden="true" className="shrink-0 text-mc-text/70 transition-transform group-open:rotate-180" /></summary>
             <div className="space-y-2 pb-5 text-sm text-mc-text/70"><p>{item.publisher} 已提交 · {item.submittedDate || '日期未記錄'}</p><p>{item.next ? `下一位：${item.next.name} · ${item.next.date}` : '尚未安排下一位'}</p><a href={`/map/ministry/${item.areaId}`} className="inline-flex min-h-11 items-center gap-2 text-blue-200">處理交接<ArrowRight size={16} aria-hidden="true" /></a></div>
           </details>)}</div>}
         </section>}
-        <section id="maps" className="scroll-mt-20 border-t border-white/10 pt-6">
+        <section id="maps" data-dashboard-section="maps" className="dashboard-section scroll-mt-20">
           <header className="flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-lg font-semibold">我的地圖 <span className="ml-2 text-sm font-normal text-mc-text/70">{data.maps.length} 張</span></h2><a href="/map-requests" className="inline-flex min-h-11 items-center gap-2 text-sm text-blue-200">領圖申請{data.pendingRequests.length > 0 && <span className="text-amber-200">{data.pendingRequests.length} 待審</span>}<ArrowRight size={15} aria-hidden="true" /></a></header>
           {!data.maps.length ? <p className="py-5 text-sm text-mc-text/70">目前沒有持有地圖</p> : <div className="divide-y divide-white/10">{data.maps.map(map => <details key={map.id} className="group">
             <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 py-4 [&::-webkit-details-marker]:hidden">
@@ -67,7 +67,7 @@ export default function DashboardPage() {
           {data.pendingRequests.length > 0 && <details className="group border-t border-white/10"><summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden">待審申請明細 · {data.pendingRequests.length} 張<ChevronDown size={16} aria-hidden="true" className="transition-transform group-open:rotate-180" /></summary><ul className="space-y-3 py-3">{data.pendingRequests.map(r => <li key={r.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{r.label}</span><time className="text-mc-text/70">{r.date}</time></li>)}</ul></details>}
         </section>
       </>}
-      <footer className="space-y-3 border-t border-white/10 pt-6">
+      <footer className="space-y-4">
         <LineNotificationPreference />
         {data.isAdmin && <details className="group"><summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden"><Settings2 size={16} aria-hidden="true" />管理工具<ChevronDown size={16} aria-hidden="true" className="ml-auto transition-transform group-open:rotate-180" /></summary><div className="space-y-4 py-4"><SyncCheck /><LineBotStatus /></div></details>}
       </footer>

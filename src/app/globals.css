@@ -208,3 +208,21 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .dashboard-theme .border-blue-300 { border-color: hsl(var(--bulletin-blue)); }
 .dashboard-theme .bg-white\/5, .dashboard-theme .hover\:bg-white\/5:hover { background-color: hsl(var(--bulletin-border) / .05); }
 .dashboard-theme :focus-visible { outline-color: hsl(var(--bulletin-blue)); }
+
+/* Category surfaces supplement section names; status colors keep their meaning. */
+.dashboard-theme [data-dashboard-section="assignments"] { --section-hue: 215; }
+.dashboard-theme [data-dashboard-section="handoffs"] { --section-hue: 35; }
+.dashboard-theme [data-dashboard-section="maps"] { --section-hue: 172; }
+.dashboard-theme [data-dashboard-section="notifications"] { --section-hue: 270; }
+.dashboard-theme .dashboard-section {
+  border: 1px solid hsl(var(--section-hue) 65% 50% / .25);
+  border-radius: 12px;
+  background-color: hsl(var(--section-hue) 65% 50% / .1);
+  padding: 16px;
+}
+.dashboard-theme .dashboard-section h2 {
+  color: hsl(var(--section-hue) 65% var(--roster-ink-lightness));
+}
+@media (min-width: 640px) {
+  .dashboard-theme .dashboard-section { padding: 20px; }
+}

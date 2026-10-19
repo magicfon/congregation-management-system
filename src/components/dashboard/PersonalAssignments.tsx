@@ -40,7 +40,7 @@ export default function PersonalAssignmentsPanel({ data, kind = 'service' }: { d
   const firstDates = new Set(dates.slice(0, 3))
   const initial = upcoming.filter(item => firstDates.has(dateKey(item)))
   const remaining = upcoming.filter(item => !firstDates.has(dateKey(item)))
-  return <section id="assignments" className="scroll-mt-20">
+  return <section id="assignments" data-dashboard-section="assignments" className="dashboard-section scroll-mt-20">
     <header className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-xl font-semibold">我的委派</h2><span className="text-sm text-mc-text/70">本週起 · {upcoming.length} 項</span></header>
     {data.showBrotherService && <nav aria-label="我的委派分類" className="mt-5 flex gap-6 border-b border-white/10">{([['service', '弟兄服務'], ['program', '節目委派']] as const).map(([value, label]) => <button type="button" key={value} onClick={() => setSelectedKind(value)} aria-pressed={kind === value} className={`flex min-h-12 items-center gap-2 border-b-2 px-1 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-300 ${kind === value ? 'border-blue-300 text-blue-200' : 'border-transparent text-mc-text/70 hover:text-mc-text'}`}>{label}<span className="tabular-nums">{data.upcoming.filter(item => item.kind === value).length}</span></button>)}</nav>}
     {data.notices.length > 0 && <details className="mt-4 text-sm text-amber-200"><summary className="min-h-11 cursor-pointer py-3">有 {data.notices.length} 項資料需要確認</summary><div className="space-y-2 pb-3 leading-relaxed">{data.notices.map(notice => <p key={notice}>{notice}</p>)}</div></details>}

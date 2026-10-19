@@ -45,7 +45,7 @@ export default function AdminTaskCenter() {
   }, [load])
 
   const handoffs = data?.handoffs.items.slice(0, expanded ? undefined : 5) || []
-  return <section id="handoffs" aria-labelledby="admin-tasks-title" className="rounded-2xl border border-blue-300/20 bg-mc-card p-4">
+  return <section id="handoffs" aria-labelledby="admin-tasks-title" data-dashboard-section="handoffs" className="dashboard-section">
     <header className="flex items-center justify-between gap-3">
       <h2 id="admin-tasks-title" className="font-semibold">管理待辦</h2>
       <button aria-label="重新整理管理員待辦" title="重新整理" disabled={loading} onClick={() => void load()} className="flex h-11 w-11 items-center justify-center rounded-lg text-mc-text/60 hover:bg-white/5 disabled:opacity-40"><RefreshCw size={15} className={loading ? 'animate-spin' : ''}/></button>
