@@ -1,16 +1,33 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Monitor, Moon, Sun } from 'lucide-react'
 import Sidebar from './Sidebar'
 import BulletinLayout from '@/components/bulletin/BulletinLayout'
 import { type CurrentUserState } from './CurrentUser'
 
-export default function DashboardLayout({ children, publicView = false }: { children: React.ReactNode; publicView?: boolean }) {
+export default function DashboardLayout({ children, publicView = false, appearance = false }: { children: React.ReactNode; publicView?: boolean; appearance?: boolean }) {
   if (publicView) return <BulletinLayout>{children}</BulletinLayout>
-  return <MemberDashboardLayout>{children}</MemberDashboardLayout>
+  return <MemberDashboardLayout appearance={appearance}>{children}</MemberDashboardLayout>
 }
 
-function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
+function MemberDashboardLayout({ children, appearance }: { children: React.ReactNode; appearance: boolean }) {
+  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system')
+  useEffect(() => {
+    const read = () => {
+      try {
+        const saved = localStorage.getItem('bulletin-theme')
+        setTheme(saved === 'light' || saved === 'dark' ? saved : 'system')
+      } catch { /* Storage may be unavailable in private browsers. */ }
+    }
+    read()
+    window.addEventListener('storage', read)
+    return () => window.removeEventListener('storage', read)
+  }, [])
+  function chooseTheme(value: 'system' | 'light' | 'dark') {
+    setTheme(value)
+    try { localStorage.setItem('bulletin-theme', value) } catch { /* Keep the current session usable. */ }
+  }
   const [mobileOpen, setMobileOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<CurrentUserState>({ status: 'loading' })
   const userRequest = useRef<AbortController | null>(null)
@@ -53,7 +70,7 @@ function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-mc-bg">
+    <div data-bulletin-theme={theme} className={`min-h-screen bg-mc-bg text-mc-text ${appearance ? 'bulletin-theme dashboard-theme' : ''}`}>
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-mc-card border-b border-white/5 flex items-center gap-3 px-4 z-20">
         <button
@@ -91,6 +108,11 @@ function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
           desktopCollapsed ? 'md:ml-16' : 'md:ml-64'
         }`}
       >
+        {appearance && <div className="mx-auto flex max-w-5xl justify-end px-4 pt-4 md:px-8">
+          <fieldset className="flex gap-1" aria-label="看板外觀">
+            {([{ value: 'system', label: '跟隨裝置', Icon: Monitor }, { value: 'light', label: '淺色', Icon: Sun }, { value: 'dark', label: '深色', Icon: Moon }] as const).map(({ value, label, Icon }) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => chooseTheme(value)} className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-current ${theme === value ? 'bg-mc-accent text-mc-text' : 'text-mc-text/70 hover:bg-mc-accent'}`}><Icon size={16} aria-hidden="true" />{label}</button>)}
+          </fieldset>
+        </div>}
         {children}
       </main>
     </div>

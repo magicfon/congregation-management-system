@@ -194,3 +194,17 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   color: hsl(var(--roster-hue) 65% var(--roster-ink-lightness));
   background-color: hsl(var(--roster-hue) 65% 55% / 0.1);
 }
+
+/* Dashboard uses the same saved appearance as the public bulletin. */
+.dashboard-theme { --status-amber: 38 92% 75%; --status-green: 142 65% 72%; --status-red: 0 85% 82%; }
+.dashboard-theme[data-bulletin-theme="light"] { --status-amber: 30 90% 28%; --status-green: 145 75% 25%; --status-red: 0 75% 35%; }
+@media (prefers-color-scheme: light) {
+  .dashboard-theme[data-bulletin-theme="system"] { --status-amber: 30 90% 28%; --status-green: 145 75% 25%; --status-red: 0 75% 35%; }
+}
+.dashboard-theme :is(.text-amber-200, .text-amber-300, .text-yellow-400) { color: hsl(var(--status-amber)); }
+.dashboard-theme :is(.text-green-300, .text-green-400, .text-emerald-300, .text-emerald-400) { color: hsl(var(--status-green)); }
+.dashboard-theme :is(.text-red-200, .text-red-300, .text-red-400) { color: hsl(var(--status-red)); }
+.dashboard-theme .divide-white\/10 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(var(--bulletin-border) / .1); }
+.dashboard-theme .border-blue-300 { border-color: hsl(var(--bulletin-blue)); }
+.dashboard-theme .bg-white\/5, .dashboard-theme .hover\:bg-white\/5:hover { background-color: hsl(var(--bulletin-border) / .05); }
+.dashboard-theme :focus-visible { outline-color: hsl(var(--bulletin-blue)); }
