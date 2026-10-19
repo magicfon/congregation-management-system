@@ -14,9 +14,17 @@ const parseTheme = (value: string | null): Theme => value === 'light' || value =
 
 export default function AppearanceProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('system')
+  const [deviceTheme, setDeviceTheme] = useState<'light' | 'dark'>('dark')
   const [open, setOpen] = useState(false)
   const control = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const syncDevice = () => setDeviceTheme(media.matches ? 'dark' : 'light')
+    syncDevice()
+    media.addEventListener('change', syncDevice)
+    return () => media.removeEventListener('change', syncDevice)
+  }, [])
   useEffect(() => {
     try { setTheme(parseTheme(localStorage.getItem(storageKey))) } catch { /* Follow device without storage. */ }
     const sync = (event: StorageEvent) => {
@@ -45,17 +53,19 @@ export default function AppearanceProvider({ children }: { children: React.React
       document.removeEventListener('keydown', escape)
     }
   }, [open])
-  const SelectedIcon = choices.find(choice => choice.value === theme)!.Icon
+  const selected = choices.find(choice => choice.value === theme)!
+  const SelectedIcon = selected.Icon
+  const currentLabel = (theme === 'system' ? deviceTheme : theme) === 'dark' ? '深色' : '淺色'
 
   return <div data-bulletin-theme={theme} className="appearance-shell bulletin-theme dashboard-theme min-h-screen bg-mc-bg pt-14 text-mc-text">
     <div className="appearance-toolbar fixed inset-x-0 top-0 z-20 h-14 border-b border-white/10 bg-mc-card" />
     <div ref={control} className="appearance-toolbar fixed right-3 top-1.5 z-40 md:right-8" onBlur={event => {
       if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false)
     }}>
-      <button ref={trigger} type="button" aria-expanded={open} aria-controls="appearance-options" onClick={() => setOpen(value => !value)} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
-        <SelectedIcon size={18} aria-hidden="true" /><span>外觀</span><ChevronDown size={14} aria-hidden="true" />
+      <button ref={trigger} type="button" aria-label={theme === 'system' ? `${currentLabel}，跟隨裝置` : currentLabel} aria-expanded={open} aria-controls="appearance-options" onClick={() => setOpen(value => !value)} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
+        <SelectedIcon size={18} aria-hidden="true" /><span>{currentLabel}</span><ChevronDown size={14} aria-hidden="true" />
       </button>
-      {open && <fieldset id="appearance-options" className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-mc-card p-2 shadow-xl shadow-black/20 outline outline-1 outline-mc-text/15">
+      {open && <fieldset id="appearance-options" className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-mc-card p-2 shadow-xl shadow-black/20 outline outline-1 outline-mc-text/15">
         <legend className="sr-only">選擇外觀</legend>
         {choices.map(({ value, label, Icon }) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => {
           setTheme(value)
@@ -63,7 +73,7 @@ export default function AppearanceProvider({ children }: { children: React.React
           setOpen(false)
           trigger.current?.focus()
         }} className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 ${theme === value ? 'bg-mc-accent font-medium' : ''}`}>
-          <Icon size={18} aria-hidden="true" /><span>{label}</span>{theme === value && <Check size={16} className="ml-auto" aria-hidden="true" />}
+          <Icon size={18} aria-hidden="true" /><span className="flex-1 text-left">{label}{value === 'system' && <span className="block text-xs text-mc-text/70">目前{deviceTheme === 'dark' ? '深色' : '淺色'}</span>}</span>{theme === value && <Check size={16} className="ml-auto" aria-hidden="true" />}
         </button>)}
       </fieldset>}
     </div>
