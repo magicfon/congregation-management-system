@@ -32,10 +32,10 @@
 .rowSettings { position: absolute; right: -22px; top: 50%; transform: translateY(-50%); width: 30px; height: 36px; border-radius: 4px; color: #666; font-size: 24px; background: #f4f4f4; }
 .rowSettings:hover, .rowSettings:focus-visible { background: #dcebf5; color: #176caa; }
 /* Paper fields must override the application's dark input defaults. */
-.sheet .nameField, .sheet .minuteField, .sheet .textField textarea {
+.viewport .sheet .nameField, .viewport .sheet .minuteField, .viewport .sheet .textField textarea {
   color: inherit !important; -webkit-text-fill-color: currentColor !important; background: transparent !important;
 }
-.sheet .nameField::placeholder, .sheet .textField textarea::placeholder {
+.viewport .sheet .nameField::placeholder, .viewport .sheet .textField textarea::placeholder {
   color: inherit !important; -webkit-text-fill-color: currentColor !important; opacity: .45;
 }
 .sheet .nameField { padding: 0; }
