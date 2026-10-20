@@ -40,6 +40,9 @@ export default function DashboardPage() {
     {error && <div role="alert" className="rounded-xl bg-red-400/10 p-4 text-red-200">{error}<button className="ml-3 min-h-11 underline underline-offset-4" onClick={() => setRevision(v => v + 1)}>重新載入</button></div>}
     {!data && !error && <div role="status" className="space-y-4"><span className="text-sm text-mc-text/70">正在載入看板…</span><div aria-hidden="true" className="h-48 rounded-xl bg-mc-card motion-safe:animate-pulse" /></div>}
     {data && <>
+      {data.isAdmin && <nav aria-label="安排管理" className="flex flex-wrap gap-3">
+        <a href="/service-roster/manage" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/15 bg-mc-card px-4 text-sm text-mc-text hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Settings2 size={16} aria-hidden="true" />管理安排<ArrowRight size={16} aria-hidden="true" /></a>
+      </nav>}
       <PersonalAssignmentsPanel data={data.assignments} kind={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('kind') === 'program' ? 'program' : 'service'} />
       {data.isAdmin && <AdminTaskCenter />}
       {data.showTerritory && <>
