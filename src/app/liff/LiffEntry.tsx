@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { getSession, signIn } from 'next-auth/react'
 import { liffDestination } from '../../lib/liff-settings'
 
 let initialization: Promise<typeof import('@line/liff').default> | undefined
@@ -28,6 +28,16 @@ export default function LiffEntry({ liffId }: { liffId: string | null }) {
         const destination = liffDestination(new URLSearchParams(window.location.search).get('view'))
         if (destination === '/bulletin') { window.location.replace(destination); return }
         if (!liff.isLoggedIn()) return // SDK is redirecting to LINE authorization.
+        // The server rechecks membership/binding in its JWT callback. SDK identity
+        // is only a client-side account-match hint, never a new authorization grant.
+        const session = await getSession().catch(() => null)
+        if (!active) return
+        const user = session?.user as { id?: string; lineUid?: string } | undefined
+        const currentUid = liff.getDecodedIDToken()?.sub
+        if (user?.id && user.lineUid && currentUid === user.lineUid) {
+          window.location.replace(destination)
+          return
+        }
         const idToken = liff.getIDToken()
         if (!idToken) throw new Error('請確認 LIFF 已勾選 openid 權限')
         const result = await signIn('liff', { idToken, redirect: false, callbackUrl: destination })

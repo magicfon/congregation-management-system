@@ -109,7 +109,7 @@ export const authOptions: NextAuthOptions = {
         : typeof token.sub === 'string' && /^U[0-9a-f]{32}$/i.test(token.sub) ? token.sub : null
       const member = typeof token.id === 'string'
         ? await prisma.member.findUnique({ where: { id: token.id } }) : null
-      if (!member?.active || (uid && member.lineuid !== uid)) {
+      if (!member?.active || member.deletedAt || (uid && member.lineuid !== uid)) {
         delete token.id
         delete token.role
         token.name = null
@@ -124,11 +124,14 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        const u = session.user as typeof session.user & { role: string; id: string }
+        const u = session.user as typeof session.user & { role: string; id: string; lineUid?: string }
         u.role = token.role as string
         u.id = token.id as string
         u.name = token.name
         u.email = token.email
+        // Expose only this authenticated member's identity for LIFF account matching.
+        u.lineUid = typeof token.id === 'string' && typeof token.lineUid === 'string'
+          ? token.lineUid : undefined
       }
       return session
     },

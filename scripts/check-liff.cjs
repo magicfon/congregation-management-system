@@ -27,6 +27,10 @@ function reset(){identity={iss:'https://access.line.me',aud:'123',sub:uid,exp:Da
  reset();const options=load('src/lib/auth.ts',{'./db':{prisma:db},'./liff-settings':settings,'./liff-auth':auth,'./pending-line-identities':pendingMock}).authOptions;
  assert(options.providers.some(p=>p.options?.id==='liff'));
  const token=await options.callbacks.jwt({token:{sub:'m1'},user,account:{provider:'liff'}});assert.equal(token.lineUid,uid);assert.equal(token.id,'m1');
+ const session=await options.callbacks.session({session:{user:{}},token});assert.equal(session.user.lineUid,uid);assert.equal(session.user.id,'m1');
+ for(const change of [{active:false},{deletedAt:new Date()}]){reset();Object.assign(member,change);const invalid=await options.callbacks.jwt({token:{...token}});assert.equal(invalid.id,undefined);const session=await options.callbacks.session({session:{user:{}},token:invalid});assert.equal(session.user.lineUid,undefined);}
+ reset();
  member.lineuid=null;const revoked=await options.callbacks.jwt({token});assert.equal(revoked.id,undefined);assert.equal(revoked.role,undefined);
+ assert.equal((await options.callbacks.session({session:{user:{}},token:revoked})).user.lineUid,undefined);
  console.log('PASS: LINE server verification, audience/expiry/issuer, pending identities, inactive/deleted members, LIFF session revocation, fixed destinations.');
 })().catch(e=>{console.error(e);process.exitCode=1});
