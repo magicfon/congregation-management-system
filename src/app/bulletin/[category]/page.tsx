@@ -9,7 +9,7 @@ import Announcements from '@/components/bulletin/Announcements'
 import ServiceRoster from '@/components/bulletin/ServiceRoster'
 import RosterReference from '@/components/bulletin/RosterReference'
 import Midweek from '@/components/bulletin/Midweek'
-import CategorySwitcher from '@/components/bulletin/CategorySwitcher'
+import CategoryMenu from '@/components/bulletin/CategoryMenu'
 
 type Props = { params: { category: string } }
 export function generateStaticParams() { return bulletinCategories.map(category => ({ category: category.slug })) }
@@ -33,7 +33,8 @@ export default function BulletinCategoryPage({ params }: Props) {
   return <DashboardLayout publicView>
     {category.slug === 'midweek-meeting' ? <h1 className="sr-only">週中聚會</h1> : <div className="mb-4 flex items-center gap-3">
       <Link href="/bulletin" aria-label="回公布欄" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 text-mc-text/60"><ArrowLeft aria-hidden="true" className="h-5 w-5" /></Link>
-      <CategorySwitcher current={category.slug} />
+      <h1 className="min-w-0 text-xl font-semibold">{category.title}</h1>
+      <CategoryMenu current={category.slug} />
     </div>}
     {category.slug === 'service-roster' && <div className="mb-5"><ServiceRoster /></div>}
     {category.slug === 'midweek-meeting' ? <Midweek /> : category.slug === 'announcements' ? <Announcements originalUrl={category.sources[0].url} /> : category.slug === 'service-roster' ? <RosterReference>{sources}</RosterReference> : sources}
