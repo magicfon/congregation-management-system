@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
 import { addDays, currentAndFutureWeeks, newMeeting, nextMidweekCheck, sectionNames, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 import styles from './Midweek.module.css'
@@ -158,7 +158,6 @@ export default function Midweek({ management = false }: { management?: boolean }
   const readerButton = 'flex h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-lg px-2 hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 disabled:opacity-30'
   return <div className={management ? 'space-y-4' : 'space-y-2'}>
     <div className={management ? 'flex flex-wrap items-center gap-3' : 'flex items-center gap-1 sm:gap-2'}>
-      {!management && <Link href="/bulletin" aria-label="回公布欄" title="回公布欄" className={readerButton}><ArrowLeft className="h-5 w-5" /></Link>}
       <select aria-label="選擇週次" className={management ? `${field} basis-full sm:!w-auto sm:basis-auto sm:flex-1` : `${field} !w-0 flex-1 !px-2 text-sm`} value={id} disabled={busy || loading} onChange={e => switchWeek(e.target.value)}>
         {!weeks.length && <option value="">{management ? '尚無本週或未來節目' : '尚未發布節目'}</option>}
         {weeks.map(w => <option key={w.id} value={w.id}>{management ? `${w.date}　${w.reading}${w.publishedAt ? '（已發布）' : '（草稿）'}` : w.date.slice(5).replace('-', '/')}</option>)}

@@ -43,7 +43,7 @@ export default function AppearanceProvider({ children }: { children: React.React
     document.body.dataset.bulletinTheme = theme
   }, [theme])
   const pathname = usePathname()
-  const integratedHeader = (pathname.startsWith('/bulletin') && pathname !== '/bulletin/midweek-meeting') || ['/service-roster/manage', '/map-images', '/boundary-editor', '/pending-access'].includes(pathname)
+  const integratedHeader = pathname.startsWith('/bulletin') || ['/service-roster/manage', '/map-images', '/boundary-editor', '/pending-access'].includes(pathname)
   return <AppearanceContext.Provider value={{ theme, deviceTheme, setTheme }}>
     <div data-bulletin-theme={theme} className={`appearance-shell bulletin-theme dashboard-theme min-h-screen bg-mc-bg text-mc-text ${integratedHeader ? '' : 'pt-14'}`}>
       {!integratedHeader && <>
