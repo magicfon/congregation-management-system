@@ -8,6 +8,7 @@ const categories = [
   { key: 'line', label: 'LINE 待確認', unit: '人' },
   { key: 'requests', label: '領圖待審', unit: '張' },
   { key: 'handoffs', label: '待交接', unit: '張' },
+  { key: 'unreturned', label: '回報未交回', unit: '張' },
 ] as const
 type Category = typeof categories[number]['key']
 
@@ -44,6 +45,16 @@ export default function AdminTaskCenter() {
     return () => { request.current?.abort(); window.removeEventListener('focus', focus) }
   }, [load])
 
+  const [returning, setReturning] = useState('')
+  async function collect(item: AdminTasks['unreturned']['items'][number]) {
+    if (returning || !window.confirm(`${item.label} 已於 ${item.reported} 回報完成，確定代 ${item.holder} 交回？`)) return
+    setReturning(item.areaId); setError('')
+    try {
+      const res = await fetch('/api/areas/collect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ areaIds: [item.areaId] }) })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || '交回失敗，請重新整理後再試')
+      await load()
+    } catch (e) { setError(e instanceof Error ? e.message : '交回失敗') } finally { setReturning('') }
+  }
   const handoffs = data?.handoffs.items.slice(0, expanded ? undefined : 5) || []
   return <section id="handoffs" aria-labelledby="admin-tasks-title" data-dashboard-section="handoffs" className="dashboard-section">
     <header className="flex items-center justify-between gap-3">
@@ -53,7 +64,7 @@ export default function AdminTaskCenter() {
     {error && <p role="alert" className="mt-3 rounded-lg bg-red-400/10 p-3 text-sm text-red-300">{error}</p>}
     {!data && loading && <p role="status" className="py-6 text-sm text-mc-text/50">正在整理待辦…</p>}
     {data && <>
-      <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-white/[.03] p-1" aria-label="待辦分類">
+      <div className="mt-2 grid grid-cols-2 gap-1 sm:grid-cols-4 rounded-lg bg-white/[.03] p-1" aria-label="待辦分類">
         {categories.map(({ key, label, unit }) => <button key={key} aria-label={`${label} ${data[key].count} ${unit}`} aria-pressed={category === key} onClick={() => { setCategory(key); setExpanded(false) }} className={`flex min-h-11 min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-md px-2 py-2 transition-colors ${category === key ? 'bg-blue-400/15 text-blue-200' : 'text-mc-text/50 hover:bg-white/5'}`}>
           <span className="text-xs">{label}</span>
           <strong className="text-base tabular-nums">{data[key].count}</strong>
@@ -65,6 +76,7 @@ export default function AdminTaskCenter() {
         {category === 'line' && data.line.items.map((item, index) => <a key={index} href="/members#pending-line" className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block break-words text-sm">{item.name}</strong><p className="mt-1 text-xs text-mc-text/50">{item.date}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">連結成員<ArrowRight size={14}/></span></a>)}
         {category === 'requests' && data.requests.items.map(item => <a key={item.id} href={`/map-requests#request-${encodeURIComponent(item.id)}`} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block break-words text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">{item.name}</span></strong><p className="mt-1 text-xs text-mc-text/50">{item.date}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">審核<ArrowRight size={14}/></span></a>)}
         {category === 'handoffs' && handoffs.map(item => <a key={item.areaId} href={`/map/ministry/${encodeURIComponent(item.areaId)}`} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">管理者 {item.manager}</span></strong><p className="mt-1 text-xs text-amber-200">{item.next ? `下一位 ${item.next.name} · ${item.next.date}` : '待安排'}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">交接<ArrowRight size={14}/></span></a>)}
+        {category === 'unreturned' && data.unreturned.items.map(item => <div key={item.areaId} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3"><div className="min-w-0"><strong className="block text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">{item.holder}</span></strong><p className="mt-1 text-xs text-amber-200">領取 {item.dispatched} · 回報完成 {item.reported}</p></div><button disabled={Boolean(returning)} onClick={() => void collect(item)} className="min-h-11 shrink-0 rounded-lg bg-white/5 px-3 text-xs text-blue-300 disabled:opacity-40">{returning === item.areaId ? '交回中…' : '交回'}</button></div>)}
       </div>
       <div className="text-xs">
         {category === 'line' && data.line.count > 5 && <a href="/members#pending-line" className="inline-flex min-h-11 items-center text-blue-300">查看全部（{data.line.count}）</a>}

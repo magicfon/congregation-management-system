@@ -21,6 +21,7 @@
     "check:line-pairing": "node scripts/check-line-pairing.cjs",
     "check:map-allocation": "node scripts/check-map-allocation.cjs",
     "check:map-requests": "node scripts/check-map-requests.cjs",
+    "check:territory-report": "node scripts/check-territory-report.cjs",
     "db:area-dispatch-enabled": "node scripts/execute-db-sql.cjs prisma/area-dispatch-enabled.sql",
     "check:area-properties": "node scripts/check-area-properties.cjs",
     "check:boundary-insert": "node scripts/check-boundary-insert.cjs",
