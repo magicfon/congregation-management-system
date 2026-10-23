@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import ServiceDutyIcon from './ServiceDutyIcon'
 import RosterName from './RosterName'
 import useRosterIdentity from './useRosterIdentity'
@@ -163,7 +163,23 @@ function PersonEditor({ people, members, busy, save }: { people: ServicePersonDa
   const [id, setId] = useState('new'), [memberId, setMemberId] = useState(''), [roles, setRoles] = useState<ServiceRole[]>([]), [enabled, setEnabled] = useState(true)
   useEffect(() => { const person = people.find(p => p.id === id); setMemberId(person?.memberId ?? ''); setRoles(person?.roles ?? []); setEnabled(person?.enabled ?? true) }, [id, people])
   const pending = people.filter(p => !p.memberId).length
-  return <details className="rounded-xl border border-white/10 bg-mc-card p-4"><summary className="cursor-pointer text-base font-semibold">人員資格{pending ? ` · ${pending} 人待對應` : ''}</summary><form className="mt-4 space-y-3" onSubmit={event => { event.preventDefault(); void save({ action: 'person', id: id === 'new' ? null : id, memberId, roles, enabled }).catch(() => {}) }}><fieldset disabled={busy} className="space-y-3">
+  const form = useRef<HTMLFormElement>(null)
+  // 總表：待對應、停用排後面，點名字帶進下方編輯（ADR-0073）。
+  const status = (p: ServicePersonData) => !p.memberId ? 2 : !p.enabled ? 1 : 0
+  const rows = [...people].sort((a, b) => status(a) - status(b) || a.name.localeCompare(b.name, 'zh-TW'))
+  return <details className="rounded-xl border border-white/10 bg-mc-card p-4"><summary className="cursor-pointer text-base font-semibold">人員資格{pending ? ` · ${pending} 人待對應` : ''}</summary>
+    <div className="relative mt-4 max-h-[70vh] overflow-auto rounded-lg border border-white/10"><table className="w-full border-collapse text-sm">
+      <caption className="sr-only">人員資格總表，數字為可安排且具備資格的人數</caption>
+      <thead className="sticky top-0 z-10 bg-mc-card"><tr className="border-b border-white/10">
+        <th scope="col" className="sticky left-0 z-10 bg-mc-card px-3 py-2 text-left font-semibold">人員</th>
+        {serviceRoles.map(role => <th key={role.id} scope="col" className="whitespace-nowrap px-2 py-2 text-center font-medium"><span className="block">{role.label}</span><span className="block text-xs font-normal tabular-nums text-mc-text/60">{people.filter(p => p.enabled && p.memberId && p.roles.includes(role.id)).length} 人</span></th>)}
+      </tr></thead>
+      <tbody>{rows.map(p => <tr key={p.id} className={`border-b border-white/5 ${status(p) ? 'text-mc-text/60' : ''} ${p.id === id ? 'bg-mc-accent' : ''}`}>
+        <th scope="row" className={`sticky left-0 text-left font-normal ${p.id === id ? 'bg-mc-accent' : 'bg-mc-card'}`}><button type="button" aria-label={`編輯${p.name}的資格`} onClick={() => { setId(p.id); requestAnimationFrame(() => form.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })) }} className="min-h-11 whitespace-nowrap px-3 text-left underline-offset-4 hover:underline">{p.name}{!p.memberId ? <span className="ml-1 text-xs text-amber-200">待對應</span> : !p.enabled ? <span className="ml-1 text-xs">停用</span> : null}</button></th>
+        {serviceRoles.map(role => <td key={role.id} className="px-2 text-center">{p.roles.includes(role.id) ? <><Check size={16} aria-hidden="true" className="inline text-blue-300" /><span className="sr-only">有</span></> : <span className="sr-only">無</span>}</td>)}
+      </tr>)}</tbody>
+    </table></div>
+    <form ref={form} className="mt-4 space-y-3" onSubmit={event => { event.preventDefault(); void save({ action: 'person', id: id === 'new' ? null : id, memberId, roles, enabled }).catch(() => {}) }}><fieldset disabled={busy} className="space-y-3">
     <label className="block text-base">人員<select className={`${control} mt-2`} value={id} onChange={event => setId(event.target.value)}><option value="new">新增成員</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}{!p.memberId ? '（待對應）' : !p.enabled ? '（停用）' : ''}</option>)}</select></label>
     <label className="block text-base">對應成員<select required className={`${control} mt-2`} value={memberId} onChange={event => setMemberId(event.target.value)}><option value="">選擇啟用成員</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
     <label className="flex min-h-12 items-center gap-2 text-base"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} />可安排</label>
