@@ -155,7 +155,7 @@ export default function Midweek({ management = false }: { management?: boolean }
     if (!dirty || confirm('尚有未儲存修改，確定切換週次？')) setId(nextId)
   }
   const weekButton = `${styles.weekButton} flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-xl border border-mc-highlight bg-mc-highlight/30 px-5 py-3 text-base font-semibold text-mc-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mc-highlight focus-visible:ring-offset-2 focus-visible:ring-offset-mc-bg disabled:cursor-not-allowed disabled:border-mc-text/10 disabled:bg-mc-accent/40 disabled:text-mc-text/35`
-  const readerButton = 'flex h-11 w-7 sm:w-11 shrink-0 items-center justify-center rounded-lg hover:bg-mc-accent disabled:opacity-30'
+  const readerButton = 'flex h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-lg px-2 hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 disabled:opacity-30'
   return <div className={management ? 'space-y-4' : 'space-y-2'}>
     <div className={management ? 'flex flex-wrap items-center gap-3' : 'flex items-center gap-1 sm:gap-2'}>
       {!management && <Link href="/bulletin" aria-label="回公布欄" title="回公布欄" className={readerButton}><ArrowLeft className="h-5 w-5" /></Link>}
@@ -163,7 +163,7 @@ export default function Midweek({ management = false }: { management?: boolean }
         {!weeks.length && <option value="">{management ? '尚無本週或未來節目' : '尚未發布節目'}</option>}
         {weeks.map(w => <option key={w.id} value={w.id}>{management ? `${w.date}　${w.reading}${w.publishedAt ? '（已發布）' : '（草稿）'}` : w.date.slice(5).replace('-', '/')}</option>)}
       </select>
-      {management ? <Link className="shrink-0 px-2 py-3 text-sm text-mc-text/70 hover:text-mc-text" href="/bulletin/midweek-meeting">查看公開頁 ↗</Link> : isAdmin && <Link aria-label="編排節目" title="編排節目" className={readerButton} href="/midweek/manage"><Pencil className="h-4 w-4" /></Link>}
+      {management ? <Link className="shrink-0 px-2 py-3 text-sm text-mc-text/70 hover:text-mc-text" href="/bulletin/midweek-meeting">查看公開頁 ↗</Link> : isAdmin && <Link aria-label="編排節目" title="編排節目" className={readerButton} href="/midweek/manage"><Pencil aria-hidden="true" className="h-4 w-4" /><span className="text-sm">編排</span></Link>}
     </div>
     <nav aria-label="切換週次" className="grid grid-cols-2 gap-3">
       <button aria-label="前一週" className={`${weekButton} ${styles.previous}`} disabled={busy || loading || weekIndex <= 0} onClick={() => switchWeek(weeks[weekIndex - 1]?.id)}><ChevronLeft aria-hidden="true" className="h-6 w-6 shrink-0" />前一週</button>

@@ -8,6 +8,7 @@ import LineNotificationPreference from '../../components/dashboard/LineNotificat
 import SyncCheck from '../../components/dashboard/SyncCheck'
 import PersonalAssignmentsPanel from '../../components/dashboard/PersonalAssignments'
 import type { PersonalAssignments } from '../../lib/personal-assignments'
+import { adminManagementLinks } from '@/lib/navigation'
 type Dashboard = { showTerritory: boolean; assignments: PersonalAssignments; handoffs: { areaId: string; label: string; publisher: string; submittedDate: string | null; next: {name: string; date: string} | null }[]; name: string; isAdmin: boolean; maps: { id: string; label: string; sheetNo: number | null; dispatchedDate: string | null; heldDays: number | null; ministryPending: number; ministryActive: boolean; report: { date: string; status: string } | null }[]; pendingRequests: { id: string; label: string; date: string }[]; reviewCount: number | null }
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null)
@@ -40,8 +41,8 @@ export default function DashboardPage() {
     {error && <div role="alert" className="rounded-xl bg-red-400/10 p-4 text-red-200">{error}<button className="ml-3 min-h-11 underline underline-offset-4" onClick={() => setRevision(v => v + 1)}>重新載入</button></div>}
     {!data && !error && <div role="status" className="space-y-4"><span className="text-sm text-mc-text/70">正在載入看板…</span><div aria-hidden="true" className="h-48 rounded-xl bg-mc-card motion-safe:animate-pulse" /></div>}
     {data && <>
-      {data.isAdmin && <nav aria-label="安排管理" className="flex flex-wrap gap-3">
-        <a href="/service-roster/manage" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/15 bg-mc-card px-4 text-sm text-mc-text hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Settings2 size={16} aria-hidden="true" />管理安排<ArrowRight size={16} aria-hidden="true" /></a>
+      {data.isAdmin && <nav aria-label="常用管理" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {adminManagementLinks.map(link => <a key={link.href} href={link.href} className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-white/15 bg-mc-card px-4 text-sm text-mc-text hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Settings2 size={16} aria-hidden="true" />{link.label}<ArrowRight size={16} aria-hidden="true" className="ml-auto" /></a>)}
       </nav>}
       <PersonalAssignmentsPanel data={data.assignments} kind={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('kind') === 'program' ? 'program' : 'service'} />
       {data.isAdmin && <AdminTaskCenter />}

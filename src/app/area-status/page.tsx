@@ -65,9 +65,9 @@ export default function AreaStatusPage() {
       <h1 className="text-lg font-semibold">區域狀況</h1>
       <div className="flex items-center gap-2">
         <div role="group" aria-label="選擇大地圖" className="flex gap-1 rounded-lg border border-white/10 bg-mc-card p-1">
-          {Object.entries(DISTRICT_NAMES).map(([id, name]) => <button key={id} type="button" disabled={actionBusy} aria-pressed={mapId === id} onClick={() => setMapId(id)} className={`min-h-9 rounded-md px-3 py-1.5 text-sm transition-colors disabled:opacity-40 ${mapId === id ? 'bg-mc-highlight text-white' : 'text-mc-text/60 hover:bg-white/5'}`}>{name}</button>)}
+          {Object.entries(DISTRICT_NAMES).map(([id, name]) => <button key={id} type="button" disabled={actionBusy} aria-pressed={mapId === id} onClick={() => setMapId(id)} className={`min-h-11 rounded-md px-3 py-1.5 text-sm transition-colors disabled:opacity-40 ${mapId === id ? 'bg-mc-highlight text-white' : 'text-mc-text/60 hover:bg-white/5'}`}>{name}</button>)}
         </div>
-        <button onClick={() => setRevision(v => v + 1)} disabled={loading || actionBusy} className="rounded-lg border border-white/10 px-2 py-1.5 text-xs disabled:opacity-40">重新整理</button>
+        <button onClick={() => setRevision(v => v + 1)} disabled={loading || actionBusy} className="rounded-lg border border-white/10 min-h-11 px-3 py-2 text-sm disabled:opacity-40">重新整理</button>
       </div>
     </header>
     <div className="shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
@@ -84,7 +84,7 @@ export default function AreaStatusPage() {
       <aside aria-label="區塊明細與領圖操作" className="min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card">
         {isAdmin && <div className="shrink-0 border-b border-white/10 p-2">
           <div role="group" aria-label="領圖操作模式" className="grid grid-cols-2 gap-1 rounded-lg bg-black/15 p-1">
-            {([{ mode: 'dispatch', label: '派發', Icon: Send }, { mode: 'request', label: '申請', Icon: ClipboardPlus }] as const).map(({ mode, label, Icon }) => <button key={mode} type="button" aria-pressed={adminMode === mode} disabled={actionBusy || (mode === 'request' && queue.length > 5)} onClick={() => setAdminMode(mode)} className={`flex items-center justify-center gap-2 rounded-md py-2 text-sm disabled:opacity-40 ${adminMode === mode ? 'bg-blue-400/15 text-blue-300' : 'text-mc-text/50 hover:bg-white/5'}`}><Icon size={15} aria-hidden="true" />{label}</button>)}
+            {([{ mode: 'dispatch', label: '派發', Icon: Send }, { mode: 'request', label: '申請', Icon: ClipboardPlus }] as const).map(({ mode, label, Icon }) => <button key={mode} type="button" aria-pressed={adminMode === mode} disabled={actionBusy || (mode === 'request' && queue.length > 5)} onClick={() => setAdminMode(mode)} className={`flex min-h-11 items-center justify-center gap-2 rounded-md py-2 text-sm disabled:opacity-40 ${adminMode === mode ? 'bg-blue-400/15 text-blue-300' : 'text-mc-text/50 hover:bg-white/5'}`}><Icon size={15} aria-hidden="true" />{label}</button>)}
           </div>
           <p className="mt-1 text-center text-[11px] text-mc-text/50">{queue.length > 5 ? '選取降至 5 張以內，即可切換申請' : dispatchMode ? '為成員直接派發地圖' : '為自己申請領取 · 最多 5 張'}</p>
         </div>}
@@ -95,7 +95,7 @@ export default function AreaStatusPage() {
         <div id="area-info-content" ref={detailPanel} hidden={!infoOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <section aria-live="polite" className="p-3">
           {selected ? <>
-            <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-semibold">{DISTRICT_NAMES[mapId]} {selected.numbers.length ? `${selected.numbers.join('、')} 號` : '未配對區塊'}</h2><button aria-label="取消查看區塊" onClick={() => setSelectedId(null)} className="px-2 py-1 text-mc-text/50">×</button></div>
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-semibold">{DISTRICT_NAMES[mapId]} {selected.numbers.length ? `${selected.numbers.join('、')} 號` : '未配對區塊'}</h2><button aria-label="取消查看區塊" onClick={() => setSelectedId(null)} className="flex h-11 w-11 items-center justify-center text-mc-text/70">×</button></div>
             {selected.numbers.length > 1 && <p className="mb-3 text-xs text-amber-300">此區塊包含多張地圖，請逐張選取。</p>}
             {!selected.reports.length && <p className="text-sm text-mc-text/60">尚未對應地圖號碼，請先在編輯器指定號碼。</p>}
             <div className="space-y-4">{selected.reports.map(r => {

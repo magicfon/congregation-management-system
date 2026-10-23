@@ -64,20 +64,7 @@ const LEVEL_STYLE: Record<Level, { badge: string; dot: string; text: string; rin
   },
 }
 
-const AVATAR_GRADIENTS = [
-  'from-indigo-500 to-purple-500',
-  'from-sky-500 to-indigo-500',
-  'from-emerald-500 to-teal-500',
-  'from-orange-500 to-amber-500',
-  'from-pink-500 to-rose-500',
-  'from-violet-500 to-fuchsia-500',
-]
 
-function avatarGradient(name: string): string {
-  let h = 0
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 997
-  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length]
-}
 
 function daysSince(iso: string | null): number | null {
   if (!iso) return null
@@ -348,13 +335,20 @@ export default function ActiveAssignmentsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <SummaryCard active={filter === 'all'} label="使用中總張數" value={total} dot="bg-mc-highlight" onClick={() => setFilter('all')} />
         <SummaryCard active={filter === 'attention'} label="需注意" value={stats.attention} dot="bg-orange-400" onClick={() => setFilter('attention')} />
+
+      </div>
+
+      <details open={!['all', 'attention'].includes(filter)} className="rounded-xl border border-white/10 bg-mc-card p-3">
+        <summary className="min-h-11 cursor-pointer py-2 text-sm text-mc-text">進階篩選{filter === 'warn' ? ' · 30–59天' : filter === 'danger' ? ' · 60天以上' : filter === 'unknown' ? ' · 無分發日' : ''}</summary>
+        <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-3">
         <SummaryCard active={filter === 'warn'} label="30–59天" value={stats.warn} dot="bg-yellow-400" onClick={() => setFilter('warn')} />
         <SummaryCard active={filter === 'danger'} label="60天以上" value={stats.danger} dot="bg-red-500" onClick={() => setFilter('danger')} />
         <SummaryCard active={filter === 'unknown'} label="無分發日" value={stats.unknown} dot="bg-indigo-400" onClick={() => setFilter('unknown')} />
-      </div>
+        </div>
+      </details>
 
       <div className="mc-card rounded-xl p-3 space-y-2">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
@@ -469,7 +463,8 @@ function SummaryCard({ active, label, value, dot, onClick }: { active: boolean; 
     <button
       type="button"
       onClick={onClick}
-      className={`mc-card rounded-xl px-3 py-2 text-left transition-all ${active ? 'ring-2 ring-mc-accent scale-[1.01]' : 'hover:bg-white/[0.04]'}`}
+      aria-pressed={active}
+      className={`min-h-11 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 mc-card rounded-xl px-3 py-2 text-left transition-all ${active ? 'ring-2 ring-mc-accent scale-[1.01]' : 'hover:bg-white/[0.04]'}`}
     >
       <div className="flex items-center gap-2 text-xs text-mc-text-secondary">
         <span className={`w-2 h-2 rounded-full ${dot}`} />
@@ -500,7 +495,7 @@ function MemberOverviewCard({ group, active, onClick, selection }: { group: Memb
           className="w-full px-3 py-2.5 text-left hover:bg-white/[0.04] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-mc-highlight"
         >
           <span className="flex items-start gap-2.5">
-            <span className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarGradient(group.memberName)} flex items-center justify-center text-white font-bold shrink-0`} aria-hidden="true">
+            <span className={`w-8 h-8 rounded-full bg-mc-highlight flex items-center justify-center text-white font-bold shrink-0`} aria-hidden="true">
               {group.memberName.slice(0, 1)}
             </span>
             <span className="min-w-0 flex-1">

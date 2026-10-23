@@ -206,8 +206,8 @@ export default function MapImagesPage() {
   }, [entries, district, q])
 
   return (
-    <DashboardLayout>
-    <div className="p-4 md:p-8 space-y-6">
+    <DashboardLayout publicView>
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-mc-text">地圖圖檔</h1>

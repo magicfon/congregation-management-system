@@ -4,12 +4,14 @@ import CurrentUser, { type CurrentUserState } from './CurrentUser'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { CalendarDays, FileCheck2, Settings2, PanelsTopLeft, ClipboardCheck } from 'lucide-react'
+import { adminManagementLinks } from '@/lib/navigation'
 
 const navItems = [
-  { href: '/bulletin', label: '公布欄', icon: <span aria-hidden="true" className="w-5 text-center">▤</span> },
+  { href: '/bulletin', label: '公布欄', icon: <PanelsTopLeft size={20} aria-hidden="true" /> },
   {
     href: '/dashboard',
-    label: '儀表板',
+    label: '我的看板',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -32,7 +34,7 @@ const navItems = [
     label: '區域狀況',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 20V10m5 10V4m6 16v-7m5 7V7" /></svg>,
   },
-  { href: '/map-requests', label: '領圖申請', icon: <span className="w-5 text-center">✓</span> },
+  { href: '/map-requests', label: '領圖申請', icon: <ClipboardCheck size={20} aria-hidden="true" /> },
   {
     href: '/map-images',
     label: '地圖圖檔',
@@ -76,6 +78,14 @@ type Props = {
 
 export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, currentUser, onRetryUser }: Props) {
   const pathname = usePathname()
+  const isAdmin = currentUser.status === 'ready' && currentUser.role === 'admin'
+  const navGroups = [
+    { label: '日常查看', items: [navItems[1], navItems[0], navItems[5], ...(!isAdmin ? [{ ...navItems[7], label: '成員一覽' }] : [])] },
+    { label: '地圖工作', items: [navItems[2], navItems[3], navItems[6], navItems[4],
+      { href: '/schedules', label: '傳道行程', icon: <CalendarDays size={20} aria-hidden="true" /> },
+      { href: '/reports', label: '傳道回報', icon: <FileCheck2 size={20} aria-hidden="true" /> }] },
+    ...(isAdmin ? [{ label: '管理', items: adminManagementLinks.map(link => ({ ...link, icon: <Settings2 size={20} aria-hidden="true" /> })) }] : []),
+  ]
 
   return (
     <aside
@@ -109,7 +119,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, cu
         {/* Close button — mobile only */}
         <button
           onClick={onClose}
-          className="md:hidden mr-3 flex-shrink-0 p-1.5 rounded-lg text-mc-text/40 hover:text-mc-text hover:bg-mc-accent transition-colors"
+          className="md:hidden mr-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-mc-text/70 hover:text-mc-text hover:bg-mc-accent transition-colors"
           aria-label="關閉選單"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,13 +129,18 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, cu
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
-          const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+      <nav aria-label="主要選單" className="flex-1 px-2 py-4 space-y-5 overflow-y-auto">
+        {navGroups.map(group => <div key={group.label}>
+          <p className={`px-3 pb-2 text-xs font-medium text-mc-text/70 ${collapsed ? 'md:sr-only' : ''}`}>{group.label}</p>
+        {group.items.map((item) => {
+          const href = item.href.split('#')[0]
+          const active = pathname === href || (!['/dashboard', '/bulletin'].includes(href) && pathname.startsWith(href + '/'))
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? 'page' : undefined}
+              aria-label={item.label}
               onClick={() => {
                 onClose()
                 // 桌機收合狀態下點選任一導覽按鈕 → 自動展開側欄
@@ -134,7 +149,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, cu
                 }
               }}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center rounded-lg text-sm transition-all duration-150 ${
+              className={`flex min-h-11 items-center rounded-lg text-sm transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 ${
                 active
                   ? 'bg-mc-highlight text-white border border-blue-500/30'
                   : 'text-mc-text/60 hover:text-mc-text hover:bg-mc-accent'
@@ -146,7 +161,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, cu
               </span>
             </Link>
           )
-        })}
+        })}</div>)}
       </nav>
 
       <div className={`shrink-0 border-t border-white/5 p-3 ${collapsed ? 'md:px-1' : ''}`}>

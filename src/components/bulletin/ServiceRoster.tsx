@@ -90,24 +90,18 @@ export default function ServiceRoster({ management = false }: { management?: boo
     ...Object.entries(editing ? draft : week.assignments).filter(([role, value]) => { const p = data?.people?.find(p => p.id === value!.personId); return !p?.enabled || !p.roles.includes(role as ServiceRole) }).map(([role, value]) => `${value!.name}的${serviceRoles.find(r => r.id === role)!.label}資格待確認`),
   ] : []
 
+  const hasSyncIssues = Boolean(data?.sync?.errors.length || data?.sync?.conflicts.length)
+
   return <div className="space-y-4">
     {!management && <Link href="/bulletin/service-roster/all" className={`${button} flex items-center justify-center border-blue-400/30 bg-blue-400/10 font-semibold text-blue-300`}>所有週次・查個人安排</Link>}
     {!management && admin && <div className="flex justify-end"><Link href="/service-roster/manage" className={`${button} inline-flex items-center`}>管理安排</Link></div>}
     {error && <p role="alert" className="rounded-xl border border-white/10 p-3 text-base">{error}<button type="button" className={`${button} ml-2`} disabled={busy} onClick={() => void load()}>重新載入</button></p>}
     {notice && <p role="status" className="text-base text-blue-300">{notice}</p>}
+    {canManage && hasSyncIssues && <a href="#roster-sync" className="flex min-h-11 items-center rounded-lg bg-amber-400/10 px-4 py-2 text-sm text-amber-200 underline underline-offset-4">Google 同步有待確認項目 · 查看詳情</a>}
     {!data && !error && <p role="status" className="text-base text-mc-text/60">正在載入安排…</p>}
     {data && !data.initialized && <div className="rounded-xl border border-white/10 p-4"><p className="text-base">本站輪值資料尚未匯入。</p>{canManage && <button type="button" className={`${button} mt-3`} disabled={busy} onClick={() => void act({ action: 'initialize' }).catch(() => {})}>{busy ? '匯入中…' : '首次匯入 Google 輪值資料'}</button>}</div>}
     {data?.initialized && <>
-      {canManage && <section className="rounded-xl border border-white/10 bg-mc-card p-4 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">Google 每週安排同步</h2><button type="button" className={button} disabled={busy || editing} onClick={() => void act({ action: 'sync' }).catch(() => {})}>{busy ? '處理中…' : '立即同步'}</button></div>
-        <p className="text-base text-mc-text/70">儲存後同步；Google 修改由排程帶回。人員資格只在本站管理。</p>
-        {data.sync?.lastRun && <p className="text-base text-mc-text/70">上次檢查：{new Date(data.sync.lastRun).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })} · 匯入 {data.sync.pulled} 週／寫回 {data.sync.pushed} 列</p>}
-        {!!data.sync?.errors.length && <ul role="alert" className="space-y-2 text-base">{data.sync.errors.map((message, i) => <li key={i}>{message}</li>)}</ul>}
-        {!!data.sync?.conflicts.length && <details open><summary className="cursor-pointer text-lg font-semibold">{data.sync.conflicts.length} 週安排待確認</summary><div className="mt-3 space-y-4">{data.sync.conflicts.map(conflict => <article key={conflict.id} className="rounded-lg border border-white/10 p-3">
-          <h3 className="text-lg font-semibold">{conflict.date} · {conflict.reason}</h3>
-          <div className="mt-3 grid gap-3 md:grid-cols-3">{[{ label: '本站', choice: 'local', week: conflict.local }, ...conflict.remote.map(remote => ({ label: `Google ${remote.sheet}`, choice: remote.sheet, week: remote.week }))].map(version => <div key={version.choice} className="rounded-lg bg-mc-accent/20 p-3"><h4 className="font-semibold">{version.label}</h4><SyncWeekDetails week={version.week} /><button type="button" className={`${button} mt-3`} disabled={busy || editing || !version.week} onClick={() => void act({ action: 'resolve-sync', date: conflict.date, id: conflict.id, choice: version.choice }).catch(() => {})}>採用{version.label}</button></div>)}</div>
-        </article>)}</div></details>}
-      </section>}
+
       <div className="rounded-2xl border border-white/10 bg-mc-card p-3 sm:p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="text-base font-medium text-blue-300">{week?.startDate.slice(0, 4)} · {currentWeek?.startDate === selected ? '本週安排' : '每週安排'}{dirty ? ' · 尚未儲存' : ''}</span>
@@ -138,6 +132,19 @@ export default function ServiceRoster({ management = false }: { management?: boo
         {editing && <div className="flex flex-wrap items-center gap-2"><button type="button" className={button} disabled={busy || stopped} onClick={() => void preview()}>自動補空缺</button><button type="button" className="min-h-12 rounded-lg bg-blue-500 px-4 text-base text-white disabled:opacity-40" disabled={busy || !dirty} onClick={() => void act({ action: 'week', startDate: selected, note, stopped, assignments: draft }).catch(() => {})}>{busy ? '處理中…' : '儲存並發布'}</button></div>}
         {canManage && warnings.length > 0 && <details className="text-base text-mc-text/60"><summary className="cursor-pointer py-2">{warnings.length} 項資格／兼任提醒</summary><ul className="space-y-1 py-2">{warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul></details>}
       </>}
+      {canManage && <details id="roster-sync" key={hasSyncIssues ? "issues" : "normal"} open={hasSyncIssues} className="scroll-mt-20 rounded-xl border border-white/10 bg-mc-card p-4">
+        <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Google 同步 · {hasSyncIssues ? "有待確認項目" : data.sync?.lastRun ? "已檢查" : "尚無檢查紀錄"}</summary>
+        <div className="space-y-3 pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">Google 每週安排同步</h2><button type="button" className={button} disabled={busy || editing} onClick={() => void act({ action: 'sync' }).catch(() => {})}>{busy ? '處理中…' : '立即同步'}</button></div>
+        <p className="text-base text-mc-text/70">儲存後同步；Google 修改由排程帶回。人員資格只在本站管理。</p>
+        {data.sync?.lastRun && <p className="text-base text-mc-text/70">上次檢查：{new Date(data.sync.lastRun).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })} · 匯入 {data.sync.pulled} 週／寫回 {data.sync.pushed} 列</p>}
+        {!!data.sync?.errors.length && <ul role="alert" className="space-y-2 text-base">{data.sync.errors.map((message, i) => <li key={i}>{message}</li>)}</ul>}
+        {!!data.sync?.conflicts.length && <details open><summary className="cursor-pointer text-lg font-semibold">{data.sync.conflicts.length} 週安排待確認</summary><div className="mt-3 space-y-4">{data.sync.conflicts.map(conflict => <article key={conflict.id} className="rounded-lg border border-white/10 p-3">
+          <h3 className="text-lg font-semibold">{conflict.date} · {conflict.reason}</h3>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">{[{ label: '本站', choice: 'local', week: conflict.local }, ...conflict.remote.map(remote => ({ label: `Google ${remote.sheet}`, choice: remote.sheet, week: remote.week }))].map(version => <div key={version.choice} className="rounded-lg bg-mc-accent/20 p-3"><h4 className="font-semibold">{version.label}</h4><SyncWeekDetails week={version.week} /><button type="button" className={`${button} mt-3`} disabled={busy || editing || !version.week} onClick={() => void act({ action: 'resolve-sync', date: conflict.date, id: conflict.id, choice: version.choice }).catch(() => {})}>採用{version.label}</button></div>)}</div>
+        </article>)}</div></details>}
+        </div>
+      </details>}
       {canManage && !editing && <>
         <details className="rounded-xl border border-white/10 bg-mc-card p-4"><summary className="cursor-pointer text-base font-semibold">新增週次</summary><form className="mt-3 flex flex-wrap items-center gap-2" onSubmit={event => { event.preventDefault(); void act({ action: 'create', startDate: createDate, note: '', stopped: false, assignments: {} }).then(() => setSelected(createDate)).catch(() => {}) }}><label className="flex-1 text-base">週開始（星期一）<input type="date" required className={`${control} mt-2`} value={createDate} disabled={busy} onChange={event => setCreateDate(event.target.value)} /></label><button className={`${button} mt-7`} disabled={busy}>新增</button></form></details>
         <PersonEditor people={data.people ?? []} members={data.members ?? []} busy={busy} save={act} />

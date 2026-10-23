@@ -8,7 +8,6 @@ import { AppearanceControl } from '@/components/layout/AppearanceProvider'
 export default function BulletinLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const meetingReader = pathname === '/bulletin/midweek-meeting'
-  const compact = (pathname === '/bulletin/service-roster' || pathname.startsWith('/bulletin/service-roster/')) || pathname === '/service-roster/manage'
   const [user, setUser] = useState<{ role: string } | null>()
   const [authError, setAuthError] = useState(false)
   const [authRetry, setAuthRetry] = useState(0)
@@ -46,7 +45,7 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
           <span className="text-sm font-semibold sm:text-base">楠梓會眾<span className="block text-xs font-normal text-mc-text/50">公布欄</span></span>
         </Link>
         <div className="flex shrink-0 items-center gap-1 sm:gap-3"><AppearanceControl inline />
-        {authError ? <button type="button" onClick={() => setAuthRetry(value => value + 1)} className="min-h-11 rounded-lg border border-white/10 px-3 text-sm">重試登入狀態</button> : user !== undefined && <Link href={user ? compact && user.role === 'admin' ? '/service-roster/manage' : '/dashboard' : `/login?callbackUrl=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-lg border border-white/10 px-3 text-sm text-mc-text/70 hover:bg-mc-accent">{user ? compact && user.role === 'admin' ? '管理安排' : '我的帳號' : '登入'}</Link>}
+        {authError ? <button type="button" onClick={() => setAuthRetry(value => value + 1)} className="min-h-11 rounded-lg border border-white/10 px-3 text-sm">重試登入狀態</button> : user !== undefined && <Link href={user ? '/dashboard' : `/login?callbackUrl=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-lg border border-white/10 px-3 text-sm text-mc-text/80 hover:bg-mc-accent">{user ? '我的看板' : '登入'}</Link>}
         </div>
       </div>
     </header>}

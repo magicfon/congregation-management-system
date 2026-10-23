@@ -33,6 +33,11 @@ export default function Announcements({ originalUrl }: { originalUrl: string }) 
     void load()
     void fetch('/api/me', { cache: 'no-store' }).then(async response => { if (response.ok) setIsAdmin((await response.json()).isAdmin === true) }).catch(() => {})
   }, [])
+  useEffect(() => {
+    if (!isAdmin || window.location.hash !== '#manage-announcements') return
+    const panel = document.getElementById('manage-announcements') as HTMLDetailsElement | null
+    if (panel) { panel.open = true; panel.scrollIntoView({ block: 'start' }) }
+  }, [isAdmin])
 
   async function upload(event: React.FormEvent) {
     event.preventDefault()
@@ -63,7 +68,7 @@ export default function Announcements({ originalUrl }: { originalUrl: string }) 
   }
 
   return <div className="space-y-4">
-    {isAdmin && <details className="rounded-xl border border-white/10 bg-mc-card p-4">
+    {isAdmin && <details id="manage-announcements" className="scroll-mt-20 rounded-xl border border-white/10 bg-mc-card p-4">
       <summary className="cursor-pointer text-sm font-semibold">新增公告</summary>
       <form onSubmit={upload} className="mt-4 space-y-3">
         <label className="block text-sm">標題<input type="text" value={title} maxLength={80} disabled={Boolean(busy)} onChange={event => setTitle(event.target.value)} className="mt-2 block min-h-11 w-full rounded-lg border border-white/10 px-3" placeholder="未填寫時使用檔名" /></label>
