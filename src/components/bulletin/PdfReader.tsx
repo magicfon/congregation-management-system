@@ -4,8 +4,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { getPdfWorker, loadPdfEngine } from './pdf-engine'
 import { readPosition, type ReadingPosition } from './reading-position'
+import { ExternalLink, Maximize2, Minimize2 } from 'lucide-react'
 
-export default function PdfReader({ id, label, src }: { id: string; label: string; src?: string }) {
+export default function PdfReader({ id, label, src, title, sourceUrl }: { id: string; label: string; src?: string; title?: string; sourceUrl?: string }) {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
   const [pageRatio, setPageRatio] = useState(1.414)
   const [zoom, setZoom] = useState(1)
@@ -173,6 +174,7 @@ export default function PdfReader({ id, label, src }: { id: string; label: strin
 
   function endPointer(pointerId: number) { pointers.current.delete(pointerId); gesture.current = null; drag.current = null }
   const button = 'min-h-11 min-w-11 rounded-lg border border-white/10 px-3 text-sm hover:bg-mc-accent disabled:opacity-30'
+  const icon = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-blue-300 hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400'
 
   return <div className={expanded ? 'fixed inset-0 z-50 flex flex-col bg-mc-bg p-2 sm:p-4' : ''} role={expanded ? 'dialog' : undefined} aria-modal={expanded || undefined} aria-label={expanded ? label : undefined}
     onKeyDown={event => {
@@ -182,12 +184,17 @@ export default function PdfReader({ id, label, src }: { id: string; label: strin
       if (event.shiftKey && window.document.activeElement === first) { event.preventDefault(); last.focus() }
       else if (!event.shiftKey && window.document.activeElement === last) { event.preventDefault(); first.focus() }
     }}>
-    <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-3 py-3">
-      {timestamp && <p className="w-full text-xs leading-6 text-mc-text/60" title={timestamp.modified ? 'Google 文件最後修改時間' : '本站取得這份文件的時間，非 Google 最後修改時間'}>{timestamp.modified ? '文件更新' : '同步時間'}：<time dateTime={timestamp.value}>{new Date(timestamp.value).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}</time></p>}
-      <span className="text-xs tabular-nums">共 {document?.numPages ?? '…'} 頁</span>
-      <button type="button" className={`${button} ml-auto`} onClick={() => setExpanded(value => !value)}>{expanded ? '關閉全螢幕' : '全螢幕'}</button>
+    {/* 單列工具列：標題（多份文件時）、頁數與時間，右側為原文件與全螢幕圖示（ADR-0069）。 */}
+    <div className="flex items-center gap-1 px-3 py-1.5">
+      <p className="min-w-0 flex-1 truncate text-xs text-mc-text/60">
+        {title && <span className="mr-2 text-sm font-semibold text-mc-text">{title}</span>}
+        <span className="tabular-nums">{document?.numPages ?? '…'} 頁</span>
+        {timestamp && <span title={timestamp.modified ? 'Google 文件最後修改時間' : '本站取得這份文件的時間，非 Google 最後修改時間'}> · {timestamp.modified ? '更新' : '同步'} <time dateTime={timestamp.value} className="tabular-nums">{new Date(timestamp.value).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}</time></span>}
+      </p>
+      {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer" aria-label="開啟原文件（另開分頁）" title="開啟原文件" className={icon}><ExternalLink aria-hidden="true" className="h-5 w-5" /></a>}
+      <button type="button" aria-label={expanded ? '關閉全螢幕' : '全螢幕'} title={expanded ? '關閉全螢幕' : '全螢幕'} className={icon} onClick={() => setExpanded(value => !value)}>{expanded ? <Minimize2 aria-hidden="true" className="h-5 w-5" /> : <Maximize2 aria-hidden="true" className="h-5 w-5" />}</button>
     </div>
-    <div ref={pane} className={`relative overflow-auto bg-mc-accent/40 ${expanded ? 'min-h-0 flex-1' : 'h-[65vh] min-h-[360px]'}`} style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
+    <div ref={pane} className={`relative overflow-auto bg-mc-accent/40 ${expanded ? 'min-h-0 flex-1' : 'h-[calc(100dvh-11rem)] min-h-[360px]'}`} style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
       onPointerDown={event => {
         if (!ready || event.button !== 0) return
         const element = pane.current!

@@ -86,7 +86,7 @@ export function AppearanceControl({ inline = false }: { inline?: boolean }) {
       if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false)
     }}>
       <button ref={trigger} type="button" aria-label={theme === 'system' ? `${currentLabel}，跟隨裝置` : currentLabel} aria-expanded={open} aria-controls="appearance-options" onClick={() => setOpen(value => !value)} className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
-        <SelectedIcon size={18} aria-hidden="true" /><span>{currentLabel}</span><ChevronDown size={14} aria-hidden="true" />
+        <SelectedIcon size={18} aria-hidden="true" /><span className={inline ? 'hidden sm:inline' : undefined}>{currentLabel}</span><ChevronDown size={14} aria-hidden="true" />
       </button>
       {open && <fieldset id="appearance-options" className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-mc-card p-2 shadow-xl shadow-black/20 outline outline-1 outline-mc-text/15">
         <legend className="sr-only">選擇外觀</legend>
