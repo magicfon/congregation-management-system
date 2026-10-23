@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PanelsTopLeft } from 'lucide-react'
 import { AppearanceControl } from '@/components/layout/AppearanceProvider'
+import BulletinMenu from '@/components/bulletin/BulletinMenu'
 export default function BulletinLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const meetingReader = pathname === '/bulletin/midweek-meeting'
@@ -45,7 +46,7 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
           <span className="text-sm font-semibold sm:text-base">楠梓會眾<span className="block text-xs font-normal text-mc-text/50">公布欄</span></span>
         </Link>
         <div className="flex shrink-0 items-center gap-1 sm:gap-3"><AppearanceControl inline />
-        {authError ? <button type="button" onClick={() => setAuthRetry(value => value + 1)} className="min-h-11 rounded-lg border border-white/10 px-3 text-sm">重試登入狀態</button> : user !== undefined && <Link href={user ? '/dashboard' : `/login?callbackUrl=${encodeURIComponent(pathname)}`} className="flex min-h-11 items-center rounded-lg border border-white/10 px-3 text-sm text-mc-text/80 hover:bg-mc-accent">{user ? '我的看板' : '登入'}</Link>}
+        <BulletinMenu current={pathname.split('/')[2]} account={authError ? { state: 'error', retry: () => setAuthRetry(value => value + 1) } : user === undefined ? { state: 'loading' } : user ? { state: 'member' } : { state: 'guest', loginHref: `/login?callbackUrl=${encodeURIComponent(pathname)}` }} />
         </div>
       </div>
     </header>}
