@@ -138,6 +138,31 @@ export default function PdfReader({ id, label, src }: { id: string; label: strin
     return () => { window.document.body.style.overflow = previousOverflow; window.removeEventListener('keydown', escape) }
   }, [expanded])
 
+  // 電腦以滑鼠滾輪縮放（以游標為中心），手機以雙指縮放；不提供縮放按鈕（ADR-0067）。
+  useEffect(() => {
+    const element = pane.current
+    if (!element || !ready) return
+    const wheel = (event: WheelEvent) => {
+      if (event.ctrlKey || !window.matchMedia('(pointer: fine)').matches) return
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1)
+      const previous = latestZoom.current
+      const next = Math.min(5, Math.max(1, previous * Math.exp(-Math.max(-120, Math.min(120, delta)) * 0.002)))
+      event.preventDefault()
+      if (next === previous) return
+      const rect = element.getBoundingClientRect()
+      const x = event.clientX - rect.left, y = event.clientY - rect.top
+      const left = element.scrollLeft, top = element.scrollTop
+      latestZoom.current = next
+      setZoom(next)
+      requestAnimationFrame(() => {
+        element.scrollLeft = (left + x) * next / previous - x
+        element.scrollTop = (top + y) * next / previous - y
+      })
+    }
+    element.addEventListener('wheel', wheel, { passive: false })
+    return () => element.removeEventListener('wheel', wheel)
+  }, [ready])
+
   function endPointer(pointerId: number) { pointers.current.delete(pointerId); gesture.current = null; drag.current = null }
   const button = 'min-h-11 min-w-11 rounded-lg border border-white/10 px-3 text-sm hover:bg-mc-accent disabled:opacity-30'
 
@@ -152,9 +177,6 @@ export default function PdfReader({ id, label, src }: { id: string; label: strin
     <div className="flex flex-wrap items-center gap-2 border-t border-white/10 px-3 py-3">
       {timestamp && <p className="w-full text-xs leading-6 text-mc-text/60" title={timestamp.modified ? 'Google 文件最後修改時間' : '本站取得這份文件的時間，非 Google 最後修改時間'}>{timestamp.modified ? '文件更新' : '同步時間'}：<time dateTime={timestamp.value}>{new Date(timestamp.value).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}</time></p>}
       <span className="text-xs tabular-nums">共 {document?.numPages ?? '…'} 頁</span>
-      <button type="button" className={button} disabled={zoom <= 1} onClick={() => setZoom(value => Math.max(1, value - 0.5))} aria-label="縮小">−</button>
-      <button type="button" className={button} onClick={() => { setZoom(1); pane.current?.scrollTo(0, 0) }} aria-label="縮放重設">{Math.round(zoom * 100)}%</button>
-      <button type="button" className={button} disabled={zoom >= 5} onClick={() => setZoom(value => Math.min(5, value + 0.5))} aria-label="放大">＋</button>
       <button type="button" className={`${button} ml-auto`} onClick={() => setExpanded(value => !value)}>{expanded ? '關閉全螢幕' : '全螢幕'}</button>
     </div>
     <div ref={pane} className={`relative overflow-auto bg-mc-accent/40 ${expanded ? 'min-h-0 flex-1' : 'h-[65vh] min-h-[360px]'}`} style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
@@ -193,7 +215,7 @@ export default function PdfReader({ id, label, src }: { id: string; label: strin
       {document && width > 0 && !error && Array.from({ length: document.numPages }, (_, index) => <PdfPage key={`${id}-${retry}-${index}`} document={document} page={index + 1} label={label} width={Math.max(1, width - 24) * zoom} initialRatio={pageRatio} root={pane.current} onFirstPaint={firstPaint} />)}
     </div>
     <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs text-mc-text/50">
-      <p>往下捲動閱讀 · 雙指縮放 · 自動記住閱讀位置</p>
+      <p>手機雙指縮放 · 電腦滾輪縮放、拖曳移動 · 自動記住閱讀位置</p>
       {resumedPage && <p role="status" className="flex items-center gap-2">已接續第 {resumedPage} 頁<button type="button" className="min-h-11 rounded-lg px-2 text-blue-300 hover:bg-mc-accent" onClick={() => { setZoom(1); pane.current?.scrollTo(0, 0); setResumedPage(null) }}>回到開頭</button></p>}
     </div>
   </div>
