@@ -30,7 +30,6 @@ export default function BulletinCategoryPage({ params }: Props) {
     </section>)}
   </div>
   return <DashboardLayout publicView>
-    {category.slug === 'midweek-meeting' && <h1 className="sr-only">週中聚會</h1>}
     {category.slug === 'service-roster' && <div className="mb-5"><ServiceRoster /></div>}
     {category.slug === 'midweek-meeting' ? <Midweek /> : category.slug === 'announcements' ? <Announcements originalUrl={category.sources[0].url} /> : category.slug === 'service-roster' ? <RosterReference>{sources}</RosterReference> : sources}
   </DashboardLayout>

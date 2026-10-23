@@ -9,6 +9,7 @@ import { AppearanceControl } from '@/components/layout/AppearanceProvider'
 import BulletinMenu from '@/components/bulletin/BulletinMenu'
 export default function BulletinLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  // 週中聚會閱讀頁沿用同一標頭，內容區留白較緊湊（ADR-0070）。
   const meetingReader = pathname === '/bulletin/midweek-meeting'
   // 分類頁把返回與標題併入標頭，省去獨立標題列（ADR-0069）。
   const category = /^\/bulletin\/[^/]+$/.test(pathname) ? bulletinCategories.find(item => pathname === `/bulletin/${item.slug}`) : undefined
@@ -41,8 +42,8 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [pathname, authRetry])
-  return <div className={`bg-mc-bg text-mc-text ${meetingReader ? 'min-h-[calc(100dvh-3.5rem)]' : 'min-h-screen'}`}>
-    {!meetingReader && <header className="relative z-30 border-b border-white/10 bg-mc-card">
+  return <div className="min-h-screen bg-mc-bg text-mc-text">
+    <header className="relative z-30 border-b border-white/10 bg-mc-card">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 md:gap-4 md:px-8">
         {category ? <div className="flex min-w-0 items-center gap-2">
           <Link href="/bulletin" aria-label="回公布欄" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-mc-text/70 hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><ArrowLeft aria-hidden="true" className="h-5 w-5" /></Link>
@@ -55,7 +56,7 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
         <BulletinMenu current={pathname.split('/')[2]} account={authError ? { state: 'error', retry: () => setAuthRetry(value => value + 1) } : user === undefined ? { state: 'loading' } : user ? { state: 'member' } : { state: 'guest', loginHref: `/login?callbackUrl=${encodeURIComponent(pathname)}` }} />
         </div>
       </div>
-    </header>}
+    </header>
     <main className={meetingReader ? 'mx-auto max-w-6xl px-3 py-2 md:px-8 md:py-3' : 'mx-auto max-w-6xl p-4 md:p-8'}>{children}</main>
   </div>
 }
