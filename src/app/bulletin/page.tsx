@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, LayoutDashboard } from 'lucide-react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import BulletinIcon from '@/components/bulletin/BulletinIcon'
 import { bulletinCategories } from '@/lib/bulletin'
@@ -18,6 +18,12 @@ export default function BulletinPage() {
         <h2 className="whitespace-nowrap text-base font-semibold sm:flex-1">{category.title}</h2>
         <ArrowUpRight aria-hidden="true" className="hidden h-4 w-4 text-mc-text/30 group-hover:text-blue-300 sm:block" />
       </Link>)}
+      {/* 最後一格是我的看板；未登入時由 middleware 導向登入後回到看板（ADR-0071）。 */}
+      <Link href="/dashboard" className="group flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-mc-card p-3 transition-colors hover:border-blue-300/40 hover:bg-mc-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 sm:min-h-0 sm:flex-row sm:justify-start sm:gap-3">
+        <span className="shrink-0 rounded-lg bg-blue-400/10 p-2 text-blue-300"><LayoutDashboard aria-hidden="true" strokeWidth={1.5} className="h-6 w-6" /></span>
+        <h2 className="whitespace-nowrap text-base font-semibold sm:flex-1">我的看板</h2>
+        <ArrowUpRight aria-hidden="true" className="hidden h-4 w-4 text-mc-text/30 group-hover:text-blue-300 sm:block" />
+      </Link>
     </div>
   </DashboardLayout>
 }
