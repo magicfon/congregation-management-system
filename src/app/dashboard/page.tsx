@@ -66,11 +66,11 @@ export default function DashboardPage() {
           {data.pendingRequests.length > 0 && <details className="group border-t border-white/10"><summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden">待審申請明細 · {data.pendingRequests.length} 張<ChevronDown size={16} aria-hidden="true" className="transition-transform group-open:rotate-180" /></summary><ul className="space-y-3 py-3">{data.pendingRequests.map(r => <li key={r.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{r.label}</span><time className="text-mc-text/70">{r.date}</time></li>)}</ul></details>}
         </section>
       </>}
-      {/* 管理區放在個人內容之後（ADR-0072）。 */}
+      {/* 先看自己的委派與服務，再看管理待辦，最後是管理入口（ADR-0074）。 */}
+      {data.isAdmin && <AdminTaskCenter />}
       {data.isAdmin && <nav aria-label="常用管理" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {adminManagementLinks.map(link => <a key={link.href} href={link.href} className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-white/15 bg-mc-card px-4 text-sm text-mc-text hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Settings2 size={16} aria-hidden="true" />{link.label}<ArrowRight size={16} aria-hidden="true" className="ml-auto" /></a>)}
       </nav>}
-      {data.isAdmin && <AdminTaskCenter />}
       <footer className="space-y-4">
         <LineNotificationPreference />
         {data.isAdmin && <details className="group"><summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden"><Settings2 size={16} aria-hidden="true" />管理工具<ChevronDown size={16} aria-hidden="true" className="ml-auto transition-transform group-open:rotate-180" /></summary><div className="space-y-4 py-4"><SyncCheck /><LineBotStatus /></div></details>}
