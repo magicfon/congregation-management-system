@@ -10,6 +10,7 @@ async function scenario(initial, updated, pathname = '/bulletin/service-roster/a
   const react = { ...React, useState(value) { const index = cursor++; if (!(index in state)) state[index] = value; return [state[index], value => { state[index] = value; }]; }, useEffect(effect) { effects.push(effect); } };
   const exports = {};
   const mocks = { react, 'next/link': { default: ({ children, ...props }) => React.createElement('a', props, children) }, 'next/navigation': { usePathname: () => pathname }, '@/components/layout/AppearanceProvider': { AppearanceControl: () => React.createElement('button', null, '外觀') },
+    '@/lib/bulletin': { bulletinCategories: [{ slug: 'service-roster', title: '服務安排' }] },
     // 主選單平時收合；以帳號狀態渲染對應入口，檢查標頭傳入的登入狀態（ADR-0068）。
     '@/components/bulletin/BulletinMenu': { default: ({ account }) => account.state === 'member' ? React.createElement('a', { href: '/dashboard' }, '我的看板') : account.state === 'guest' ? React.createElement('a', { href: account.loginHref }, '登入') : null } };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/components/bulletin/BulletinLayout.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 } }).outputText, {
@@ -41,5 +42,6 @@ async function scenario(initial, updated, pathname = '/bulletin/service-roster/a
   await scenario(null, { id: 'admin-fixture', role: 'admin' });
   await scenario({ id: 'admin-fixture', role: 'admin' }, undefined, '/service-roster/manage');
   await scenario({ id: 'member-fixture', role: 'publisher' }, undefined, '/map-images');
+  await scenario(null, undefined, '/bulletin/service-roster');
   console.log('Bulletin header authenticated, guest, admin and focus refresh checks passed');
 })().catch(error => { console.error(error.message); process.exitCode = 1; });
