@@ -13,7 +13,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="zh-TW">
+    <html lang="zh-TW" className="bulletin-theme dashboard-theme" suppressHydrationWarning>
+      <head>
+        {/* Apply the saved appearance before first paint (ADR-0072). */}
+        <script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.dataset.bulletinTheme=localStorage.getItem('bulletin-theme')||'system'}catch(e){}` }} />
+      </head>
       <body className="bg-mc-bg text-mc-text antialiased">
         <AppearanceProvider>{children}</AppearanceProvider>
       </body>

@@ -38,14 +38,13 @@ export default function AppearanceProvider({ children }: { children: React.React
     return () => window.removeEventListener('storage', sync)
   }, [])
   useEffect(() => {
-    // Put tokens on body as well so portaled controls share the same appearance.
-    document.body.classList.add('bulletin-theme', 'dashboard-theme')
-    document.body.dataset.bulletinTheme = theme
+    // Tokens live on <html> so the head script and React share one source.
+    document.documentElement.dataset.bulletinTheme = theme
   }, [theme])
   const pathname = usePathname()
   const integratedHeader = pathname.startsWith('/bulletin') || ['/service-roster/manage', '/map-images', '/boundary-editor', '/pending-access'].includes(pathname)
   return <AppearanceContext.Provider value={{ theme, deviceTheme, setTheme }}>
-    <div data-bulletin-theme={theme} className={`appearance-shell bulletin-theme dashboard-theme min-h-screen bg-mc-bg text-mc-text ${integratedHeader ? '' : 'pt-14'}`}>
+    <div className={`appearance-shell min-h-screen bg-mc-bg text-mc-text ${integratedHeader ? '' : 'pt-14'}`}>
       {!integratedHeader && <>
         <div className="appearance-toolbar fixed inset-x-0 top-0 z-20 h-14 border-b border-white/10 bg-mc-card" />
         <AppearanceControl />
