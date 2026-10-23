@@ -41,11 +41,7 @@ export default function DashboardPage() {
     {error && <div role="alert" className="rounded-xl bg-red-400/10 p-4 text-red-200">{error}<button className="ml-3 min-h-11 underline underline-offset-4" onClick={() => setRevision(v => v + 1)}>重新載入</button></div>}
     {!data && !error && <div role="status" className="space-y-4"><span className="text-sm text-mc-text/70">正在載入看板…</span><div aria-hidden="true" className="h-48 rounded-xl bg-mc-card motion-safe:animate-pulse" /></div>}
     {data && <>
-      {data.isAdmin && <nav aria-label="常用管理" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {adminManagementLinks.map(link => <a key={link.href} href={link.href} className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-white/15 bg-mc-card px-4 text-sm text-mc-text hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Settings2 size={16} aria-hidden="true" />{link.label}<ArrowRight size={16} aria-hidden="true" className="ml-auto" /></a>)}
-      </nav>}
       <PersonalAssignmentsPanel data={data.assignments} kind={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('kind') === 'program' ? 'program' : 'service'} />
-      {data.isAdmin && <AdminTaskCenter />}
       {data.showTerritory && <>
         {!data.isAdmin && <section id="handoffs" data-dashboard-section="handoffs" className="dashboard-section scroll-mt-20">
           <div className="flex items-baseline justify-between gap-3"><h2 className="text-lg font-semibold">待交接</h2><span className={`text-sm ${data.handoffs.length ? 'text-amber-200' : 'text-mc-text/70'}`}>{data.handoffs.length} 張</span></div>
@@ -70,6 +66,11 @@ export default function DashboardPage() {
           {data.pendingRequests.length > 0 && <details className="group border-t border-white/10"><summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden">待審申請明細 · {data.pendingRequests.length} 張<ChevronDown size={16} aria-hidden="true" className="transition-transform group-open:rotate-180" /></summary><ul className="space-y-3 py-3">{data.pendingRequests.map(r => <li key={r.id} className="flex flex-wrap justify-between gap-2 text-sm"><span>{r.label}</span><time className="text-mc-text/70">{r.date}</time></li>)}</ul></details>}
         </section>
       </>}
+      {/* 管理區放在個人內容之後（ADR-0072）。 */}
+      {data.isAdmin && <nav aria-label="常用管理" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {adminManagementLinks.map(link => <a key={link.href} href={link.href} className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-white/15 bg-mc-card px-4 text-sm text-mc-text hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Settings2 size={16} aria-hidden="true" />{link.label}<ArrowRight size={16} aria-hidden="true" className="ml-auto" /></a>)}
+      </nav>}
+      {data.isAdmin && <AdminTaskCenter />}
       <footer className="space-y-4">
         <LineNotificationPreference />
         {data.isAdmin && <details className="group"><summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden"><Settings2 size={16} aria-hidden="true" />管理工具<ChevronDown size={16} aria-hidden="true" className="ml-auto transition-transform group-open:rotate-180" /></summary><div className="space-y-4 py-4"><SyncCheck /><LineBotStatus /></div></details>}
