@@ -10,15 +10,18 @@ export const MAX_REPORT_AREAS = 20
 
 export class TerritoryReportError extends Error { constructor(message: string, public status = 400) { super(message) } }
 
-export type TerritoryReportInput = { sheetNos: number[]; timeslot: string; startDate: string; endDate: string; note: string }
+export type TerritoryReportInput = { name: string; sheetNos: number[]; timeslot: string; startDate: string; endDate: string; note: string }
 export type ReportArea = { id: string; sheetNo: number | null; assignedMemberId: string | null; dispatchedAt: Date | null; completedAt: Date | null; lastReportedCompletedAt: Date | null }
 
 function validDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value
 }
 
-export function parseReportInput(body: unknown, now = new Date()): TerritoryReportInput {
+/** 未登入（過渡期）須自填姓名；登入者的姓名由帳號帶入，body 內的 name 不採用。 */
+export function parseReportInput(body: unknown, now = new Date(), guest = false): TerritoryReportInput {
   const value = (body || {}) as Record<string, unknown>
+  const name = guest && typeof value.name === 'string' ? value.name.trim().replace(/\s+/g, ' ') : ''
+  if (guest && (!name || name.length > 30)) throw new TerritoryReportError('請填寫姓名（最多 30 字）')
   const raw = Array.isArray(value.sheetNos) ? value.sheetNos : [value.sheetNo]
   const sheetNos = [...new Set(raw.map(Number))]
   if (!sheetNos.length || sheetNos.some(no => !Number.isInteger(no) || no < 1 || no > 213)) throw new TerritoryReportError('區域號碼須為 1–213')
@@ -30,7 +33,7 @@ export function parseReportInput(body: unknown, now = new Date()): TerritoryRepo
   if (value.endDate > taipeiDate(now)) throw new TerritoryReportError('結束日不能晚於今天')
   const note = typeof value.note === 'string' ? value.note.trim() : ''
   if (note.length > 500) throw new TerritoryReportError('備註最多 500 字')
-  return { sheetNos, timeslot, startDate: value.startDate, endDate: value.endDate, note }
+  return { name, sheetNos, timeslot, startDate: value.startDate, endDate: value.endDate, note }
 }
 
 /** 回報後該區是否交回：使用中，且結束日不早於該輪領取日（台北日曆日）。 */
@@ -53,7 +56,7 @@ export function reportSheetRow(name: string, input: TerritoryReportInput, sheetN
 }
 
 export function reportContent(input: TerritoryReportInput, sheetNo: number) {
-  const { sheetNos: _, ...fields } = input
+  const { sheetNos: _, name: __, ...fields } = input
   return JSON.stringify({ source: 'territory-report', sheetNo, ...fields })
 }
 
@@ -61,18 +64,23 @@ export function reportContent(input: TerritoryReportInput, sheetNo: number) {
  * 建立回報：每區各寫一筆系統紀錄、需要時交回，最後一次 append 每區一列到 Sheet。
  * append 在 transaction 內最後一步，失敗則整筆回滾，避免 DB 與 Sheet 不一致。
  */
-export async function submitTerritoryReport(db: PrismaClient, memberId: string, input: TerritoryReportInput, appendRows: (rows: (string | number)[][]) => Promise<void>, now = new Date()) {
+export async function submitTerritoryReport(db: PrismaClient, accountId: string | null, input: TerritoryReportInput, appendRows: (rows: (string | number)[][]) => Promise<void>, now = new Date()) {
   return db.$transaction(async tx => {
-    const member = await tx.member.findUnique({ where: { id: memberId }, select: { name: true, active: true, deletedAt: true } })
-    if (!member?.active || member.deletedAt) throw new TerritoryReportError('帳號未啟用', 403)
+    // 登入者用帳號；未登入者以姓名對應啟用中的成員，對不到仍可回報，只是不留系統紀錄
+    const member = accountId
+      ? await tx.member.findUnique({ where: { id: accountId }, select: { id: true, name: true, active: true, deletedAt: true } })
+      : await tx.member.findFirst({ where: { name: input.name, active: true, deletedAt: null }, select: { id: true, name: true, active: true, deletedAt: true } })
+    if (accountId && (!member?.active || member.deletedAt)) throw new TerritoryReportError('帳號未啟用', 403)
+    const memberId = member?.id ?? null
+    const reporterName = accountId ? member!.name : input.name
     const results: { sheetNo: number; returned: boolean }[] = []
     for (const sheetNo of input.sheetNos) {
       const area = await tx.area.findUnique({ where: { sheetNo } })
       if (!area) throw new TerritoryReportError(`找不到區域號碼 ${sheetNo}`)
-      const ownHeld = isAreaDispatched(area) && area.assignedMemberId === memberId
+      const ownHeld = Boolean(memberId) && isAreaDispatched(area) && area.assignedMemberId === memberId
       if (ownHeld && area.dispatchedAt && input.endDate < taipeiDate(area.dispatchedAt)) throw new TerritoryReportError(`${sheetNo} 號：結束日早於您領取這張地圖的日期（${taipeiDate(area.dispatchedAt)}）`)
       const content = reportContent(input, sheetNo)
-      const duplicate = await tx.report.findFirst({ where: { memberId, areaId: area.id, content, submittedAt: { gte: new Date(now.getTime() - DUPLICATE_WINDOW_MS) } } })
+      const duplicate = memberId && await tx.report.findFirst({ where: { memberId, areaId: area.id, content, submittedAt: { gte: new Date(now.getTime() - DUPLICATE_WINDOW_MS) } } })
       if (duplicate) throw new TerritoryReportError(`${sheetNo} 號的回報剛剛已送出，不需要重複送出`, 409)
       const returned = reportReturnsArea(area, input.endDate)
       const endAt = new Date(`${input.endDate}T00:00:00+08:00`)
@@ -83,10 +91,10 @@ export async function submitTerritoryReport(db: PrismaClient, memberId: string, 
       } else if ('lastReportedCompletedAt' in reported) {
         await tx.area.update({ where: { id: area.id }, data: reported })
       }
-      await tx.report.create({ data: { areaId: area.id, memberId, content, status: 'approved', reviewedAt: now, submittedAt: now } })
+      if (memberId) await tx.report.create({ data: { areaId: area.id, memberId, content, status: 'approved', reviewedAt: now, submittedAt: now } })
       results.push({ sheetNo, returned })
     }
-    await appendRows(input.sheetNos.map(sheetNo => reportSheetRow(member.name, input, sheetNo, now)))
+    await appendRows(input.sheetNos.map(sheetNo => reportSheetRow(reporterName, input, sheetNo, now)))
     return results
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 30000, maxWait: 10000 })
 }

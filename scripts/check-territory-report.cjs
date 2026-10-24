@@ -33,7 +33,7 @@ assert.equal(report.reportedButHeld({...held('2026-10-01','2026-10-05'),complete
 let state, appended, failAppend
 function reset(area={}) { state={reports:[],area6:{id:'a6',sheetNo:6,assignedMemberId:null,dispatchedAt:null,completedAt:null,lastReportedCompletedAt:null},area:{id:'a5',sheetNo:5,assignedMemberId:'m1',dispatchedAt:tp('2026-10-10'),completedAt:null,lastReportedCompletedAt:new Date('2026-09-01T00:00:00+08:00'),...area}}; appended=[]; failAppend=false }
 const db={$transaction:async(fn,opts)=>{assert.equal(opts.isolationLevel,'Serializable');const before=structuredClone(state);const tx={
- member:{findUnique:async({where})=>({name:where.id==='m1'?'王一':'李二',active:true,deletedAt:null})},
+ member:{findUnique:async({where})=>({id:where.id,name:where.id==='m1'?'王一':'李二',active:true,deletedAt:null}),findFirst:async({where})=>where.name==='王一'?{id:'m1',name:'王一',active:true,deletedAt:null}:null},
  area:{findUnique:async({where})=>where.sheetNo===5?{...state.area}:where.sheetNo===6?{...state.area6}:null,updateMany:async({where,data})=>{const a=state.area;const ok=a.id===where.id&&a.assignedMemberId===where.assignedMemberId&&+a.dispatchedAt===+where.dispatchedAt&&a.completedAt===where.completedAt;if(ok)Object.assign(a,data);return{count:ok?1:0}},update:async({where,data})=>Object.assign(where.id==='a6'?state.area6:state.area,data)},
  report:{findFirst:async({where})=>state.reports.find(r=>r.memberId===where.memberId&&r.content===where.content&&r.submittedAt>=where.submittedAt.gte)||null,create:async({data})=>state.reports.push(data)}}
  try{return await fn(tx)}catch(e){state=before;throw e}}}
@@ -62,5 +62,13 @@ const append=async rows=>{if(failAppend)throw new Error('sheet down');appended.p
  assert.equal(JSON.stringify(r.map(x=>[x.sheetNo,x.returned])),"[[5,true],[6,false]]"); assert.equal(appended.length,2); assert.equal(appended.map(x=>x[3]).join(),"5,6"); assert.equal(state.reports.length,2)
  reset(); await assert.rejects(report.submitTerritoryReport(db,'m1',input({sheetNos:[5,99]}),append,now),/找不到區域號碼 99/)
  assert.equal(state.area.completedAt,null); assert.equal(state.reports.length,0); assert.equal(appended.length,0)
+ // 未登入：須填姓名；對到成員照成員規則，對不到只寫 Sheet
+ assert.throws(()=>report.parseReportInput({sheetNos:[5],timeslot:'x',startDate:'2026-10-20',endDate:'2026-10-22'},now,true),/姓名/)
+ assert.equal(report.parseReportInput({name:'不採用',sheetNos:[5],timeslot:'x',startDate:'2026-10-20',endDate:'2026-10-22'},now).name,'','登入者不採用 body 姓名')
+ const guest=o=>report.parseReportInput({sheetNos:[5],timeslot:'星期六早上',startDate:'2026-10-20',endDate:'2026-10-22',...o},now,true)
+ reset(); await assert.rejects(report.submitTerritoryReport(db,null,guest({name:'王一',startDate:'2026-10-01',endDate:'2026-10-05'}),append,now),/早於您領取/)
+ reset(); r=await report.submitTerritoryReport(db,null,guest({name:' 陳 三 '}),append,now)
+ assert.equal(r[0].returned,true); assert.equal(state.reports.length,0,'對不到成員不留紀錄'); assert.equal(appended[0][1],'陳 三')
+ reset(); r=await report.submitTerritoryReport(db,null,guest({name:'王一'}),append,now); assert.equal(state.reports[0].memberId,'m1')
  console.log('territory report checks passed')
 })().catch(e=>{console.error(e);process.exit(1)})
