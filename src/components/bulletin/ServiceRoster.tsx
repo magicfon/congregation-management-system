@@ -137,7 +137,7 @@ export default function ServiceRoster({ management = false }: { management?: boo
           <fieldset disabled={busy} className="grid items-start gap-3 md:grid-cols-2">
             {groups.map(group => <section key={group} data-roster-group={group} className="roster-group overflow-hidden rounded-xl border bg-mc-card"><h3 className="roster-group-title px-4 py-3 text-lg font-semibold">{group}</h3><dl className={editing ? 'space-y-2 p-3' : 'grid grid-cols-1 gap-x-4 gap-y-4 p-4 min-[380px]:grid-cols-2'}>{serviceRoles.filter(r => r.group === group).map(role => {
               const assigned = (editing ? draft : week.assignments)[role.id]
-              const eligible = data.people?.filter(p => p.enabled && p.memberId && p.roles.includes(role.id)) ?? []
+              const eligible = data.people?.filter(p => p.enabled && p.roles.includes(role.id)) ?? []
               return <div key={role.id} className={editing ? 'grid min-h-12 grid-cols-1 items-center gap-2 sm:grid-cols-[10rem_minmax(0,1fr)]' : 'min-w-0 py-1'}><dt className={editing ? 'roster-duty-title flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-lg font-bold leading-7' : 'roster-duty-title mb-2 flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-xl font-bold leading-7'}><ServiceDutyIcon role={role.id} /><span>{role.label}</span></dt><dd>{editing ? <select className={control} aria-label={role.label} value={assigned?.personId ?? ''} onChange={event => { const person = data.people?.find(p => p.id === event.target.value); setDraft(current => { const next = { ...current }; if (person) next[role.id] = { personId: person.id, name: person.name }; else delete next[role.id]; return next }); setDirty(true) }}><option value="">待安排</option>{assigned && !eligible.some(p => p.id === assigned.personId) && <option value={assigned.personId}>{assigned.name}（原安排）</option>}{eligible.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <RosterName assignment={assigned} ownPersonId={ownPersonId} />}</dd></div>
             })}</dl></section>)}
           </fieldset>
@@ -176,33 +176,32 @@ function SyncWeekDetails({ week }: { week: SyncWeek | null }) {
 function PersonEditor({ people, members, busy, save }: { people: ServicePersonData[]; members: Member[]; busy: boolean; save: (body: Record<string, unknown>) => Promise<unknown> }) {
   const [id, setId] = useState('new'), [memberId, setMemberId] = useState(''), [roles, setRoles] = useState<ServiceRole[]>([]), [enabled, setEnabled] = useState(true)
   useEffect(() => { const person = people.find(p => p.id === id); setMemberId(person?.memberId ?? ''); setRoles(person?.roles ?? []); setEnabled(person?.enabled ?? true) }, [id, people])
-  const pending = people.filter(p => !p.memberId).length
   const form = useRef<HTMLFormElement>(null)
   const [advanced, setAdvanced] = useState(false)
   function remove(p: ServicePersonData, role: ServiceRole) {
     if (!window.confirm(`確定移除${p.name}的${serviceRoles.find(r => r.id === role)!.label}資格？`)) return
     void save({ action: 'person', id: p.id, memberId: p.memberId, roles: p.roles.filter(r => r !== role), enabled: p.enabled }).catch(() => {})
   }
-  // 總表：依職務列出可安排人員，停用、待對應排後面並標記，點名字帶進下方進階設定（ADR-0075）；職務列可直接新增、移除（ADR-0080）。
-  const status = (p: ServicePersonData) => !p.memberId ? 2 : !p.enabled ? 1 : 0
+  // 總表：依職務列出可安排人員，停用排後面並標記，點名字帶進下方進階設定（ADR-0075）；職務列可直接新增、移除（ADR-0080）。
+  const status = (p: ServicePersonData) => p.enabled ? 0 : 1
   const rows = [...people].sort((a, b) => status(a) - status(b) || a.name.localeCompare(b.name, 'zh-TW'))
-  return <details className="rounded-xl border border-white/10 bg-mc-card p-4"><summary className="cursor-pointer text-base font-semibold">人員資格{pending ? ` · ${pending} 人待對應` : ''}</summary>
+  return <details className="rounded-xl border border-white/10 bg-mc-card p-4"><summary className="cursor-pointer text-base font-semibold">人員資格</summary>
     <dl className="mt-4 divide-y divide-white/10 rounded-lg border border-white/10">{serviceRoles.map(role => {
       const holders = rows.filter(p => p.roles.includes(role.id))
       const ready = holders.filter(p => !status(p)).length
       return <div key={role.id} className="grid gap-2 px-3 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
         <dt className="font-semibold">{role.label}<span className={`ml-2 whitespace-nowrap text-sm font-normal tabular-nums ${ready ? 'text-mc-text/60' : 'text-amber-200'}`}>{ready} 人可安排</span></dt>
         <dd className="flex flex-wrap gap-2">{holders.length ? holders.map(p => <span key={p.id} className={`flex min-h-11 items-stretch overflow-hidden rounded-lg border ${p.id === id && advanced ? 'border-blue-300 bg-mc-accent' : 'border-white/15'} ${status(p) ? 'text-mc-text/60' : ''}`}>
-          <button type="button" title="點選以進階設定" onClick={() => { setId(p.id); setAdvanced(true); requestAnimationFrame(() => form.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })) }} className="px-3 text-base hover:bg-mc-accent">{p.name}{!p.memberId ? <span className="ml-1 text-xs text-amber-200">待對應</span> : !p.enabled ? <span className="ml-1 text-xs">停用</span> : null}</button>
-          {p.memberId && <button type="button" disabled={busy} aria-label={`移除${p.name}的${role.label}資格`} onClick={() => remove(p, role.id)} className="border-l border-white/10 px-2.5 text-base text-mc-text/60 hover:bg-mc-accent hover:text-red-300 disabled:opacity-40">×</button>}
+          <button type="button" title="點選以進階設定" onClick={() => { setId(p.id); setAdvanced(true); requestAnimationFrame(() => form.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })) }} className="px-3 text-base hover:bg-mc-accent">{p.name}{!p.enabled && <span className="ml-1 text-xs">停用</span>}</button>
+          <button type="button" disabled={busy} aria-label={`移除${p.name}的${role.label}資格`} onClick={() => remove(p, role.id)} className="border-l border-white/10 px-2.5 text-base text-mc-text/60 hover:bg-mc-accent hover:text-red-300 disabled:opacity-40">×</button>
         </span>) : <span className="py-2 text-sm text-mc-text/60">尚無人具備此資格</span>}<AddHolder role={role.id} people={people} members={members} busy={busy} save={save} /></dd>
       </div>
     })}</dl>
-    <details open={advanced} onToggle={event => setAdvanced(event.currentTarget.open)} className="mt-4 rounded-lg border border-white/10 p-3"><summary className="min-h-11 cursor-pointer py-2 text-base">進階設定：對應成員、停用{pending ? ` · ${pending} 人待對應` : ''}</summary>
+    <details open={advanced} onToggle={event => setAdvanced(event.currentTarget.open)} className="mt-4 rounded-lg border border-white/10 p-3"><summary className="min-h-11 cursor-pointer py-2 text-base">進階設定：連結成員、停用</summary>
     <form ref={form} className="mt-3 space-y-3" onSubmit={event => { event.preventDefault(); void save({ action: 'person', id: id === 'new' ? null : id, memberId, roles, enabled }).catch(() => {}) }}><fieldset disabled={busy} className="space-y-3">
-    <label className="block text-base">人員<select className={`${control} mt-2`} value={id} onChange={event => setId(event.target.value)}><option value="new">新增成員</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}{!p.memberId ? '（待對應）' : !p.enabled ? '（停用）' : ''}</option>)}</select></label>
-    <label className="block text-base">對應成員<select required className={`${control} mt-2`} value={memberId} onChange={event => setMemberId(event.target.value)}><option value="">選擇啟用成員</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
-    <label className="flex min-h-12 items-center gap-2 text-base"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} />可安排</label>
+    <label className="block text-base">人員<select className={`${control} mt-2`} value={id} onChange={event => setId(event.target.value)}><option value="new">新增成員</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}{!p.enabled ? '（停用）' : ''}</option>)}</select></label>
+    <label className="block text-base">連結成員<select required={id === 'new' || Boolean(people.find(p => p.id === id)?.memberId)} className={`${control} mt-2`} value={memberId} onChange={event => setMemberId(event.target.value)}><option value="">{id !== 'new' && !people.find(p => p.id === id)?.memberId ? '不連結（照名單姓名）' : '選擇啟用成員'}</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+    {memberId && <label className="flex min-h-12 items-center gap-2 text-base"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} />可安排</label>}
     <div className="grid grid-cols-2 gap-2">{serviceRoles.map(role => <label key={role.id} className="flex min-h-12 items-center gap-2 text-base"><input type="checkbox" checked={roles.includes(role.id)} onChange={event => setRoles(current => event.target.checked ? [...current, role.id] : current.filter(r => r !== role.id))} />{role.label}</label>)}</div>
     <button className={button}>儲存資格</button>
   </fieldset></form></details></details>
