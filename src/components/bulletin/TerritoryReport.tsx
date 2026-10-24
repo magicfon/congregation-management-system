@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 import { ExternalLink, Plus, X } from 'lucide-react'
 
 type Area = { sheetNo: number; label: string; holder: string | null; dispatched: string | null }
-type Options = { name: string; today: string; timeslots: string[]; maxAreas: number; held: Area[]; areas: Area[] }
+type Options = { guest: boolean; name: string; today: string; timeslots: string[]; maxAreas: number; held: Area[]; areas: Area[] }
 const OTHER = 'other'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 bg-mc-accent px-3 text-base'
 const label = 'mb-1 block text-sm text-mc-text/70'
 
 export default function TerritoryReport({ formUrl }: { formUrl: string }) {
   const [options, setOptions] = useState<Options | null>(null)
-  const [guest, setGuest] = useState(false)
+  const [guestName, setGuestName] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -29,7 +29,6 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
     setError('')
     try {
       const res = await fetch('/api/territory-reports', { cache: 'no-store' })
-      if (res.status === 401) { setGuest(true); return }
       const value = await res.json()
       if (!res.ok) throw new Error(value.error || '無法讀取區域資料')
       setOptions(value)
@@ -67,12 +66,12 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-    if (lock.current || !selected.length || problem || !timeslot || !startDate || !endDate) return
+    if (lock.current || !selected.length || problem || !timeslot || !startDate || !endDate || (options?.guest && !guestName.trim())) return
     const others = returning.filter(a => !ownNos.has(a.sheetNo))
     if (others.length && !window.confirm(`${others.map(a => `${a.label}（${a.holder} 領取）`).join('、')} 送出後會交回。確定送出？`)) return
     lock.current = true; setBusy(true); setError(''); setNotice('')
     try {
-      const res = await fetch('/api/territory-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetNos: tags, timeslot, startDate, endDate, note }) })
+      const res = await fetch('/api/territory-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(options?.guest ? { name: guestName } : {}), sheetNos: tags, timeslot, startDate, endDate, note }) })
       const value = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(value.error || '回報未送出，請稍後再試')
       setNotice(`已送出 ${selected.length} 區的回報${value.returned?.length ? `，交回 ${value.returned.length} 張地圖` : ''}。${value.warning || ''}`)
@@ -82,16 +81,12 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
   }
 
   const formLink = <a href={formUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-sm text-blue-300">改用 Google 表單<ExternalLink aria-hidden="true" className="h-4 w-4" /><span className="sr-only">（另開分頁）</span></a>
-  if (guest) return <section className="rounded-2xl border border-white/10 bg-mc-card p-4 sm:p-6">
-    <h2 className="font-semibold">區域回報</h2>
-    <p className="mt-2 text-sm text-mc-text/60">登入後即可在這裡回報，姓名與領取中的地圖會自動帶入。</p>
-    <div className="mt-4 flex flex-wrap items-center gap-4"><a href="/login?callbackUrl=%2Fbulletin%2Fterritory-report" className="inline-flex min-h-11 items-center rounded-lg bg-blue-400/15 px-4 text-sm text-blue-200">登入回報</a>{formLink}</div>
-  </section>
-
   return <form onSubmit={e => void submit(e)} className="space-y-4 rounded-2xl border border-white/10 bg-mc-card p-4 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">區域回報{options?.name && <span className="ml-2 text-sm font-normal text-mc-text/60">{options.name}</span>}</h2>{formLink}</div>
     {!options && !error && <p role="status" className="text-sm text-mc-text/50">正在讀取區域…</p>}
+    {options?.guest && <p className="text-sm text-mc-text/60"><a href="/login?callbackUrl=%2Fbulletin%2Fterritory-report" className="text-blue-300 underline-offset-2 hover:underline">登入</a>後姓名與領取中的地圖會自動帶入。</p>}
     {options && <>
+      {options.guest && <div><label htmlFor="report-name" className={label}>姓名</label><input id="report-name" required maxLength={30} autoComplete="name" value={guestName} onChange={e => setGuestName(e.target.value)} className={control} /></div>}
       <div>
         <label htmlFor="report-area" className={label}>區域</label>
         <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-mc-accent px-2 py-2">
@@ -100,7 +95,8 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
         </div>
         {areaHint && <p role="alert" className="mt-1 text-xs text-amber-300">{areaHint}</p>}
         {options.held.some(a => !tags.includes(a.sheetNo)) && <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-xs text-mc-text/50">我領取的：</span>{options.held.filter(a => !tags.includes(a.sheetNo)).map(a => <button key={a.sheetNo} type="button" onClick={() => addTag(a.sheetNo)} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-white/10 px-3 text-sm text-mc-text/80 hover:bg-white/5"><Plus aria-hidden="true" className="h-3.5 w-3.5" />{a.label}</button>)}</div>}
-        {selected.some(a => !ownNos.has(a.sheetNo)) && <ul className="mt-2 space-y-0.5 text-xs text-mc-text/60">{selected.filter(a => !ownNos.has(a.sheetNo)).map(a => <li key={a.sheetNo}>{a.label}・{a.holder ? `${a.holder} 領取中（${a.dispatched || '日期未記錄'}）` : '目前無人領取'}</li>)}</ul>}
+        {options.guest && selected.length > 0 && <p className="mt-2 text-xs text-mc-text/60">使用中的地圖，送出後會自動交回。</p>}
+        {!options.guest && selected.some(a => !ownNos.has(a.sheetNo)) && <ul className="mt-2 space-y-0.5 text-xs text-mc-text/60">{selected.filter(a => !ownNos.has(a.sheetNo)).map(a => <li key={a.sheetNo}>{a.label}・{a.holder ? `${a.holder} 領取中（${a.dispatched || '日期未記錄'}）` : '目前無人領取'}</li>)}</ul>}
       </div>
       <div>
         <label htmlFor="report-slot" className={label}>傳道時段</label>
@@ -117,7 +113,7 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
       <div><label htmlFor="report-note" className={label}>備註（選填）</label><textarea id="report-note" rows={3} maxLength={500} value={note} onChange={e => setNote(e.target.value)} className={`${control} py-2`} /></div>
       {problem && <p role="alert" className="text-sm text-amber-300">{problem}</p>}
       {!problem && returning.length > 0 && <p className="text-sm text-mc-text/60">送出後會自動交回：{returning.map(a => a.label).join('、')}</p>}
-      <button type="submit" disabled={busy || !selected.length || Boolean(problem) || !timeslot || !startDate || !endDate} className="min-h-12 w-full rounded-lg bg-blue-500 px-4 text-base font-semibold text-white disabled:opacity-40">{busy ? '送出中…' : '送出回報'}</button>
+      <button type="submit" disabled={busy || !selected.length || (options.guest && !guestName.trim()) || Boolean(problem) || !timeslot || !startDate || !endDate} className="min-h-12 w-full rounded-lg bg-blue-500 px-4 text-base font-semibold text-white disabled:opacity-40">{busy ? '送出中…' : '送出回報'}</button>
     </>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
     {notice && <p role="status" className="text-sm text-emerald-300">{notice}</p>}
