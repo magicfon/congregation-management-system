@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Plus, X } from 'lucide-react'
 
 type Area = { sheetNo: number; label: string; holder: string | null; dispatched: string | null }
-type Options = { name: string; today: string; timeslots: string[]; held: Area[]; areas: Area[] }
+type Options = { name: string; today: string; timeslots: string[]; maxAreas: number; held: Area[]; areas: Area[] }
 const OTHER = 'other'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 bg-mc-accent px-3 text-base'
 const label = 'mb-1 block text-sm text-mc-text/70'
@@ -15,8 +15,9 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
-  const [areaChoice, setAreaChoice] = useState('')
-  const [customNo, setCustomNo] = useState('')
+  const [tags, setTags] = useState<number[]>([])
+  const [areaText, setAreaText] = useState('')
+  const [areaHint, setAreaHint] = useState('')
   const [slotChoice, setSlotChoice] = useState('')
   const [customSlot, setCustomSlot] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -32,35 +33,50 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
       const value = await res.json()
       if (!res.ok) throw new Error(value.error || '無法讀取區域資料')
       setOptions(value)
-      setAreaChoice(current => current && (current === OTHER || value.held.some((a: Area) => String(a.sheetNo) === current)) ? current : value.held[0] ? String(value.held[0].sheetNo) : OTHER)
       setSlotChoice(current => current || value.timeslots[0] || OTHER)
       setEndDate(current => current || value.today)
     } catch (e) { setError(e instanceof Error ? e.message : '無法讀取區域資料') }
   }
   useEffect(() => { void load() }, [])
 
-  const sheetNo = areaChoice === OTHER ? Number(customNo) : Number(areaChoice)
-  const area = options?.areas.find(a => a.sheetNo === sheetNo)
-  const own = options?.held.find(a => a.sheetNo === sheetNo)
+  const areaOf = (no: number) => options?.areas.find(a => a.sheetNo === no)
+  const selected = tags.flatMap(no => areaOf(no) ? [areaOf(no)!] : [])
+  const ownNos = new Set(options?.held.map(a => a.sheetNo))
   const timeslot = slotChoice === OTHER ? customSlot.trim() : slotChoice
-  const willReturn = Boolean(area?.holder && (!area.dispatched || endDate >= area.dispatched))
-  const problem = !area ? (areaChoice === OTHER && customNo ? '找不到這個區域號碼（1–213）' : '')
-    : startDate && endDate && startDate > endDate ? '結束日不能早於開始日'
+  const returning = selected.filter(a => a.holder && (!a.dispatched || endDate >= a.dispatched))
+  const lateOwn = selected.find(a => ownNos.has(a.sheetNo) && a.dispatched && endDate && endDate < a.dispatched)
+  const problem = startDate && endDate && startDate > endDate ? '結束日不能早於開始日'
     : options && endDate > options.today ? '結束日不能晚於今天'
-    : own?.dispatched && endDate && endDate < own.dispatched ? `結束日早於您的領取日（${own.dispatched}）`
+    : lateOwn ? `${lateOwn.label}：結束日早於您的領取日（${lateOwn.dispatched}）`
     : ''
+
+  function addTag(no: number) {
+    setAreaHint('')
+    if (!areaOf(no)) { setAreaHint('找不到這個區域號碼（1–213）'); return false }
+    if (tags.includes(no)) return true
+    if (options && tags.length >= options.maxAreas) { setAreaHint(`一次最多回報 ${options.maxAreas} 區`); return false }
+    setTags(current => [...current, no])
+    return true
+  }
+  function areaKey(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Backspace' && !areaText && tags.length) { setTags(current => current.slice(0, -1)); return }
+    if (!['Enter', ',', ' ', '，', '、'].includes(event.key)) return
+    event.preventDefault()
+    if (areaText && addTag(Number(areaText))) setAreaText('')
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-    if (lock.current || !area || problem || !timeslot || !startDate || !endDate) return
-    if (willReturn && !own && !window.confirm(`${area.label} 目前由 ${area.holder} 領取，送出後會交回這張地圖。確定送出？`)) return
+    if (lock.current || !selected.length || problem || !timeslot || !startDate || !endDate) return
+    const others = returning.filter(a => !ownNos.has(a.sheetNo))
+    if (others.length && !window.confirm(`${others.map(a => `${a.label}（${a.holder} 領取）`).join('、')} 送出後會交回。確定送出？`)) return
     lock.current = true; setBusy(true); setError(''); setNotice('')
     try {
-      const res = await fetch('/api/territory-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetNo, timeslot, startDate, endDate, note }) })
+      const res = await fetch('/api/territory-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetNos: tags, timeslot, startDate, endDate, note }) })
       const value = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(value.error || '回報未送出，請稍後再試')
-      setNotice(`已送出 ${area.label} 的回報${value.returned ? '，地圖已交回' : ''}。${value.warning || ''}`)
-      setNote(''); setStartDate(''); setCustomNo('')
+      setNotice(`已送出 ${selected.length} 區的回報${value.returned?.length ? `，交回 ${value.returned.length} 張地圖` : ''}。${value.warning || ''}`)
+      setNote(''); setStartDate(''); setTags([]); setAreaText('')
       await load()
     } catch (e) { setError(e instanceof Error ? e.message : '回報未送出') } finally { lock.current = false; setBusy(false) }
   }
@@ -78,14 +94,13 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
     {options && <>
       <div>
         <label htmlFor="report-area" className={label}>區域</label>
-        <select id="report-area" value={areaChoice} onChange={e => setAreaChoice(e.target.value)} className={control}>
-          {options.held.map(a => <option key={a.sheetNo} value={a.sheetNo}>{a.label}（{a.dispatched || '領取日未記錄'} 領取）</option>)}
-          <option value={OTHER}>其他區域…</option>
-        </select>
-        {areaChoice === OTHER && <div className="mt-2">
-          <input aria-label="區域號碼" inputMode="numeric" placeholder="區域號碼 1–213" value={customNo} onChange={e => setCustomNo(e.target.value.replace(/\D/g, '').slice(0, 3))} className={control} />
-          {area && <p className="mt-1 text-xs text-mc-text/60">{area.label}・{area.holder ? `${area.holder} 領取中（${area.dispatched || '日期未記錄'}）` : '目前無人領取'}</p>}
-        </div>}
+        <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-mc-accent px-2 py-2">
+          {selected.map(a => <button key={a.sheetNo} type="button" aria-label={`取消 ${a.label}`} onClick={() => setTags(current => current.filter(no => no !== a.sheetNo))} className="inline-flex min-h-9 items-center gap-1 rounded-full bg-blue-400/15 px-3 text-sm text-blue-200 hover:bg-blue-400/25">{a.label}<X aria-hidden="true" className="h-3.5 w-3.5" /></button>)}
+          <input id="report-area" inputMode="numeric" enterKeyHint="done" placeholder={tags.length ? '' : '輸入區號後按 Enter'} value={areaText} onKeyDown={areaKey} onBlur={() => { if (areaText && addTag(Number(areaText))) setAreaText('') }} onChange={e => { setAreaHint(''); setAreaText(e.target.value.replace(/\D/g, '').slice(0, 3)) }} className="min-h-9 min-w-[8rem] flex-1 bg-transparent px-1 text-base outline-none" />
+        </div>
+        {areaHint && <p role="alert" className="mt-1 text-xs text-amber-300">{areaHint}</p>}
+        {options.held.some(a => !tags.includes(a.sheetNo)) && <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-xs text-mc-text/50">我領取的：</span>{options.held.filter(a => !tags.includes(a.sheetNo)).map(a => <button key={a.sheetNo} type="button" onClick={() => addTag(a.sheetNo)} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-white/10 px-3 text-sm text-mc-text/80 hover:bg-white/5"><Plus aria-hidden="true" className="h-3.5 w-3.5" />{a.label}</button>)}</div>}
+        {selected.some(a => !ownNos.has(a.sheetNo)) && <ul className="mt-2 space-y-0.5 text-xs text-mc-text/60">{selected.filter(a => !ownNos.has(a.sheetNo)).map(a => <li key={a.sheetNo}>{a.label}・{a.holder ? `${a.holder} 領取中（${a.dispatched || '日期未記錄'}）` : '目前無人領取'}</li>)}</ul>}
       </div>
       <div>
         <label htmlFor="report-slot" className={label}>傳道時段</label>
@@ -101,8 +116,8 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
       </div>
       <div><label htmlFor="report-note" className={label}>備註（選填）</label><textarea id="report-note" rows={3} maxLength={500} value={note} onChange={e => setNote(e.target.value)} className={`${control} py-2`} /></div>
       {problem && <p role="alert" className="text-sm text-amber-300">{problem}</p>}
-      {area && !problem && willReturn && <p className="text-sm text-mc-text/60">送出後這張地圖會自動交回。</p>}
-      <button type="submit" disabled={busy || !area || Boolean(problem) || !timeslot || !startDate || !endDate} className="min-h-12 w-full rounded-lg bg-blue-500 px-4 text-base font-semibold text-white disabled:opacity-40">{busy ? '送出中…' : '送出回報'}</button>
+      {!problem && returning.length > 0 && <p className="text-sm text-mc-text/60">送出後會自動交回：{returning.map(a => a.label).join('、')}</p>}
+      <button type="submit" disabled={busy || !selected.length || Boolean(problem) || !timeslot || !startDate || !endDate} className="min-h-12 w-full rounded-lg bg-blue-500 px-4 text-base font-semibold text-white disabled:opacity-40">{busy ? '送出中…' : '送出回報'}</button>
     </>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
     {notice && <p role="status" className="text-sm text-emerald-300">{notice}</p>}

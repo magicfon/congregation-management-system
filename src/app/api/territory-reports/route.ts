@@ -3,8 +3,8 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/db'
 import { requireApiUser } from '../../../lib/api-auth'
 import { allocationLabel, isAreaDispatched } from '../../../lib/allocation'
-import { appendValues, readSnapshot, taipeiDate, updateSnapshot, updateValues, DEFAULT_SHEET_ID } from '../../../lib/google-sheets'
-import { parseReportInput, submitTerritoryReport, TerritoryReportError, REPORT_SHEET_RANGE, REPORT_TIMESLOTS } from '../../../lib/territory-report'
+import { appendValues, batchUpdate, readSnapshot, taipeiDate, updateSnapshot, DEFAULT_SHEET_ID } from '../../../lib/google-sheets'
+import { parseReportInput, submitTerritoryReport, TerritoryReportError, MAX_REPORT_AREAS, REPORT_SHEET_RANGE, REPORT_TIMESLOTS } from '../../../lib/territory-report'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -24,6 +24,7 @@ export async function GET() {
       name: auth.user.name || '',
       today: taipeiDate(new Date()),
       timeslots: REPORT_TIMESLOTS,
+      maxAreas: MAX_REPORT_AREAS,
       held: list.filter(area => area.holderId === auth.user.id).map(({ holderId: _, ...area }) => area),
       areas: list.map(({ holderId: _, ...area }) => area),
     })
@@ -38,15 +39,16 @@ export async function POST(request: NextRequest) {
     const input = parseReportInput(await request.json())
     const snapshot = await readSnapshot()
     if (snapshot.size !== 213 || Array.from({ length: 213 }, (_, i) => i + 1).some(no => !snapshot.has(no))) return respond({ error: '同步快照不完整，暫時不能回報，請稍後再試' }, 503)
-    const result = await submitTerritoryReport(prisma, auth.user.id!, input, row => appendValues(DEFAULT_SHEET_ID, REPORT_SHEET_RANGE, [row]))
+    const results = await submitTerritoryReport(prisma, auth.user.id!, input, rows => appendValues(DEFAULT_SHEET_ID, REPORT_SHEET_RANGE, rows))
+    const returned = results.filter(result => result.returned).map(result => result.sheetNo)
     let warning = ''
-    if (result.returned) {
+    if (returned.length) {
       try {
-        await updateValues(DEFAULT_SHEET_ID, `區域狀態!C${result.sheetNo + 1}:C${result.sheetNo + 1}`, [['']])
-        await updateSnapshot([{ sheetNo: result.sheetNo, member: '', date: null, keepDate: true }])
+        await batchUpdate(DEFAULT_SHEET_ID, returned.map(no => ({ range: `區域狀態!C${no + 1}:C${no + 1}`, values: [['']] })))
+        await updateSnapshot(returned.map(sheetNo => ({ sheetNo, member: '', date: null, keepDate: true })))
       } catch { warning = '回報已送出、地圖已交回，區域狀態表稍後會自動同步。' }
     }
-    return respond({ ok: true, returned: result.returned, warning }, 201)
+    return respond({ ok: true, returned, warning }, 201)
   } catch (error) {
     if (error instanceof TerritoryReportError) return respond({ error: error.message }, error.status)
     if (error instanceof SyntaxError) return respond({ error: '資料格式無效' }, 400)
