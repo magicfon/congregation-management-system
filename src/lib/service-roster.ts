@@ -52,7 +52,7 @@ export function validateAssignments(value: unknown, previous: Assignments, peopl
     if (!assignment || typeof assignment !== 'object' || typeof assignment.personId !== 'string') throw new RosterError('人選格式錯誤')
     if (previous[role]?.personId === assignment.personId) { result[role] = previous[role]; continue }
     const person = people.find(p => p.id === assignment.personId)
-    if (!person?.enabled || !person.memberId || !person.roles.includes(role)) throw new RosterError(`${serviceRoles.find(r => r.id === role)!.label}人選尚未具備資格`)
+    if (!person?.enabled || !person.roles.includes(role)) throw new RosterError(`${serviceRoles.find(r => r.id === role)!.label}人選尚未具備資格`)
     result[role] = { personId: person.id, name: person.name }
   }
   const old = new Set(assignmentConflicts(previous))
@@ -67,7 +67,7 @@ export function fillServiceVacancies(week: ServiceWeekData, people: ServicePerso
   const assignments = { ...week.assignments }
   const roles = autoRoles.filter(role => !assignments[role])
   const used = new Set(Object.entries(assignments).filter(([role]) => role !== 'backup').map(([, value]) => value!.personId))
-  const candidates = people.filter(p => p.enabled && p.memberId && !used.has(p.id)).sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'))
+  const candidates = people.filter(p => p.enabled && !used.has(p.id)).sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'))
   const before = history.filter(w => !w.stopped && w.startDate < week.startDate)
   const cost = (person: ServicePersonData, role: ServiceRole) => {
     let same = 0, total = 0, recent = 0, consecutive = 0

@@ -16,7 +16,7 @@ export function importedAssignments(target: SyncWeek, previous: Assignments, peo
     if (!name) continue
     if (previous[role.id]?.name === name) { assignments[role.id] = previous[role.id]; continue }
     const matches = people.filter(person => person.name.trim() === name)
-    if (matches.length !== 1) throw new SyncError(`${target.startDate}：${name}尚未唯一對應本站人員，請先設定人員資格`)
+    if (matches.length !== 1) throw new SyncError(`${target.startDate}：${name}不在人員資格名單或有同名，請先在人員資格新增`)
     assignments[role.id] = { personId: matches[0].id, name }
   }
   try { return validateAssignments(assignments, previous, people) }

@@ -16,7 +16,7 @@ export async function initializeServiceRoster(db: PrismaClient) {
     for (const name of names) {
       const matches = members.filter(m => m.name.trim() === name)
       const match = matches.length === 1 ? matches[0] : null
-      const person = await tx.servicePerson.create({ data: { name, memberId: match?.id, enabled: Boolean(match), roles: source.qualifications.get(name) ?? [] } })
+      const person = await tx.servicePerson.create({ data: { name, memberId: match?.id, enabled: true, roles: source.qualifications.get(name) ?? [] } })
       people.set(name, person)
     }
     for (const week of source.weeks) {
@@ -33,13 +33,17 @@ export async function rosterSnapshot(db: PrismaClient, privateData = false) {
     if (!privateData) return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks }
     const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: 'asc' } })
     const people = await tx.servicePerson.findMany({ orderBy: { name: 'asc' } })
-    return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks, members, people: people.map(p => ({ ...p, enabled: p.enabled && members.some(m => m.id === p.memberId) })) }
+    return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks, members, people: people.map(p => ({ ...p, enabled: effectiveEnabled(p, members) })) }
   }, { isolationLevel: 'RepeatableRead' })
 }
 
+// 沒連成員的人只要有資格就能排（ADR-0081）；連了成員的看可安排與成員是否仍啟用。
+function effectiveEnabled(p: { enabled: boolean; memberId: string | null }, members: { id: string }[]) {
+  return p.memberId ? p.enabled && members.some(m => m.id === p.memberId) : true
+}
 async function effectivePeople(tx: Prisma.TransactionClient): Promise<ServicePersonData[]> {
   const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true } })
-  return (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: p.enabled && members.some(m => m.id === p.memberId), roles: p.roles as ServicePersonData['roles'] }))
+  return (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: effectiveEnabled(p, members), roles: p.roles as ServicePersonData['roles'] }))
 }
 export async function editServiceRoster(db: PrismaClient, body: Record<string, unknown>) {
   if (!Number.isInteger(body.revision)) throw new RosterError('請重新載入最新安排')
@@ -74,12 +78,21 @@ export async function editServiceRoster(db: PrismaClient, body: Record<string, u
         catch (error) { throw error instanceof RosterError && !(error instanceof RosterConflict) ? new RosterError(`${String(week.startDate).slice(5).replace('-', '/')} 那週：${error.message}`) : error }
       }
     } else if (body.action === 'person') {
-      if (typeof body.memberId !== 'string' || typeof body.enabled !== 'boolean' || !Array.isArray(body.roles) || body.roles.some(role => !serviceRoles.some(r => r.id === role))) throw new RosterError('資格設定格式錯誤')
+      if (!Array.isArray(body.roles) || body.roles.some(role => !serviceRoles.some(r => r.id === role))) throw new RosterError('資格設定格式錯誤')
+      const roles = json([...new Set(body.roles)])
+      if (!body.memberId) {
+        // 不連成員的人只改資格，名字沿用名單上的寫法（ADR-0081）。
+        const person = typeof body.id === 'string' && body.id ? await tx.servicePerson.findUnique({ where: { id: body.id } }) : null
+        if (!person || person.memberId) throw new RosterError('請選擇啟用成員')
+        await tx.servicePerson.update({ where: { id: person.id }, data: { roles } })
+        return { saved: true }
+      }
+      if (typeof body.memberId !== 'string' || typeof body.enabled !== 'boolean') throw new RosterError('資格設定格式錯誤')
       const member = await tx.member.findFirst({ where: { id: body.memberId, active: true, deletedAt: null } })
       if (!member) throw new RosterError('請選擇啟用成員')
       const bound = await tx.servicePerson.findFirst({ where: { memberId: member.id } })
       if (bound && bound.id !== body.id) throw new RosterError('這位成員已在資格名單，請編輯現有人員')
-      const data = { memberId: member.id, name: member.name, enabled: body.enabled, roles: json([...new Set(body.roles)]) }
+      const data = { memberId: member.id, name: member.name, enabled: body.enabled, roles }
       if (typeof body.id === 'string' && body.id) await tx.servicePerson.update({ where: { id: body.id }, data })
       else await tx.servicePerson.create({ data })
     } else throw new RosterError('未知操作')
