@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     else {
       const result = await editServiceRoster(prisma, body)
       if (body.action === 'preview') return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } })
-      if (body.action === 'week' || body.action === 'create') sync = await syncServiceRoster(prisma)
+      if (body.action === 'week' || body.action === 'weeks' || body.action === 'create') sync = await syncServiceRoster(prisma)
     }
     return NextResponse.json({ ...await rosterSnapshot(prisma, true), sync: sync ?? await rosterSyncStatus(prisma) }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {

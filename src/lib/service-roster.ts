@@ -24,16 +24,22 @@ export function weekLabel(day: string) {
 }
 export class RosterError extends Error {}
 
-export function assignmentConflicts(assignments: Assignments): string[] {
-  const warnings: string[] = []
+function conflictPairs(assignments: Assignments) {
+  const pairs: [ServiceRole, ServiceRole, Assignment][] = []
   const entries = Object.entries(assignments) as [ServiceRole, Assignment][]
   for (let i = 0; i < entries.length; i++) for (let j = i + 1; j < entries.length; j++) {
     const [a, pa] = entries[i], [b, pb] = entries[j]
     if (pa.personId !== pb.personId || a === 'backup' || b === 'backup') continue
     const mid = (role: ServiceRole) => role === 'chair' || role === 'reader'
-    if (autoRoles.includes(a) || autoRoles.includes(b) || mid(a) === mid(b)) warnings.push(`${pa.name}：${serviceRoles.find(r => r.id === a)!.label}與${serviceRoles.find(r => r.id === b)!.label}重複`)
+    if (autoRoles.includes(a) || autoRoles.includes(b) || mid(a) === mid(b)) pairs.push([a, b, pa])
   }
-  return warnings
+  return pairs
+}
+export function assignmentConflicts(assignments: Assignments): string[] {
+  return conflictPairs(assignments).map(([a, b, p]) => `${p.name}：${serviceRoles.find(r => r.id === a)!.label}與${serviceRoles.find(r => r.id === b)!.label}重複`)
+}
+export function conflictRoles(assignments: Assignments) {
+  return new Set(conflictPairs(assignments).flatMap(([a, b]) => [a, b]))
 }
 
 export function validateAssignments(value: unknown, previous: Assignments, people: ServicePersonData[]): Assignments {
