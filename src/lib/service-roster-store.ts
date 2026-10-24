@@ -55,15 +55,24 @@ export async function editServiceRoster(db: PrismaClient, body: Record<string, u
     }
     const locked = await tx.serviceRosterState.updateMany({ where: { id: 'main', revision: Number(body.revision) }, data: { revision: { increment: 1 } } })
     if (!locked.count) throw new RosterConflict('安排已更新，請重新載入再編輯')
-    if (body.action === 'week' || body.action === 'create') {
-      if (!validMonday(body.startDate) || typeof body.note !== 'string' || body.note.length > 300 || typeof body.stopped !== 'boolean') throw new RosterError('請選擇星期一，並填寫有效停排資訊')
-      if (body.stopped && !body.note.trim()) throw new RosterError('停排週請填原因')
-      const previous = await tx.serviceWeek.findUnique({ where: { startDate: body.startDate } })
-      if ((body.action === 'create') === Boolean(previous)) throw new RosterError(previous ? '這個週次已存在' : '找不到週次')
-      const assignments = validateAssignments(body.assignments, (previous?.assignments ?? {}) as Assignments, people)
-      const data = { startDate: body.startDate, endDate: addDays(body.startDate, 6), stopped: body.stopped, note: body.note.trim(), assignments: json(assignments) }
-      if (previous) await tx.serviceWeek.update({ where: { startDate: body.startDate }, data })
+    const saveWeek = async (week: Record<string, unknown>, create: boolean) => {
+      if (!validMonday(week.startDate) || typeof week.note !== 'string' || week.note.length > 300 || typeof week.stopped !== 'boolean') throw new RosterError('請選擇星期一，並填寫有效停排資訊')
+      if (week.stopped && !week.note.trim()) throw new RosterError('停排週請填原因')
+      const previous = await tx.serviceWeek.findUnique({ where: { startDate: week.startDate } })
+      if (create === Boolean(previous)) throw new RosterError(previous ? '這個週次已存在' : '找不到週次')
+      const assignments = validateAssignments(week.assignments, (previous?.assignments ?? {}) as Assignments, people)
+      const data = { startDate: week.startDate, endDate: addDays(week.startDate, 6), stopped: week.stopped, note: week.note.trim(), assignments: json(assignments) }
+      if (previous) await tx.serviceWeek.update({ where: { startDate: week.startDate }, data })
       else await tx.serviceWeek.create({ data })
+    }
+    if (body.action === 'week' || body.action === 'create') await saveWeek(body, body.action === 'create')
+    else if (body.action === 'weeks') {
+      // 一覽表一次儲存多週（ADR-0079），任一週不通過則整批不寫入。
+      if (!Array.isArray(body.weeks) || !body.weeks.length || body.weeks.length > 60 || body.weeks.some(week => !week || typeof week !== 'object' || Array.isArray(week))) throw new RosterError('安排格式錯誤')
+      for (const week of body.weeks as Record<string, unknown>[]) {
+        try { await saveWeek(week, false) }
+        catch (error) { throw error instanceof RosterError && !(error instanceof RosterConflict) ? new RosterError(`${String(week.startDate).slice(5).replace('-', '/')} 那週：${error.message}`) : error }
+      }
     } else if (body.action === 'person') {
       if (typeof body.memberId !== 'string' || typeof body.enabled !== 'boolean' || !Array.isArray(body.roles) || body.roles.some(role => !serviceRoles.some(r => r.id === role))) throw new RosterError('資格設定格式錯誤')
       const member = await tx.member.findFirst({ where: { id: body.memberId, active: true, deletedAt: null } })
