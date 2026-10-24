@@ -89,6 +89,17 @@ export async function updateValues(
   })
 }
 
+/** 在表格最後新增列（USER_ENTERED：日期／數字依 Sheet 格式解析，與表單回報相同） */
+export async function appendValues(
+  sheetId: string,
+  range: string,
+  values: (string | number)[][]
+): Promise<void> {
+  await call('POST', `${sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+    values,
+  })
+}
+
 /** 批次多範圍寫入 */
 export async function batchUpdate(
   sheetId: string,

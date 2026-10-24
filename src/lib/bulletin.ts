@@ -38,7 +38,7 @@ export const bulletinCategories: BulletinCategory[] = [
     { label: '輪值表', ...sheet('1mEUaWpY6yAUTtXJP1gXVhKezt8413uadoPLN4t3e10Y', '?gid=1495819990') },
     { label: '組織表', ...sheet('108JU7H_v6Insxpdzk092f4s1nEQSk1uLNacdoG5i5HA') },
   ] },
-  { slug: 'territory-report', title: '區域回報', shortTitle: '區域回報', description: '開啟既有 Google 表單填寫回報。', icon: 'report', sources: [
+  { slug: 'territory-report', title: '區域回報', shortTitle: '區域回報', description: '回報傳道區域完成情況。', icon: 'report', sources: [
     { label: '區域回報', url: 'https://docs.google.com/forms/d/e/1FAIpQLSdMB4xTmixE0659_0M9cPmL-Vx34vXx39l3PIFbtvE0F1yK8g/viewform' },
   ] },
 ]
