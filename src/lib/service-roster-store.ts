@@ -31,7 +31,7 @@ export async function rosterSnapshot(db: PrismaClient, privateData = false) {
     const state = await tx.serviceRosterState.findUnique({ where: { id: 'main' } })
     const weeks = await tx.serviceWeek.findMany({ orderBy: { startDate: 'asc' } })
     if (!privateData) return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks }
-    const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: 'asc' } })
+    const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true, gender: true }, orderBy: { name: 'asc' } })
     const people = await tx.servicePerson.findMany({ orderBy: { name: 'asc' } })
     return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks, members, people: people.map(p => ({ ...p, enabled: effectiveEnabled(p, members) })) }
   }, { isolationLevel: 'RepeatableRead' })

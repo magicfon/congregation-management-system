@@ -9,7 +9,7 @@ import ServiceRosterGrid from './ServiceRosterGrid'
 import useRosterIdentity from './useRosterIdentity'
 import type { SyncStatus, SyncWeek } from '@/lib/service-roster-sync-plan'
 import { serviceRoles, assignmentConflicts, addDays, dateDay, weekLabel, type ServicePersonData, type ServiceRole, type ServiceWeekData, type Assignments } from '@/lib/service-roster'
-type Member = { id: string; name: string }
+type Member = { id: string; name: string; gender?: string }
 type Snapshot = { initialized: boolean; revision: number; weeks: ServiceWeekData[]; people?: ServicePersonData[]; members?: Member[]; sync?: SyncStatus }
 const button = 'min-h-12 rounded-lg border border-white/10 px-3 text-base hover:bg-mc-accent disabled:opacity-40'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 px-3 text-base'
@@ -200,7 +200,7 @@ function PersonEditor({ people, members, busy, save }: { people: ServicePersonDa
     <details open={advanced} onToggle={event => setAdvanced(event.currentTarget.open)} className="mt-4 rounded-lg border border-white/10 p-3"><summary className="min-h-11 cursor-pointer py-2 text-base">進階設定：連結成員、停用</summary>
     <form ref={form} className="mt-3 space-y-3" onSubmit={event => { event.preventDefault(); void save({ action: 'person', id: id === 'new' ? null : id, memberId, roles, enabled }).catch(() => {}) }}><fieldset disabled={busy} className="space-y-3">
     <label className="block text-base">人員<select className={`${control} mt-2`} value={id} onChange={event => setId(event.target.value)}><option value="new">新增成員</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}{!p.enabled ? '（停用）' : ''}</option>)}</select></label>
-    <label className="block text-base">連結成員<select required={id === 'new' || Boolean(people.find(p => p.id === id)?.memberId)} className={`${control} mt-2`} value={memberId} onChange={event => setMemberId(event.target.value)}><option value="">{id !== 'new' && !people.find(p => p.id === id)?.memberId ? '不連結（照名單姓名）' : '選擇啟用成員'}</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+    <label className="block text-base">連結成員<select required={id === 'new' || Boolean(people.find(p => p.id === id)?.memberId)} className={`${control} mt-2`} value={memberId} onChange={event => setMemberId(event.target.value)}><option value="">{id !== 'new' && !people.find(p => p.id === id)?.memberId ? '不連結（照名單姓名）' : '選擇啟用成員'}</option>{members.filter(m => m.gender === 'brother' || m.id === memberId).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
     {memberId && <label className="flex min-h-12 items-center gap-2 text-base"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} />可安排</label>}
     <div className="grid grid-cols-2 gap-2">{serviceRoles.map(role => <label key={role.id} className="flex min-h-12 items-center gap-2 text-base"><input type="checkbox" checked={roles.includes(role.id)} onChange={event => setRoles(current => event.target.checked ? [...current, role.id] : current.filter(r => r !== role.id))} />{role.label}</label>)}</div>
     <button className={button}>儲存資格</button>
@@ -211,7 +211,8 @@ function PersonEditor({ people, members, busy, save }: { people: ServicePersonDa
 function AddHolder({ role, people, members, busy, save }: { role: ServiceRole; people: ServicePersonData[]; members: Member[]; busy: boolean; save: (body: Record<string, unknown>) => Promise<unknown> }) {
   const [open, setOpen] = useState(false)
   const label = serviceRoles.find(r => r.id === role)!.label
-  const options = members.filter(m => !people.some(p => p.memberId === m.id && p.roles.includes(role)))
+  // 先只開放弟兄加入（ADR-0082）。
+  const options = members.filter(m => m.gender === 'brother' && !people.some(p => p.memberId === m.id && p.roles.includes(role)))
   function add(memberId: string) {
     const person = people.find(p => p.memberId === memberId)
     void save({ action: 'person', id: person?.id ?? null, memberId, roles: [...(person?.roles ?? []), role], enabled: person?.enabled ?? true }).then(() => setOpen(false)).catch(() => {})
@@ -221,6 +222,7 @@ function AddHolder({ role, people, members, busy, save }: { role: ServiceRole; p
     <select autoFocus aria-label={`選擇要加入${label}的成員`} disabled={busy} value="" onChange={event => event.target.value && add(event.target.value)} className="min-h-11 min-w-0 rounded-lg border border-blue-400/50 px-2 text-base">
       <option value="">{busy ? '儲存中…' : '選擇成員'}</option>
       {options.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+      {!options.length && <option value="" disabled>沒有可加入的弟兄</option>}
     </select>
     <button type="button" disabled={busy} onClick={() => setOpen(false)} className="min-h-11 rounded-lg border border-white/10 px-3 text-base">取消</button>
   </span>
