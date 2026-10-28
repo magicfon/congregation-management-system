@@ -6,7 +6,8 @@ import { getPdfWorker, loadPdfEngine } from './pdf-engine'
 import { readPosition, type ReadingPosition } from './reading-position'
 import { ExternalLink, Maximize2, Minimize2 } from 'lucide-react'
 
-export default function PdfReader({ id, label, src, title, sourceUrl }: { id: string; label: string; src?: string; title?: string; sourceUrl?: string }) {
+// embedded：外部網站 iframe 用，只留文件本身、寬度填滿上下捲動、從開頭讀起（ADR-0084）。
+export default function PdfReader({ id, label, src, title, sourceUrl, embedded = false }: { id: string; label: string; src?: string; title?: string; sourceUrl?: string; embedded?: boolean }) {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
   const [pageRatio, setPageRatio] = useState(1.414)
   const [zoom, setZoom] = useState(1)
@@ -57,7 +58,7 @@ export default function PdfReader({ id, label, src, title, sourceUrl }: { id: st
       const firstPage = await pdf.getPage(1)
       const viewport = firstPage.getViewport({ scale: 1 })
       if (!disposed) {
-        if (snapshot.version) {
+        if (snapshot.version && !embedded) {
           try { pendingPosition.current = readPosition(localStorage.getItem(`bulletin-position:${id}`), snapshot.version, pdf.numPages) } catch { /* Reading works without storage. */ }
         }
         const time = snapshot.modified ?? snapshot.synced
@@ -69,7 +70,7 @@ export default function PdfReader({ id, label, src, title, sourceUrl }: { id: st
       }
     }).catch(() => { if (!disposed) setError(true) })
     return () => { disposed = true; controller.abort(); if (task) void task.destroy() }
-  }, [id, src, retry])
+  }, [id, src, retry, embedded])
 
   useEffect(() => {
     const element = pane.current
@@ -152,7 +153,8 @@ export default function PdfReader({ id, label, src, title, sourceUrl }: { id: st
     const element = pane.current
     if (!element || !ready) return
     const wheel = (event: WheelEvent) => {
-      if (event.ctrlKey || !window.matchMedia('(pointer: fine)').matches) return
+      // 嵌入版滾輪保留原生捲動，Ctrl＋滾輪（含觸控板雙指）才縮放。
+      if (embedded ? !event.ctrlKey : event.ctrlKey || !window.matchMedia('(pointer: fine)').matches) return
       const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1)
       const previous = latestZoom.current
       const next = Math.min(5, Math.max(1, previous * Math.exp(-Math.max(-120, Math.min(120, delta)) * 0.002)))
@@ -170,13 +172,13 @@ export default function PdfReader({ id, label, src, title, sourceUrl }: { id: st
     }
     element.addEventListener('wheel', wheel, { passive: false })
     return () => element.removeEventListener('wheel', wheel)
-  }, [ready])
+  }, [ready, embedded])
 
   function endPointer(pointerId: number) { pointers.current.delete(pointerId); gesture.current = null; drag.current = null }
   const button = 'min-h-11 min-w-11 rounded-lg border border-white/10 px-3 text-sm hover:bg-mc-accent disabled:opacity-30'
   const icon = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-blue-300 hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400'
 
-  return <div className={expanded ? 'fixed inset-0 z-50 flex flex-col bg-mc-bg p-2 sm:p-4' : ''} role={expanded ? 'dialog' : undefined} aria-modal={expanded || undefined} aria-label={expanded ? label : undefined}
+  return <div className={expanded ? 'fixed inset-0 z-50 flex flex-col bg-mc-bg p-2 sm:p-4' : embedded ? 'flex h-full flex-col' : ''} role={expanded ? 'dialog' : undefined} aria-modal={expanded || undefined} aria-label={expanded ? label : undefined}
     onKeyDown={event => {
       if (!expanded || event.key !== 'Tab') return
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'))
@@ -185,7 +187,7 @@ export default function PdfReader({ id, label, src, title, sourceUrl }: { id: st
       else if (!event.shiftKey && window.document.activeElement === last) { event.preventDefault(); first.focus() }
     }}>
     {/* 單列工具列：標題（多份文件時）、頁數與時間，右側為原文件與全螢幕圖示（ADR-0069）。 */}
-    <div className="flex items-center gap-1 px-3 py-1.5">
+    {!embedded && <div className="flex items-center gap-1 px-3 py-1.5">
       <p className="min-w-0 flex-1 truncate text-xs text-mc-text/60">
         {title && <span className="mr-2 text-sm font-semibold text-mc-text">{title}</span>}
         <span className="tabular-nums">{document?.numPages ?? '…'} 頁</span>
@@ -193,8 +195,8 @@ export default function PdfReader({ id, label, src, title, sourceUrl }: { id: st
       </p>
       {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer" aria-label="開啟原文件（另開分頁）" title="開啟原文件" className={icon}><ExternalLink aria-hidden="true" className="h-5 w-5" /></a>}
       <button type="button" aria-label={expanded ? '關閉全螢幕' : '全螢幕'} title={expanded ? '關閉全螢幕' : '全螢幕'} className={icon} onClick={() => setExpanded(value => !value)}>{expanded ? <Minimize2 aria-hidden="true" className="h-5 w-5" /> : <Maximize2 aria-hidden="true" className="h-5 w-5" />}</button>
-    </div>
-    <div ref={pane} className={`relative overflow-auto bg-mc-accent/40 ${expanded ? 'min-h-0 flex-1' : 'h-[calc(100dvh-11rem)] min-h-[360px]'}`} style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
+    </div>}
+    <div ref={pane} className={`relative overflow-auto bg-mc-accent/40 ${expanded || embedded ? 'min-h-0 flex-1' : 'h-[calc(100dvh-11rem)] min-h-[360px]'}`} style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
       onPointerDown={event => {
         if (!ready || event.button !== 0) return
         const element = pane.current!
@@ -227,12 +229,12 @@ export default function PdfReader({ id, label, src, title, sourceUrl }: { id: st
       onPointerUp={event => endPointer(event.pointerId)} onPointerCancel={event => endPointer(event.pointerId)} onLostPointerCapture={event => endPointer(event.pointerId)}>
       {!ready && !error && <p role="status" className="absolute left-4 top-4 rounded-lg bg-mc-card px-4 py-3 text-sm text-mc-text/60">正在載入文件…</p>}
       {error && <div role="alert" className="p-6 text-sm leading-7"><p>文件暫時無法顯示，可開啟原文件或重試。</p><button className={button} onClick={() => setRetry(value => value + 1)}>重試</button></div>}
-      {document && width > 0 && !error && Array.from({ length: document.numPages }, (_, index) => <PdfPage key={`${id}-${retry}-${index}`} frame={firstFrame} document={document} page={index + 1} label={label} width={Math.max(1, width - 24)} height={Math.max(1, height - 24)} zoom={zoom} initialRatio={pageRatio} root={pane.current} onFirstPaint={firstPaint} />)}
+      {document && width > 0 && !error && Array.from({ length: document.numPages }, (_, index) => <PdfPage key={`${id}-${retry}-${index}`} frame={firstFrame} document={document} page={index + 1} label={label} width={Math.max(1, width - (embedded ? 8 : 24))} height={embedded ? Infinity : Math.max(1, height - 24)} zoom={zoom} initialRatio={pageRatio} root={pane.current} onFirstPaint={firstPaint} />)}
     </div>
-    <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs text-mc-text/50">
+    {!embedded && <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs text-mc-text/50">
       <p>手機雙指縮放 · 電腦滾輪縮放、拖曳移動 · 自動記住閱讀位置</p>
       {resumedPage && <p role="status" className="flex items-center gap-2">已接續第 {resumedPage} 頁<button type="button" className="min-h-11 rounded-lg px-2 text-blue-300 hover:bg-mc-accent" onClick={() => { setZoom(1); pane.current?.scrollTo(0, 0); setResumedPage(null) }}>回到開頭</button></p>}
-    </div>
+    </div>}
   </div>
 }
 
@@ -244,7 +246,7 @@ function PdfPage({ frame, document, page, label, width: paneWidth, height: paneH
   const painted = useRef(false)
   const [visible, setVisible] = useState(page === 1)
   const [ratio, setRatio] = useState(initialRatio)
-  // 整頁放進閱讀區：寬度與高度取較小的比例，再乘上使用者縮放（ADR-0068）。
+  // 整頁放進閱讀區：寬度與高度取較小的比例，再乘上使用者縮放（ADR-0068）；嵌入版高度不設限，即寬度填滿（ADR-0084）。
   const width = Math.min(paneWidth, paneHeight / ratio) * zoom
   const crop = useRef<Promise<Crop> | null>(null)
   const [ready, setReady] = useState(false)
