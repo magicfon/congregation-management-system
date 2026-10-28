@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { UserRound, CalendarDays, Send, ClipboardPlus, ChevronDown } from 'lucide-react'
+import { UserRound, CalendarDays, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, type LucideIcon } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import DispatchSubmitBar from '../../components/map/DispatchSubmitBar'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
@@ -89,9 +89,7 @@ export default function AreaStatusPage() {
           <p className="mt-1 text-center text-[11px] text-mc-text/50">{queue.length > 5 ? '選取降至 5 張以內，即可切換申請' : dispatchMode ? '為成員直接派發地圖' : '為自己申請領取 · 最多 5 張'}</p>
         </div>}
         <section className={`min-h-0 flex flex-col ${infoOpen ? 'flex-1' : 'shrink-0'}`}>
-        <h2><button type="button" aria-expanded={infoOpen} aria-controls="area-info-content" onClick={() => setInfoOpen(open => !open)} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold hover:bg-white/5">
-          地圖資訊<ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform ${infoOpen ? 'rotate-180' : ''}`} />
-        </button></h2>
+        <PanelToggle open={infoOpen} onToggle={() => setInfoOpen(open => !open)} controls="area-info-content" Icon={MapPinned}>地圖資訊</PanelToggle>
         <div id="area-info-content" ref={detailPanel} hidden={!infoOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <section aria-live="polite" className="p-3">
           {selected ? <>
@@ -125,9 +123,7 @@ export default function AreaStatusPage() {
         </div>
         </section>
         <section className={`min-h-0 flex flex-col border-t border-white/10 ${queueOpen ? `flex-[3] md:flex-1 ${infoOpen && dispatchMode ? 'lg:flex-[2]' : ''}` : 'shrink-0'}`}>
-          <h2><button type="button" aria-expanded={queueOpen} aria-controls="area-queue-content" onClick={() => setQueueOpen(open => !open)} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold hover:bg-white/5">
-            <span>{dispatchMode ? '派發清單' : '申請清單'}<span className="ml-2 text-blue-300">已選 {queue.length} 張</span></span><ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform ${queueOpen ? 'rotate-180' : ''}`} />
-          </button></h2>
+          <PanelToggle open={queueOpen} onToggle={() => setQueueOpen(open => !open)} controls="area-queue-content" Icon={ListChecks}>{dispatchMode ? '派發清單' : '申請清單'}<span className="ml-2 font-normal text-blue-300">已選 {queue.length} 張</span></PanelToggle>
           <div id="area-queue-content" hidden={!queueOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {dispatchMode ? <DispatchSubmitBar items={queue} onBusy={setActionBusy} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} /> : <RequestSubmitBar compact onBusy={setActionBusy} items={queue} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} />}
           </div>
@@ -135,4 +131,12 @@ export default function AreaStatusPage() {
       </aside>
     </div>
   </div></DashboardLayout>
+}
+
+// 側欄可收合區塊的標頭：整列可點，右側「展開／收合」標籤讓使用者一眼看出能點（ADR-0083）
+function PanelToggle({ open, onToggle, controls, Icon, children }: { open: boolean; onToggle: () => void; controls: string; Icon: LucideIcon; children: React.ReactNode }) {
+  return <h2><button type="button" aria-expanded={open} aria-controls={controls} onClick={onToggle} className={`group flex min-h-12 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold transition-colors ${open ? 'bg-white/[0.03] hover:bg-white/[0.07]' : 'bg-blue-400/[0.08] hover:bg-blue-400/15'}`}>
+    <span className="flex min-w-0 items-center gap-2"><Icon size={16} aria-hidden="true" className="shrink-0 text-blue-300" /><span className="truncate">{children}</span></span>
+    <span aria-hidden="true" className="flex shrink-0 items-center gap-1 rounded-full border border-blue-400/40 bg-blue-400/10 py-1 pl-2.5 pr-2 text-xs font-medium text-blue-300 group-hover:border-blue-300/70 group-hover:bg-blue-400/20">{open ? '收合' : '展開'}<ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} /></span>
+  </button></h2>
 }
