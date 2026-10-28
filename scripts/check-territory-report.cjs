@@ -2,12 +2,17 @@ const assert = require('node:assert/strict'), fs = require('node:fs'), vm = requ
 function load(file,mocks={}) { const exports={}; vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports,require:id=>id in mocks?mocks[id]:require(id),Date,console,JSON},{filename:file}); return exports }
 const taipeiDate = d => d ? d.toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'}) : ''
 const allocation = load('src/lib/allocation.ts')
-const report = load('src/lib/territory-report.ts',{'./allocation':allocation,'./google-sheets':{taipeiDate},'@prisma/client':{Prisma:{TransactionIsolationLevel:{Serializable:'Serializable'}}}})
+const report = load('src/lib/territory-report.ts',{'./do-not-visit-list':load('src/lib/do-not-visit-list.ts'),'./allocation':allocation,'./google-sheets':{taipeiDate},'@prisma/client':{Prisma:{TransactionIsolationLevel:{Serializable:'Serializable'}}}})
 const now = new Date('2026-10-23T12:00:00+08:00')
 const tp = s => new Date(`${s}T10:00:00+08:00`)
 const input = (o={}) => report.parseReportInput({sheetNos:[5],timeslot:'星期六早上',startDate:'2026-10-20',endDate:'2026-10-22',note:'',...o},now)
 
 // 輸入防呆
+// 拒絕拜訪地址（ADR-0083）：只收單區、單行、最多 100 字
+assert.equal(input({doNotVisit:'  加昌路279巷5號\n 有狗 '}).doNotVisit,'加昌路279巷5號 有狗')
+assert.equal(input().doNotVisit,'')
+assert.throws(()=>input({sheetNos:[5,6],doNotVisit:'x'}),/回報一區/)
+assert.throws(()=>input({doNotVisit:'x'.repeat(101)}),/100 字/)
 assert.throws(()=>input({sheetNos:[5,214]}),/1–213/)
 assert.throws(()=>input({sheetNos:[]}),/1–213/)
 assert.throws(()=>input({sheetNos:Array.from({length:21},(_,i)=>i+1)}),/最多回報 20/)

@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client'
 import { isAreaDispatched } from './allocation'
 import { taipeiDate } from './google-sheets'
+import { MAX_DO_NOT_VISIT_ADDRESS } from './do-not-visit-list'
 
 // 依 Sheet「傳道區域回報」歷史常用值整理；其他時段由使用者自填
 export const REPORT_TIMESLOTS = ['星期六早上', '星期日早上', '星期三早上', '星期一早上', '星期三晚上']
@@ -10,7 +11,7 @@ export const MAX_REPORT_AREAS = 20
 
 export class TerritoryReportError extends Error { constructor(message: string, public status = 400) { super(message) } }
 
-export type TerritoryReportInput = { name: string; sheetNos: number[]; timeslot: string; startDate: string; endDate: string; note: string }
+export type TerritoryReportInput = { name: string; sheetNos: number[]; timeslot: string; startDate: string; endDate: string; note: string; doNotVisit: string }
 export type ReportArea = { id: string; sheetNo: number | null; assignedMemberId: string | null; dispatchedAt: Date | null; completedAt: Date | null; lastReportedCompletedAt: Date | null }
 
 function validDate(value: unknown): value is string {
@@ -33,7 +34,11 @@ export function parseReportInput(body: unknown, now = new Date(), guest = false)
   if (value.endDate > taipeiDate(now)) throw new TerritoryReportError('結束日不能晚於今天')
   const note = typeof value.note === 'string' ? value.note.trim() : ''
   if (note.length > 500) throw new TerritoryReportError('備註最多 500 字')
-  return { name, sheetNos, timeslot, startDate: value.startDate, endDate: value.endDate, note }
+  // 拒絕拜訪地址只在回報一區時收（ADR-0083），單行、送管理員審核
+  const doNotVisit = typeof value.doNotVisit === 'string' ? value.doNotVisit.replace(/\s+/g, ' ').trim() : ''
+  if (doNotVisit && sheetNos.length !== 1) throw new TerritoryReportError('拒絕拜訪地址只能在回報一區時填寫')
+  if (doNotVisit.length > MAX_DO_NOT_VISIT_ADDRESS) throw new TerritoryReportError(`拒絕拜訪地址最多 ${MAX_DO_NOT_VISIT_ADDRESS} 字`)
+  return { name, sheetNos, timeslot, startDate: value.startDate, endDate: value.endDate, note, doNotVisit }
 }
 
 /** 回報後該區是否交回：使用中，且結束日不早於該輪領取日（台北日曆日）。 */
@@ -56,7 +61,7 @@ export function reportSheetRow(name: string, input: TerritoryReportInput, sheetN
 }
 
 export function reportContent(input: TerritoryReportInput, sheetNo: number) {
-  const { sheetNos: _, name: __, ...fields } = input
+  const { sheetNos: _, name: __, doNotVisit: ___, ...fields } = input
   return JSON.stringify({ source: 'territory-report', sheetNo, ...fields })
 }
 
@@ -92,6 +97,7 @@ export async function submitTerritoryReport(db: PrismaClient, accountId: string 
         await tx.area.update({ where: { id: area.id }, data: reported })
       }
       if (memberId) await tx.report.create({ data: { areaId: area.id, memberId, content, status: 'approved', reviewedAt: now, submittedAt: now } })
+      if (input.doNotVisit) await tx.doNotVisitReport.create({ data: { areaId: area.id, address: input.doNotVisit, reporterName, memberId, createdAt: now } })
       results.push({ sheetNo, returned })
     }
     await appendRows(input.sheetNos.map(sheetNo => reportSheetRow(reporterName, input, sheetNo, now)))

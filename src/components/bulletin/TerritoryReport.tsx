@@ -23,6 +23,7 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [note, setNote] = useState('')
+  const [doNotVisit, setDoNotVisit] = useState('')
   const lock = useRef(false)
 
   async function load() {
@@ -71,11 +72,11 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
     if (others.length && !window.confirm(`${others.map(a => `${a.label}（${a.holder} 領取）`).join('、')} 送出後會交回。確定送出？`)) return
     lock.current = true; setBusy(true); setError(''); setNotice('')
     try {
-      const res = await fetch('/api/territory-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(options?.guest ? { name: guestName } : {}), sheetNos: tags, timeslot, startDate, endDate, note }) })
+      const res = await fetch('/api/territory-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...(options?.guest ? { name: guestName } : {}), sheetNos: tags, timeslot, startDate, endDate, note, ...(tags.length === 1 && doNotVisit.trim() ? { doNotVisit } : {}) }) })
       const value = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(value.error || '回報未送出，請稍後再試')
-      setNotice(`已送出 ${selected.length} 區的回報${value.returned?.length ? `，交回 ${value.returned.length} 張地圖` : ''}。${value.warning || ''}`)
-      setNote(''); setStartDate(''); setTags([]); setAreaText('')
+      setNotice(`已送出 ${selected.length} 區的回報${value.returned?.length ? `，交回 ${value.returned.length} 張地圖` : ''}。${tags.length === 1 && doNotVisit.trim() ? '拒絕拜訪地址已送管理員審核。' : ''}${value.warning || ''}`)
+      setNote(''); setDoNotVisit(''); setStartDate(''); setTags([]); setAreaText('')
       await load()
     } catch (e) { setError(e instanceof Error ? e.message : '回報未送出') } finally { lock.current = false; setBusy(false) }
   }
@@ -111,6 +112,7 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
         <div><label htmlFor="report-end" className={label}>結束日</label><input id="report-end" type="date" required min={startDate || undefined} max={options.today} value={endDate} onChange={e => setEndDate(e.target.value)} className={control} /></div>
       </div>
       <div><label htmlFor="report-note" className={label}>備註（選填）</label><textarea id="report-note" rows={3} maxLength={500} value={note} onChange={e => setNote(e.target.value)} className={`${control} py-2`} /></div>
+      {tags.length === 1 && <div><label htmlFor="report-dnv" className={label}>拒絕拜訪地址（選填）</label><input id="report-dnv" maxLength={100} placeholder="例如：加昌路279巷5號" value={doNotVisit} onChange={e => setDoNotVisit(e.target.value)} className={control} /><p className="mt-1 text-xs text-mc-text/60">住戶要求不要再拜訪時填寫，管理員確認後會加到這張地圖。</p></div>}
       {problem && <p role="alert" className="text-sm text-amber-300">{problem}</p>}
       {!problem && returning.length > 0 && <p className="text-sm text-mc-text/60">送出後會自動交回：{returning.map(a => a.label).join('、')}</p>}
       <button type="submit" disabled={busy || !selected.length || (options.guest && !guestName.trim()) || Boolean(problem) || !timeslot || !startDate || !endDate} className="min-h-12 w-full rounded-lg bg-blue-500 px-4 text-base font-semibold text-white disabled:opacity-40">{busy ? '送出中…' : '送出回報'}</button>

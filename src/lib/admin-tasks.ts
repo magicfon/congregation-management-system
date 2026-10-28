@@ -5,7 +5,7 @@ import { taipeiDate } from './google-sheets'
 import { reportedButHeld } from './territory-report'
 
 export async function adminTasks(db: PrismaClient) {
-  const [lineCount, identities, requestCount, requests, areas, heldAreas] = await Promise.all([
+  const [lineCount, identities, requestCount, requests, areas, heldAreas, doNotVisitCount, doNotVisitReports] = await Promise.all([
     db.pendingLineIdentity.count(),
     db.pendingLineIdentity.findMany({ take: 5, orderBy: [{ createdAt: 'asc' }, { uid: 'asc' }], select: { displayName: true, createdAt: true } }),
     db.mapRequest.count({ where: { status: 'pending' } }),
@@ -19,6 +19,8 @@ export async function adminTasks(db: PrismaClient) {
       id: true, name: true, mapId: true, mapAreaId: true, sheetNo: true, assignedMemberId: true, dispatchedAt: true, completedAt: true, lastReportedCompletedAt: true,
       assignedMember: { select: { name: true } },
     }, orderBy: { sheetNo: 'asc' } }),
+    db.doNotVisitReport.count({ where: { status: 'pending' } }),
+    db.doNotVisitReport.findMany({ where: { status: 'pending' }, take: 20, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, address: true, reporterName: true, createdAt: true, area: { select: { name: true, mapId: true, mapAreaId: true, sheetNo: true } } } }),
   ])
   const unreturned = heldAreas.filter(reportedButHeld).map(area => ({ areaId: area.id, label: allocationLabel(area), holder: area.assignedMember?.name || '未記錄', dispatched: taipeiDate(area.dispatchedAt), reported: taipeiDate(area.lastReportedCompletedAt) }))
   const handoffs = areas.flatMap(area => {
@@ -30,6 +32,7 @@ export async function adminTasks(db: PrismaClient) {
     requests: { count: requestCount, items: requests.map(row => ({ id: row.id, name: row.member.name, label: allocationLabel(row.area), date: taipeiDate(row.createdAt) })) },
     handoffs: { count: handoffs.length, items: handoffs },
     unreturned: { count: unreturned.length, items: unreturned },
+    doNotVisit: { count: doNotVisitCount, items: doNotVisitReports.map(row => ({ id: row.id, label: allocationLabel(row.area), address: row.address, name: row.reporterName, date: taipeiDate(row.createdAt) })) },
   }
 }
 export type AdminTasks = Awaited<ReturnType<typeof adminTasks>>

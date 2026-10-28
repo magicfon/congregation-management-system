@@ -9,6 +9,7 @@ const categories = [
   { key: 'requests', label: '領圖待審', unit: '張' },
   { key: 'handoffs', label: '待交接', unit: '張' },
   { key: 'unreturned', label: '回報未交回', unit: '張' },
+  { key: 'doNotVisit', label: '拒訪待審', unit: '筆' },
 ] as const
 type Category = typeof categories[number]['key']
 
@@ -55,6 +56,19 @@ export default function AdminTaskCenter() {
       await load()
     } catch (e) { setError(e instanceof Error ? e.message : '交回失敗') } finally { setReturning('') }
   }
+  const [reviewing, setReviewing] = useState('')
+  const [notice, setNotice] = useState('')
+  async function reviewDoNotVisit(item: AdminTasks['doNotVisit']['items'][number], action: 'approve' | 'reject') {
+    if (reviewing || (action === 'reject' && !window.confirm(`不採用「${item.address}」？`))) return
+    setReviewing(item.id); setError(''); setNotice('')
+    try {
+      const res = await fetch(`/api/do-not-visit-reports/${encodeURIComponent(item.id)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
+      const value = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(value.error || '處理失敗，請重新整理後再試')
+      setNotice(action === 'approve' ? `已加入 ${item.label} 的拒絕拜訪。${value.warning || ''}` : '已不採用。')
+      await load()
+    } catch (e) { setError(e instanceof Error ? e.message : '處理失敗') } finally { setReviewing('') }
+  }
   const handoffs = data?.handoffs.items.slice(0, expanded ? undefined : 5) || []
   return <section id="handoffs" aria-labelledby="admin-tasks-title" data-dashboard-section="handoffs" className="dashboard-section">
     <header className="flex items-center justify-between gap-3">
@@ -62,9 +76,10 @@ export default function AdminTaskCenter() {
       <button aria-label="重新整理管理員待辦" title="重新整理" disabled={loading} onClick={() => void load()} className="flex h-11 w-11 items-center justify-center rounded-lg text-mc-text/60 hover:bg-white/5 disabled:opacity-40"><RefreshCw size={15} className={loading ? 'animate-spin' : ''}/></button>
     </header>
     {error && <p role="alert" className="mt-3 rounded-lg bg-red-400/10 p-3 text-sm text-red-300">{error}</p>}
+    {notice && <p role="status" className="mt-3 rounded-lg bg-blue-400/10 p-3 text-sm text-blue-300">{notice}</p>}
     {!data && loading && <p role="status" className="py-6 text-sm text-mc-text/50">正在整理待辦…</p>}
     {data && <>
-      <div className="mt-2 grid grid-cols-2 gap-1 sm:grid-cols-4 rounded-lg bg-white/[.03] p-1" aria-label="待辦分類">
+      <div className="mt-2 grid grid-cols-2 gap-1 sm:grid-cols-5 rounded-lg bg-white/[.03] p-1" aria-label="待辦分類">
         {categories.map(({ key, label, unit }) => <button key={key} aria-label={`${label} ${data[key].count} ${unit}`} aria-pressed={category === key} onClick={() => { setCategory(key); setExpanded(false) }} className={`flex min-h-11 min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-md px-2 py-2 transition-colors ${category === key ? 'bg-blue-400/15 text-blue-200' : 'text-mc-text/50 hover:bg-white/5'}`}>
           <span className="text-xs">{label}</span>
           <strong className="text-base tabular-nums">{data[key].count}</strong>
@@ -76,6 +91,7 @@ export default function AdminTaskCenter() {
         {category === 'line' && data.line.items.map((item, index) => <a key={index} href="/members#pending-line" className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block break-words text-sm">{item.name}</strong><p className="mt-1 text-xs text-mc-text/50">{item.date}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">連結成員<ArrowRight size={14}/></span></a>)}
         {category === 'requests' && data.requests.items.map(item => <a key={item.id} href={`/map-requests#request-${encodeURIComponent(item.id)}`} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block break-words text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">{item.name}</span></strong><p className="mt-1 text-xs text-mc-text/50">{item.date}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">審核<ArrowRight size={14}/></span></a>)}
         {category === 'handoffs' && handoffs.map(item => <a key={item.areaId} href={`/map/ministry/${encodeURIComponent(item.areaId)}`} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">管理者 {item.manager}</span></strong><p className="mt-1 text-xs text-amber-200">{item.next ? `下一位 ${item.next.name} · ${item.next.date}` : '待安排'}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">交接<ArrowRight size={14}/></span></a>)}
+        {category === 'doNotVisit' && data.doNotVisit.items.map(item => <div key={item.id} className="flex min-h-14 flex-wrap items-center justify-between gap-3 px-1 py-3"><div className="min-w-0 flex-1"><strong className="block break-words text-sm">{item.address}</strong><p className="mt-1 text-xs text-mc-text/60">{item.label} · {item.name} · {item.date}</p></div><div className="flex shrink-0 gap-2"><button disabled={Boolean(reviewing)} onClick={() => void reviewDoNotVisit(item, 'approve')} className="min-h-11 rounded-lg bg-blue-400/15 px-3 text-xs text-blue-200 disabled:opacity-40">{reviewing === item.id ? '處理中…' : '核准'}</button><button disabled={Boolean(reviewing)} onClick={() => void reviewDoNotVisit(item, 'reject')} className="min-h-11 rounded-lg bg-white/5 px-3 text-xs text-mc-text/70 disabled:opacity-40">不採用</button></div></div>)}
         {category === 'unreturned' && data.unreturned.items.map(item => <div key={item.areaId} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3"><div className="min-w-0"><strong className="block text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">{item.holder}</span></strong><p className="mt-1 text-xs text-amber-200">領取 {item.dispatched} · 回報完成 {item.reported}</p></div><button disabled={Boolean(returning)} onClick={() => void collect(item)} className="min-h-11 shrink-0 rounded-lg bg-white/5 px-3 text-xs text-blue-300 disabled:opacity-40">{returning === item.areaId ? '交回中…' : '交回'}</button></div>)}
       </div>
       <div className="text-xs">
