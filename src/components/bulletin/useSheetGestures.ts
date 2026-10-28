@@ -19,12 +19,12 @@ export function useSheetGestures(viewport: RefObject<HTMLDivElement>, sheet: Ref
     if (!enabled || !view) return
     let drag: { id: number; x: number; y: number } | null = null
     const wheel = (event: WheelEvent) => {
-      // Leave browser Ctrl+wheel / trackpad pinch and all touch gestures native.
-      if (event.ctrlKey || !window.matchMedia('(pointer: fine)').matches || !sheet.current) return
+      // Plain wheel scrolls natively; Ctrl+wheel (and trackpad pinch) zooms the paper. Touch stays native (ADR-0086).
+      if (!event.ctrlKey || !window.matchMedia('(pointer: fine)').matches || !sheet.current) return
+      event.preventDefault()
       const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? view.clientHeight : 1)
       const next = Math.max(fit, Math.min(3, current.current * Math.exp(-Math.max(-120, Math.min(120, delta)) * .002)))
       if (next === current.current) return
-      event.preventDefault()
       const rect = sheet.current.getBoundingClientRect()
       const renderedScale = rect.width / sheet.current.offsetWidth
       anchor.current = { x: event.clientX, y: event.clientY, paperX: (event.clientX - rect.left) / renderedScale, paperY: (event.clientY - rect.top) / renderedScale }
