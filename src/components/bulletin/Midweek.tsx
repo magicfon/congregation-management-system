@@ -18,7 +18,8 @@ async function api(url: string, options?: RequestInit) {
   if (!response.ok) throw new Error(data.error || '讀取失敗')
   return data
 }
-export default function Midweek({ management = false }: { management?: boolean }) {
+// embedded：外部網站 iframe 用，不查登入身分、不顯示編排入口（ADR-0085）。
+export default function Midweek({ management = false, embedded = false }: { management?: boolean; embedded?: boolean }) {
   const [weeks, setWeeks] = useState<Week[]>([]), [id, setId] = useState('')
   const [members, setMembers] = useState<{ id: string; name: string }[]>([])
   const [source, setSource] = useState<SourceWeek | null>(null), [record, setRecord] = useState<MeetingRecord | null>(null)
@@ -70,7 +71,7 @@ export default function Midweek({ management = false }: { management?: boolean }
   useEffect(() => {
     alive.current = true
     refresh().catch(e => setError(e.message)).finally(() => setLoading(false))
-    if (!management) api('/api/me').then(data => setIsAdmin(data.role === 'admin' || data.user?.role === 'admin')).catch(() => {})
+    if (!management && !embedded) api('/api/me').then(data => setIsAdmin(data.role === 'admin' || data.user?.role === 'admin')).catch(() => {})
     return () => { alive.current = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endpoint])
