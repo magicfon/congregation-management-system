@@ -148,13 +148,12 @@ export default function PdfReader({ id, label, src, title, sourceUrl, embedded =
     return () => { window.document.body.style.overflow = previousOverflow; window.removeEventListener('keydown', escape) }
   }, [expanded])
 
-  // 電腦以滑鼠滾輪縮放（以游標為中心），手機以雙指縮放；不提供縮放按鈕（ADR-0067）。
+  // 電腦以 Ctrl＋滾輪（含觸控板雙指）縮放，以游標為中心；一般滾輪原生捲動。手機以雙指縮放；不提供縮放按鈕（ADR-0067、ADR-0086）。
   useEffect(() => {
     const element = pane.current
     if (!element || !ready) return
     const wheel = (event: WheelEvent) => {
-      // 嵌入版滾輪保留原生捲動，Ctrl＋滾輪（含觸控板雙指）才縮放。
-      if (embedded ? !event.ctrlKey : event.ctrlKey || !window.matchMedia('(pointer: fine)').matches) return
+      if (!event.ctrlKey) return
       const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1)
       const previous = latestZoom.current
       const next = Math.min(5, Math.max(1, previous * Math.exp(-Math.max(-120, Math.min(120, delta)) * 0.002)))
@@ -172,7 +171,7 @@ export default function PdfReader({ id, label, src, title, sourceUrl, embedded =
     }
     element.addEventListener('wheel', wheel, { passive: false })
     return () => element.removeEventListener('wheel', wheel)
-  }, [ready, embedded])
+  }, [ready])
 
   function endPointer(pointerId: number) { pointers.current.delete(pointerId); gesture.current = null; drag.current = null }
   const button = 'min-h-11 min-w-11 rounded-lg border border-white/10 px-3 text-sm hover:bg-mc-accent disabled:opacity-30'
@@ -232,7 +231,7 @@ export default function PdfReader({ id, label, src, title, sourceUrl, embedded =
       {document && width > 0 && !error && Array.from({ length: document.numPages }, (_, index) => <PdfPage key={`${id}-${retry}-${index}`} frame={firstFrame} document={document} page={index + 1} label={label} width={Math.max(1, width - (embedded ? 8 : 24))} height={embedded ? Infinity : Math.max(1, height - 24)} zoom={zoom} initialRatio={pageRatio} root={pane.current} onFirstPaint={firstPaint} />)}
     </div>
     {!embedded && <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs text-mc-text/50">
-      <p>手機雙指縮放 · 電腦滾輪縮放、拖曳移動 · 自動記住閱讀位置</p>
+      <p>手機雙指縮放 · 電腦 Ctrl＋滾輪縮放、拖曳移動 · 自動記住閱讀位置</p>
       {resumedPage && <p role="status" className="flex items-center gap-2">已接續第 {resumedPage} 頁<button type="button" className="min-h-11 rounded-lg px-2 text-blue-300 hover:bg-mc-accent" onClick={() => { setZoom(1); pane.current?.scrollTo(0, 0); setResumedPage(null) }}>回到開頭</button></p>}
     </div>}
   </div>
