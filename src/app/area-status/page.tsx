@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { UserRound, CalendarDays, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, type LucideIcon } from 'lucide-react'
+import { UserRound, CalendarDays, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, type LucideIcon } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import DispatchSubmitBar from '../../components/map/DispatchSubmitBar'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
@@ -14,6 +14,7 @@ import { type AreaStatusData } from '../../lib/area-status'
 export default function AreaStatusPage() {
   const [infoOpen, setInfoOpen] = useState(true)
   const [queueOpen, setQueueOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminMode, setAdminMode] = useState<'dispatch' | 'request'>('dispatch')
@@ -87,7 +88,7 @@ export default function AreaStatusPage() {
           <div role="group" aria-label="領圖操作模式" className="grid grid-cols-2 gap-1 rounded-lg bg-black/15 p-1">
             {([{ mode: 'dispatch', label: '派發', Icon: Send }, { mode: 'request', label: '申請', Icon: ClipboardPlus }] as const).map(({ mode, label, Icon }) => <button key={mode} type="button" aria-pressed={adminMode === mode} disabled={actionBusy || (mode === 'request' && queue.length > 5)} onClick={() => setAdminMode(mode)} className={`flex min-h-11 items-center justify-center gap-2 rounded-md py-2 text-sm disabled:opacity-40 ${adminMode === mode ? 'bg-blue-400/15 text-blue-300' : 'text-mc-text/50 hover:bg-white/5'}`}><Icon size={15} aria-hidden="true" />{label}</button>)}
           </div>
-          <p className="mt-1 text-center text-[11px] text-mc-text/50">{queue.length > 5 ? '選取降至 5 張以內，即可切換申請' : dispatchMode ? '為成員直接派發地圖' : '為自己申請領取 · 最多 5 張'}</p>
+          {(!dispatchMode || queue.length > 5) && <p className="mt-1 text-center text-[11px] text-mc-text/50">{queue.length > 5 ? '選取降至 5 張以內，即可切換申請' : '為自己申請領取 · 最多 5 張'}</p>}
         </div>}
         <section className={`min-h-0 flex flex-col ${infoOpen ? 'flex-1' : 'shrink-0'}`}>
         <PanelToggle open={infoOpen} onToggle={() => setInfoOpen(open => !open)} controls="area-info-content" Icon={MapPinned}>地圖資訊</PanelToggle>
@@ -109,7 +110,6 @@ export default function AreaStatusPage() {
                 <DoNotVisitNotice text={r.doNotVisit} />
                 <div><p className="text-xs text-mc-text/60">距上次完成回報</p><p className="mt-1"><strong className="text-3xl font-semibold tabular-nums">{data?.syncedAt && r.days !== null ? r.days : '—'}</strong><span className="ml-1 text-sm text-mc-text/60">天</span></p><p className="mt-1 flex items-center gap-1.5 text-xs text-mc-text/50"><CalendarDays size={13} aria-hidden="true" />{!data?.syncedAt ? '回報日期尚未同步' : `上次完成：${r.lastCompletedDate || '無紀錄'}`}</p></div>
                 {!unavailable && <button disabled={actionBusy || (!dispatchMode && queue.length >= 5 && !queued)} aria-pressed={queued} onClick={() => { if (r.areaId) setQueue(old => old.some(i => i.id === r.areaId) ? old.filter(i => i.id !== r.areaId) : !dispatchMode && old.length >= 5 ? old : [...old, { id: r.areaId!, label: `${DISTRICT_NAMES[mapId]} ${r.number} 號` }]) }} className={`w-full rounded-lg px-3 py-2.5 text-sm disabled:opacity-40 ${queued ? 'bg-blue-400/10 text-blue-300' : 'bg-mc-highlight text-white'}`}>{queued ? '✓ 已加入 · 點此移除' : dispatchMode ? '＋ 加入分發清單' : queue.length >= 5 ? '已選滿 5 張' : '＋ 加入申請'}</button>}
-                {isAdmin && r.areaId && <AreaProperties key={r.areaId} areaId={r.areaId} number={r.number} onChange={updateAvailability} />}
               </article>
             })}</div>
           </> : <div className="py-6 text-center"><p className="text-2xl text-mc-text/30">◎</p><h2 className="mt-2 font-semibold">點選地圖，查看區域</h2><p className="mt-2 text-sm text-mc-text/50">查看多久未完成回報，<br />將想領取的地圖加入下方清單。</p></div>}
@@ -124,6 +124,12 @@ export default function AreaStatusPage() {
         </div></details>}
         </div>
         </section>
+        {isAdmin && <section className={`min-h-0 flex flex-col border-t border-white/10 ${settingsOpen ? 'flex-1' : 'shrink-0'}`}>
+          <PanelToggle open={settingsOpen} onToggle={() => setSettingsOpen(open => !open)} controls="area-settings-content" Icon={Settings2}>設定</PanelToggle>
+          <div id="area-settings-content" hidden={!settingsOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
+            {settingsOpen && (selected?.reports.some(r => r.areaId) ? <div className="space-y-4 divide-y divide-white/10 [&>*+*]:pt-4">{selected.reports.map(r => r.areaId && <AreaProperties key={r.areaId} areaId={r.areaId} number={r.number} showNumber={selected.numbers.length > 1} onChange={updateAvailability} />)}</div> : <p className="py-4 text-center text-sm text-mc-text/50">{selected ? '此區塊尚未對應地圖號碼' : '先點選地圖，再調整分發設定'}</p>)}
+          </div>
+        </section>}
         <section className={`min-h-0 flex flex-col border-t border-white/10 ${queueOpen ? `flex-[3] md:flex-1 ${infoOpen && dispatchMode ? 'lg:flex-[2]' : ''}` : 'shrink-0'}`}>
           <PanelToggle open={queueOpen} onToggle={() => setQueueOpen(open => !open)} controls="area-queue-content" Icon={ListChecks}>{dispatchMode ? '派發清單' : '申請清單'}<span className="ml-2 font-normal text-blue-300">已選 {queue.length} 張</span></PanelToggle>
           <div id="area-queue-content" hidden={!queueOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
