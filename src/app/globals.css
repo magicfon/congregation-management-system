@@ -34,7 +34,9 @@ body {
   --roster-ink-lightness: 76%;
 }
 
-.bulletin-theme[data-bulletin-theme="light"] {
+.bulletin-theme[data-bulletin-theme="light"],
+/* 嵌入外部網站的公布欄固定淺色，不跟裝置或已存外觀（ADR-0084）。 */
+.bulletin-theme .bulletin-embed {
   color-scheme: light;
   --mc-bg: 210 40% 98%;
   --mc-surface: 210 30% 96%;
