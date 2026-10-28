@@ -6,7 +6,7 @@ import { mergeDoNotVisit, writeBackDoNotVisit } from '../../../../lib/do-not-vis
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// POST /api/do-not-visit-reports/[id] — 管理員核准／不採用回報的拒絕拜訪地址（ADR-0083）
+// POST /api/do-not-visit-reports/[id] — 管理員核准／不採用回報的拒絕拜訪地址（ADR-0086）
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireApiUser(['admin'])
   if ('response' in auth) return auth.response

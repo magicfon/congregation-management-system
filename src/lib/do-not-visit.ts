@@ -3,7 +3,7 @@ import { batchUpdate, sheetRow, DEFAULT_SHEET_ID } from './google-sheets'
 import { normalizeDoNotVisit, mergeDoNotVisit } from './do-not-visit-list'
 export { normalizeDoNotVisit, doNotVisitList, mergeDoNotVisit, MAX_DO_NOT_VISIT_ADDRESS } from './do-not-visit-list'
 
-// 拒絕拜訪地址：Sheet「區域狀態」J 欄 ↔ areas.doNotVisit（ADR-0083）
+// 拒絕拜訪地址：Sheet「區域狀態」J 欄 ↔ areas.doNotVisit（ADR-0086）
 export const DO_NOT_VISIT_COLUMN = 'J'
 export const DO_NOT_VISIT_SNAPSHOT_KEY = 'sheet_j_snapshot'
 export const MAX_DO_NOT_VISIT_TEXT = 3000

@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
       await updateSnapshot(snapUpdates)
     }
 
-    // ============ 4. J 欄拒絕拜訪雙向同步（ADR-0083）；失敗不影響 C/D ============
+    // ============ 4. J 欄拒絕拜訪雙向同步（ADR-0086）；失敗不影響 C/D ============
     try {
       result.doNotVisit = await syncDoNotVisit(prisma, await readValues(DEFAULT_SHEET_ID, '區域狀態!B2:J214'))
     } catch (error) {

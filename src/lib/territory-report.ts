@@ -34,7 +34,7 @@ export function parseReportInput(body: unknown, now = new Date(), guest = false)
   if (value.endDate > taipeiDate(now)) throw new TerritoryReportError('結束日不能晚於今天')
   const note = typeof value.note === 'string' ? value.note.trim() : ''
   if (note.length > 500) throw new TerritoryReportError('備註最多 500 字')
-  // 拒絕拜訪地址只在回報一區時收（ADR-0083），單行、送管理員審核
+  // 拒絕拜訪地址只在回報一區時收（ADR-0086），單行、送管理員審核
   const doNotVisit = typeof value.doNotVisit === 'string' ? value.doNotVisit.replace(/\s+/g, ' ').trim() : ''
   if (doNotVisit && sheetNos.length !== 1) throw new TerritoryReportError('拒絕拜訪地址只能在回報一區時填寫')
   if (doNotVisit.length > MAX_DO_NOT_VISIT_ADDRESS) throw new TerritoryReportError(`拒絕拜訪地址最多 ${MAX_DO_NOT_VISIT_ADDRESS} 字`)

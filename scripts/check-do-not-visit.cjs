@@ -1,4 +1,4 @@
-// 拒絕拜訪 J 欄雙向同步（ADR-0083）；只用記憶體假資料，不連 DB 與 Sheet。
+// 拒絕拜訪 J 欄雙向同步（ADR-0086）；只用記憶體假資料，不連 DB 與 Sheet。
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), ts = require('typescript')
 function load(file, mocks = {}) { const exports = {}; vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, { exports, require: id => id in mocks ? mocks[id] : require(id), console, JSON }, { filename: file }); return exports }
 const list = load('src/lib/do-not-visit-list.ts')

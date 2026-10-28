@@ -1,4 +1,4 @@
-// 拒絕拜訪文字處理（純函式，前後端共用；ADR-0083）
+// 拒絕拜訪文字處理（純函式，前後端共用；ADR-0086）
 
 export const MAX_DO_NOT_VISIT_ADDRESS = 100
 

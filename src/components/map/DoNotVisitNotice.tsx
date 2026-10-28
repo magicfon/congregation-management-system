@@ -1,7 +1,7 @@
 import { TriangleAlert } from 'lucide-react'
 import { doNotVisitList } from '../../lib/do-not-visit-list'
 
-/** 拒絕拜訪提示（ADR-0083）；沒有地址時不佔版面。 */
+/** 拒絕拜訪提示（ADR-0086）；沒有地址時不佔版面。 */
 export default function DoNotVisitNotice({ text, className = '' }: { text: string; className?: string }) {
   const items = doNotVisitList(text)
   if (!items.length) return null

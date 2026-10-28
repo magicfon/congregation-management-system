@@ -8,7 +8,7 @@ const tp = s => new Date(`${s}T10:00:00+08:00`)
 const input = (o={}) => report.parseReportInput({sheetNos:[5],timeslot:'星期六早上',startDate:'2026-10-20',endDate:'2026-10-22',note:'',...o},now)
 
 // 輸入防呆
-// 拒絕拜訪地址（ADR-0083）：只收單區、單行、最多 100 字
+// 拒絕拜訪地址（ADR-0086）：只收單區、單行、最多 100 字
 assert.equal(input({doNotVisit:'  加昌路279巷5號\n 有狗 '}).doNotVisit,'加昌路279巷5號 有狗')
 assert.equal(input().doNotVisit,'')
 assert.throws(()=>input({sheetNos:[5,6],doNotVisit:'x'}),/回報一區/)
