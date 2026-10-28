@@ -1,7 +1,6 @@
 import { type NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import LineProvider from 'next-auth/providers/line'
-import { compare } from 'bcryptjs'
 import { prisma } from './db'
 import { recordPendingLineIdentity } from './pending-line-identities'
 import { authorizeLiff } from './liff-auth'
@@ -21,34 +20,6 @@ export const authOptions: NextAuthOptions = {
     error: '/login',
   },
   providers: [
-    // ── Email / password ──────────────────────────────────────────────────────
-    CredentialsProvider({
-      id: 'credentials',
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
-
-        const member = await prisma.member.findUnique({
-          where: { email: credentials.email },
-        })
-
-        if (!member || !member.active) return null
-
-        const isPasswordValid = await compare(credentials.password, member.password)
-        if (!isPasswordValid) return null
-
-        return {
-          id: member.id,
-          email: member.email,
-          name: member.name,
-          role: member.role,
-        }
-      },
-    }),
 
     ...(configuredLiffId() ? [CredentialsProvider({
       id: 'liff', name: 'LINE LIFF',

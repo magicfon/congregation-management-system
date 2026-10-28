@@ -9,7 +9,7 @@
 - **Stack**: Next.js 14 (App Router, `src/` 結構) + Prisma + Neon Postgres + NextAuth（帳密 + LINE 登入）
 - **部署**: Vercel production = <https://congregation-management-system.vercel.app>（用 `vercel deploy --prod --yes`，CLI 已登入 magicfon 帳號）
 - **資料庫**: Neon（連線字串在 Vercel env `DATABASE_URL`；本機 `.env` 有同步副本，**不可外洩**）
-- **Admin 帳號**: `admin@congregation.local` / `admin123`（seed 預設，僅本地/測試用）
+- **登入**: 只有 LINE（OAuth／LIFF）。email／密碼登入已移除（ADR-0088），seed 的 admin@congregation.local 不能登入
 
 ## 必讀（依序）
 
