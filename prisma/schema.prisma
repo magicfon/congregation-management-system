@@ -61,6 +61,7 @@ model Area {
   mapAreaId        Int? // local id within map (1-89, 1-59, 1-65)
   blockCode        String? // A-1, B-2, C-3, etc.
   sheetNo          Int? @unique // Google Sheet「區域狀態」的全域區域號碼 (1-213)
+  doNotVisit       String   @default("") // Sheet「區域狀態」J 欄拒絕拜訪，一行一個地址（ADR-0083）
   assignNote       String? // 分配目的/備註，沒有就是 null
   dispatchedAt     DateTime? // 分發日期
   completedAt      DateTime? // 完成日期（完成時間 > 分發時間 → 已收回，可重新分配）
@@ -73,6 +74,7 @@ model Area {
   mapRequests    MapRequest[]
   scheduleAreas  ScheduleArea[]
   reports        Report[]
+  doNotVisitReports DoNotVisitReport[]
 
   @@index([mapId, mapAreaId])
   @@map("areas")
@@ -212,6 +214,21 @@ model MapRequest {
   @@index([memberId, status])
   @@index([status, createdAt])
   @@map("map_requests")
+}
+
+model DoNotVisitReport {
+  id String @id @default(cuid())
+  areaId String
+  address String
+  reporterName String
+  memberId String?
+  status String @default("pending")
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  @@index([status, createdAt])
+  @@map("do_not_visit_reports")
 }
 
 model MinistryVisit {

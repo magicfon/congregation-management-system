@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       isManager ? prisma.member.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }) : Promise.resolve([]),
     ])
     const image = area.sheetNo ? (images as unknown as Record<string, { full: string; dims: number[] }>)[String(area.sheetNo)] : null
-    return respond({ area: { id: area.id, label: allocationLabel(area), managerName: area.assignedMember?.name || area.assignedTo || '未記錄', active: isAreaDispatched(area), revision: area.ministryRevision, cycleKey, image: image ? { url: image.full, dims: image.dims } : null }, viewerId: auth.user.id, isManager, members, visits })
+    return respond({ area: { id: area.id, label: allocationLabel(area), managerName: area.assignedMember?.name || area.assignedTo || '未記錄', active: isAreaDispatched(area), doNotVisit: area.doNotVisit, revision: area.ministryRevision, cycleKey, image: image ? { url: image.full, dims: image.dims } : null }, viewerId: auth.user.id, isManager, members, visits })
   } catch { return respond({ error: '無法讀取傳道安排，請重試' }, 503) }
 }
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {

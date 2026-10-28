@@ -13,6 +13,7 @@ import {
 import { randomUUID } from 'crypto'
 import { syncReportCompletions } from '../../../../lib/report-completion-sync'
 import { syncServiceRoster } from '../../../../lib/service-roster-sync'
+import { syncDoNotVisit } from '../../../../lib/do-not-visit'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -20,13 +21,14 @@ export const maxDuration = 60
 /**
  * POST /api/cron/sync-sheet — Vercel Cron 每 15 分鐘
  *
- * 三件事：
+ * 四件事：
  * 1. Form 回報匯入：「傳道區域回報」時間戳記 > 上次同步點的新列
  *    → 該區域 completedAt = 該列結束日期（Q4=A：回報視同收回）
  *    → 姓名不在 Member → 自動建立
  * 2. Sheet C/D 手動編輯偵測（快照比對）：
  *    Sheet ≠ 快照 → Sheet 贏，匯入 DB（後寫的贏）
  * 3. 推送補救：DB isDispatched 但 Sheet C/D 落後 → 推回 Sheet
+ * 4. J 欄拒絕拜訪雙向同步（快照比對，兩邊都改則合併）
  *
  * Auth：Vercel Cron 自帶 Authorization: Bearer $CRON_SECRET
  */
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
     if ('response' in auth) return auth.response
   }
 
-  const result = { completionDatesUpdated: 0, imported: 0, sheetEdits: 0, conflicts: 0, pushedBack: 0, errors: [] as string[] }
+  const result = { doNotVisit: { imported: 0, pushed: 0, conflicts: 0 }, completionDatesUpdated: 0, imported: 0, sheetEdits: 0, conflicts: 0, pushedBack: 0, errors: [] as string[] }
   const serviceRosterSync = syncServiceRoster(prisma)
 
   try {
@@ -220,6 +222,14 @@ export async function POST(request: NextRequest) {
     }
     if (snapUpdates.length > 0) {
       await updateSnapshot(snapUpdates)
+    }
+
+    // ============ 4. J 欄拒絕拜訪雙向同步（ADR-0086）；失敗不影響 C/D ============
+    try {
+      result.doNotVisit = await syncDoNotVisit(prisma, await readValues(DEFAULT_SHEET_ID, '區域狀態!B2:J214'))
+    } catch (error) {
+      console.error('Do-not-visit sync failed:', error)
+      result.errors.push('拒絕拜訪（J 欄）同步失敗，下次排程重試')
     }
 
     const serviceRoster = await serviceRosterSync
