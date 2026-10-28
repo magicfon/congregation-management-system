@@ -66,7 +66,7 @@ async function main() {
   console.log('✓ 建立預設設定')
 
   console.log('\n🎉 種子資料植入完成！')
-  console.log('   管理員：admin@congregation.local / admin123')
+  console.log('   管理員：admin@congregation.local（僅建立資料；登入一律走 LINE，ADR-0088）')
   console.log('   成員：  john@congregation.local  / member123')
 }
 
