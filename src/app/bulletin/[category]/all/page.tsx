@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import ServiceRosterOverview from '@/components/bulletin/ServiceRosterOverview'
 
-export const metadata = { title: '所有週次｜服務安排' }
+export const metadata = { title: { absolute: '所有週次｜楠梓會眾公布欄' } }
 
 export default function RosterOverviewPage({ params, searchParams }: { params: { category: string }; searchParams: { tab?: string } }) {
   if (params.category !== 'service-roster') notFound()

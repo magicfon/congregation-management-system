@@ -6,7 +6,7 @@ import Midweek from '@/components/bulletin/Midweek'
 import Link from 'next/link'
 import NoPermission from '@/components/layout/NoPermission'
 export const dynamic = 'force-dynamic'
-export const metadata = { title: '編排週中聚會｜楠梓會眾' }
+export const metadata = { title: '編排週中聚會' }
 export default async function Page() {
   const session = await getServerSession(authOptions)
   const user = session?.user as { id?: string; role?: string } | undefined

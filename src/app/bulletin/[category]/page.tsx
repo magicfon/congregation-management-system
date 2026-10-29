@@ -15,7 +15,7 @@ type Props = { params: { category: string } }
 export function generateStaticParams() { return bulletinCategories.map(category => ({ category: category.slug })) }
 export function generateMetadata({ params }: Props): Metadata {
   const category = bulletinCategories.find(item => item.slug === params.category)
-  return { title: category ? `${category.title}｜楠梓會眾公布欄` : '找不到分類｜楠梓會眾公布欄' }
+  return { title: { absolute: category ? `${category.title}｜楠梓會眾公布欄` : '找不到分類｜楠梓會眾公布欄' } }
 }
 
 export default function BulletinCategoryPage({ params }: Props) {

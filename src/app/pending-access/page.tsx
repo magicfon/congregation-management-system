@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { configuredLiffId } from '../../lib/liff-settings'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 
+export const metadata = { title: '等待開通' }
+
 export const dynamic = 'force-dynamic'
 export default function PendingAccessPage({ searchParams }: { searchParams: { from?: string } }) {
   const id = configuredLiffId()

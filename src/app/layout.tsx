@@ -3,8 +3,8 @@ import './globals.css'
 import AppearanceProvider from '@/components/layout/AppearanceProvider'
 
 export const metadata: Metadata = {
-  title: '地圖分配系統',
-  description: 'Territory Assignment System',
+  title: { default: '楠梓會眾', template: '%s｜楠梓會眾' },
+  description: '楠梓會眾管理系統：公布欄、地圖分配、服務安排與週中聚會編排。',
 }
 
 export default function RootLayout({
