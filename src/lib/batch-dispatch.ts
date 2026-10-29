@@ -38,6 +38,9 @@ export function dispatchUndoState(area: UndoSource, now: Date): DispatchUndo {
   }
 }
 
+// 撤銷時比對的派發時間；沒有派發日的舊資料用空字串
+export function undoKey(area: { dispatchedAt: Date | null }) { return area.dispatchedAt?.toISOString() ?? '' }
+
 // 只有本系統派發、且仍是同一次派發的地圖可撤銷；Sheet 匯入或已交回後再派的舊紀錄不算
 export function undoableDispatch(area: { assignedMemberId: string | null; dispatchedAt: Date | null; completedAt: Date | null; dispatchUndo?: unknown }): DispatchUndo | null {
   const undo = area.dispatchUndo as Partial<DispatchUndo> | null | undefined
