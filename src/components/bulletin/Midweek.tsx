@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
 import { addDays, currentAndFutureWeeks, newMeeting, nextMidweekCheck, sectionNames, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
+import StudentNotices from './StudentNotices'
 import styles from './Midweek.module.css'
 import VersionDetails, { versionLabel } from './VersionDetails'
 import { draftBaseVersionOf, publishedVersionOf, sameContent, previewVersion, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
@@ -204,6 +205,7 @@ export default function Midweek({ management = false, embedded = false }: { mana
             {historical ? <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => setVersionNumber(0)}>返回編輯</button><button className={`${button} flex-1 sm:flex-none`} disabled={busy || loading} onClick={() => save('restore')}>退回此版</button></> : <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => save('save')}>儲存草稿</button><button className={`${button} flex-1 bg-blue-600 font-semibold text-white sm:flex-none`} disabled={busy} onClick={() => save('publish')}>發布第{shown?.number || 1}版</button></>}
           </div>
         </div>
+        {!historical && record?.published && <StudentNotices key={`${id}:${record.publishedVersion}`} weekId={id} />}
       </>}
       {management && !historical && <>
         {source && record && source.hash !== record.sourceHash && <p className="text-sm text-amber-300">手冊已更新，現有安排已保留。可至「更多管理」查看來源。</p>}
