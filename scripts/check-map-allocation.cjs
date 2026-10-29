@@ -70,8 +70,9 @@ async function main() {
     { mapId: 'nanzih', blockCode: 'A-10', sheetNo: 10 },
     { mapId: 'nanzih', blockCode: 'A-2', sheetNo: 3 },
     { mapId: 'nanzih', blockCode: 'A-2', sheetNo: 2 },
+    { mapId: 'nanzih', blockCode: 'A-1', sheetNo: 11 },
   ].sort(allocation.allocationOrder)
-  assert.equal(sorted.map((a) => a.sheetNo).join(','), '2,3,10,90')
+  assert.equal(sorted.map((a) => a.sheetNo).join(','), '2,3,10,11,90')
   const completed = new Date('2026-08-01T00:00:00Z')
   const oldDispatch = new Date('2026-07-01T00:00:00Z')
   let areas = [
@@ -112,7 +113,7 @@ async function main() {
 
   // 撤銷派發：還原成派發前（舊持有人、舊派發日、舊完成日），刪掉這次派發的傳道安排（ADR-0094）
   const ministry = { ministryCycle: (area) => `${area.assignedMemberId || 'none'}:${area.dispatchedAt?.toISOString() || 'legacy'}` }
-  const undo = load('src/lib/dispatch-undo.ts', { './batch-dispatch': dispatch, './ministry': ministry, '@prisma/client': { Prisma: { DbNull: 'DbNull', TransactionIsolationLevel: { Serializable: 'Serializable' } } } })
+  const undo = load('src/lib/dispatch-undo.ts', { './allocation': allocation, './batch-dispatch': dispatch, './ministry': ministry, '@prisma/client': { Prisma: { DbNull: 'DbNull', TransactionIsolationLevel: { Serializable: 'Serializable' } } } })
   const undoState = dispatch.dispatchUndoState({ assignedMemberId: 'old', assignedTo: '舊成員', assignNote: null, dispatchedAt: oldDispatch, completedAt: completed, lastActivityAt: completed }, now)
   let undoArea = { id: 'b', sheetNo: 2, assignedMemberId: 'member', assignedTo: '測試成員', assignNote: '派錯', dispatchedAt: now, completedAt: null, dispatchUndo: undoState }
   let deletedCycle = null
@@ -120,7 +121,7 @@ async function main() {
     area: { findUnique: async () => structuredClone(undoArea), update: async ({ data }) => { undoArea = { ...undoArea, ...data }; return undoArea } },
     ministryVisit: { deleteMany: async ({ where }) => { deletedCycle = where.cycleKey; return { count: 1 } } },
   }) }
-  await assert.rejects(undo.undoDispatch(undoDb, 'b', oldDispatch.toISOString()), /無法撤銷/)
+  await assert.rejects(undo.undoDispatch(undoDb, 'b', oldDispatch.toISOString()), /重新整理/)
   const undone = await undo.undoDispatch(undoDb, 'b', now.toISOString())
   assert.equal(deletedCycle, `member:${now.toISOString()}`)
   assert.equal(undone.previousDispatchedAt.toISOString(), oldDispatch.toISOString())
@@ -130,6 +131,15 @@ async function main() {
   assert.equal(allocation.isAreaDispatched(undoArea), false)
   assert.equal(dispatch.undoableDispatch(undoArea), null, '撤銷後不能再撤銷')
   assert.equal(dispatch.undoableDispatch({ assignedMemberId: 'm', dispatchedAt: now, completedAt: null, dispatchUndo: { ...undoState, dispatchedAt: oldDispatch.toISOString() } }), null, 'Sheet 匯入的新派發不能用舊紀錄撤銷')
+  await assert.rejects(undo.undoDispatch(undoDb, 'b', ''), /重新整理/, '已撤銷的地圖不能再撤銷')
+  // 上線前的派發（或 Sheet 匯入的）沒有紀錄：清空持有人與派發日
+  undoArea = { id: 'c', sheetNo: 3, assignedMemberId: 'member', assignedTo: '測試成員', assignNote: null, dispatchedAt: oldDispatch, completedAt: null, dispatchUndo: { ...undoState, dispatchedAt: completed.toISOString() } }
+  const legacy = await undo.undoDispatch(undoDb, 'c', oldDispatch.toISOString())
+  assert.equal(legacy.legacy, true)
+  assert.equal(legacy.previousDispatchedAt, null)
+  assert.equal(undoArea.assignedMemberId, null)
+  assert.equal(undoArea.dispatchedAt, null)
+  assert.equal(allocation.isAreaDispatched(undoArea), false)
 
   const forbidden = new Response(null, { status: 403 })
   const authMocks = {
