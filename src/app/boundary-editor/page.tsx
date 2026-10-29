@@ -1,5 +1,7 @@
 import DashboardLayout from '../../components/layout/DashboardLayout'
 
+export const metadata = { title: '地圖編輯器' }
+
 export default function PublicBoundaryEditorPage() {
   return <DashboardLayout publicView>
     <div className="mx-auto max-w-[1600px]">

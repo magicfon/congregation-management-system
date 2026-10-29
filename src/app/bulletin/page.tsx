@@ -6,7 +6,7 @@ import BulletinIcon from '@/components/bulletin/BulletinIcon'
 import { bulletinCategories } from '@/lib/bulletin'
 import ReaderWarmup from '@/components/bulletin/ReaderWarmup'
 
-export const metadata: Metadata = { title: '楠梓會眾公布欄', description: '聚會節目、會眾公告與傳道安排，免登入即可查看。' }
+export const metadata: Metadata = { title: { absolute: '楠梓會眾公布欄' }, description: '聚會節目、會眾公告與傳道安排，免登入即可查看。' }
 
 export default function BulletinPage() {
   return <DashboardLayout publicView>

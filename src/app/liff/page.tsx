@@ -5,6 +5,8 @@ import LiffEntry from './LiffEntry'
 import { authOptions } from '../../lib/auth'
 import { configuredLiffId, liffEntryDestination } from '../../lib/liff-settings'
 
+export const metadata = { title: '登入' }
+
 export const dynamic = 'force-dynamic'
 export default async function LiffPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
   const destination = liffEntryDestination(searchParams)

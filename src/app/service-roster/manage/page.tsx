@@ -7,7 +7,7 @@ import ServiceRoster from '@/components/bulletin/ServiceRoster'
 import NoPermission from '@/components/layout/NoPermission'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: '管理服務安排｜楠梓會眾' }
+export const metadata = { title: '管理服務安排' }
 
 export default async function ServiceRosterManagementPage() {
   const session = await getServerSession(authOptions)

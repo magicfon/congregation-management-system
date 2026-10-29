@@ -4,6 +4,8 @@ import DashboardLayout from '../../../components/layout/DashboardLayout'
 import { authOptions } from '../../../lib/auth'
 import NoPermission from '../../../components/layout/NoPermission'
 
+export const metadata = { title: '分區修正' }
+
 export default async function BoundaryEditorPage() {
   const session = await getServerSession(authOptions)
   if (!session?.user) redirect('/login?callbackUrl=/map/boundary-editor')

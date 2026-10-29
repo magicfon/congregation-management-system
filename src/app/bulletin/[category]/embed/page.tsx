@@ -11,7 +11,7 @@ type Props = { params: { category: string } }
 export function generateStaticParams() { return embeddable.map(category => ({ category })) }
 export function generateMetadata({ params }: Props): Metadata {
   const category = bulletinCategories.find(item => item.slug === params.category)
-  return { title: category ? `${category.title}｜楠梓會眾公布欄` : '找不到分類｜楠梓會眾公布欄', robots: { index: false } }
+  return { title: { absolute: category ? `${category.title}｜楠梓會眾公布欄` : '找不到分類｜楠梓會眾公布欄' }, robots: { index: false } }
 }
 
 export default function BulletinEmbedPage({ params }: Props) {

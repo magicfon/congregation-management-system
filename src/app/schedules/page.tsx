@@ -1,6 +1,8 @@
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import ScheduleManager from '../../components/schedule/ScheduleManager'
 
+export const metadata = { title: '傳道行程' }
+
 export const dynamic = 'force-dynamic'
 
 export default function SchedulesPage() {
