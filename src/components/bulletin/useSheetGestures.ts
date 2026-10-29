@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
 
-/** Touch uses native browser pinch zoom; mouse zoom stays local to the paper. */
-export function useSheetGestures(viewport: RefObject<HTMLDivElement>, sheet: RefObject<HTMLElement>, enabled: boolean, scale: number, fit: number, setZoom: (zoom: number | null) => void) {
+/** Touch uses native browser pinch zoom; mouse zoom stays local to the paper. Editing keeps only Ctrl+wheel so clicks and typing reach the fields. */
+export function useSheetGestures(viewport: RefObject<HTMLDivElement>, sheet: RefObject<HTMLElement>, editing: boolean, scale: number, fit: number, setZoom: (zoom: number | null) => void) {
   const current = useRef(scale)
   const anchor = useRef<{ x: number; y: number; paperX: number; paperY: number } | null>(null)
   useLayoutEffect(() => {
@@ -16,7 +16,7 @@ export function useSheetGestures(viewport: RefObject<HTMLDivElement>, sheet: Ref
   }, [scale, sheet, viewport])
   useEffect(() => {
     const view = viewport.current
-    if (!enabled || !view) return
+    if (!view) return
     let drag: { id: number; x: number; y: number } | null = null
     const wheel = (event: WheelEvent) => {
       // Plain wheel scrolls natively; Ctrl+wheel (and trackpad pinch) zooms the paper. Touch stays native (ADR-0086).
@@ -51,6 +51,7 @@ export function useSheetGestures(viewport: RefObject<HTMLDivElement>, sheet: Ref
       setZoom(event.key === '0' ? null : Math.max(fit, Math.min(3, current.current * (event.key === '-' ? 1 / 1.15 : 1.15))))
     }
     view.addEventListener('wheel', wheel, { passive: false })
+    if (editing) return () => view.removeEventListener('wheel', wheel)
     view.addEventListener('pointerdown', down)
     view.addEventListener('pointermove', move)
     view.addEventListener('pointerup', up)
@@ -65,5 +66,5 @@ export function useSheetGestures(viewport: RefObject<HTMLDivElement>, sheet: Ref
       view.removeEventListener('keydown', key)
       view.style.cursor = ''
     }
-  }, [enabled, fit, setZoom, sheet, viewport])
+  }, [editing, fit, setZoom, sheet, viewport])
 }
