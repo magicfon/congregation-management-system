@@ -6,8 +6,7 @@ import { addDays, currentAndFutureWeeks, newMeeting, nextMidweekCheck, sectionNa
 import MeetingSheet from './MeetingSheet'
 import StudentNotices from './StudentNotices'
 import styles from './Midweek.module.css'
-import VersionDetails, { versionLabel } from './VersionDetails'
-import { draftBaseVersionOf, publishedVersionOf, sameContent, previewVersion, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
+import { draftBaseVersionOf, publishedVersionOf, sameContent, previewVersion, versionLabel, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
 
 type Week = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
 type Sync = { month: string; remaining: number; done: number; imported: number; completedAt: string | null; errors: { url: string; error: string }[]; busy?: boolean }
@@ -98,16 +97,6 @@ export default function Midweek({ management = false, embedded = false }: { mana
   }, [dirty])
   const change = (patch: Partial<Meeting>) => { setMeeting(current => current && { ...current, ...patch }); setDirty(true); setMessage('') }
   const itemChange = (index: number, patch: Partial<MeetingItem>) => change({ items: meeting!.items.map((r, i) => i === index ? { ...r, ...patch } : r) })
-  async function versionSetting(action: 'palette' | 'version-date', value: unknown) {
-    setBusy(true); setError(''); setMessage('')
-    try {
-      const data = await api(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, action, revision:record?.revision || 0, ...(action==='palette' ? {palette:value} : {meeting:value})}) })
-      if(action==='palette') setPalette(data.palette)
-      else setRecord(data.record)
-      setMessage('設定已儲存')
-      return true
-    } catch(e) { setError((e as Error).message); return false } finally { setBusy(false) }
-  }
   async function save(action: string) {
     if (!meeting || busy) return
     if (action === 'restore' && (!historical || !confirm(`用第${historical.number}版的內容取代目前草稿（含尚未儲存的修改）？公布欄暫時不變，之後的版本都會保留。`))) return
@@ -199,7 +188,6 @@ export default function Midweek({ management = false, embedded = false }: { mana
         <option value={0}>編輯草稿</option>
         {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
       </select>}
-      <VersionDetails key={id} versions={versions} current={historical || baseVersion} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />
           {!historical && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除{range(laterVersions)}</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">公布欄還在用這些版本，請先按「改回公開第{baseVersion?.number}版」再刪除。</p>}</div>}
         </section>
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-mc-card p-3 sm:p-4">
