@@ -41,6 +41,8 @@ export default function Midweek({ management = false, embedded = false }: { mana
   const deleteNeedsPublish = Boolean(record?.published && baseVersion && publishedVersion && publishedVersion.number > baseVersion.number)
   const draftChanged = Boolean(meeting && (!baseVersion || !sameContent(meeting, baseVersion.meeting)))
   const backToBase = Boolean(!draftChanged && baseVersion && (!record?.published || publishedVersion?.number !== baseVersion.number))
+  // 草稿與公開版相同時，選單顯示公開版；一改內容就變成下一版草稿（ADR-0092）。
+  const showingPublished = Boolean(record?.published && publishedVersion && !draftChanged && !backToBase)
   const range = (list: MeetingVersion[]) => list.length > 1 ? `第${list[0].number}～第${list.at(-1)!.number}版` : `第${list[0]?.number}版`
   const shown = historical || (management && meeting ? previewVersion(meeting, baseVersion) : versions.find(version => version.number === publicVersionNumber) || versions.at(-1))
   const dialog = useRef<HTMLDialogElement>(null)
@@ -185,8 +187,8 @@ export default function Midweek({ management = false, embedded = false }: { mana
           <h2 className="text-sm font-semibold">版次紀錄</h2>
           {baseVersion && baseVersion.number !== publishedVersion?.number && <p className="text-sm text-mc-text/60">草稿來自第{baseVersion.number}版</p>}
       {management && !!versions.length && <select aria-label="選擇版次" className="min-h-11 w-full min-w-0 rounded-lg border border-white/15 bg-mc-card px-3 text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
-        <option value={0}>第{(baseVersion?.number || 0) + 1}版草稿（編輯中）</option>
-        {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
+        <option value={0}>{showingPublished ? `${versionLabel(publishedVersion!.number, publishedVersion!.date || dates[publishedVersion!.number])}（目前公開）` : `第${meeting ? previewVersion(meeting, baseVersion).number : 1}版草稿（編輯中）`}</option>
+        {[...versions].reverse().filter(v => !showingPublished || v.number !== publishedVersion?.number).map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
       </select>}
           {!historical && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除{range(laterVersions)}</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">公布欄還在用這些版本，請先按「改回公開第{baseVersion?.number}版」再刪除。</p>}</div>}
         </section>
