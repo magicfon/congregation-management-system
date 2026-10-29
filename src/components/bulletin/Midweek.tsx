@@ -133,13 +133,6 @@ export default function Midweek({ management = false, embedded = false }: { mana
       await refresh()
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
-  async function previewNotice() {
-    setBusy(true); setError(''); setMessage('')
-    try {
-      const data = await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'student-notice-preview', id }) })
-      setMessage(`已將學生通知單樣式（${data.name}）傳到你的 LINE`)
-    } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
-  }
   async function runSync() {
     setSyncing(true); setError('')
     try {
@@ -195,7 +188,7 @@ export default function Midweek({ management = false, embedded = false }: { mana
         </section>}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">手冊與發布管理</h2>
-          <div className="flex flex-wrap gap-2"><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button>{meeting && !historical && record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架這週</button>}{meeting && <button className={button} disabled={busy} onClick={previewNotice}>傳通知單樣式給我</button>}</div>
+          <div className="flex flex-wrap gap-2"><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button>{meeting && !historical && record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架這週</button>}</div>
     {management && !loading && <p className="text-sm text-mc-text/70">預計下次檢查新手冊：{nextMidweekCheck(sync).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}（台北時間）</p>}
     {management && !!sync?.errors.length && <details className="text-sm text-amber-300"><summary className="cursor-pointer py-2">部分來源待重試，將於下次排程繼續檢查</summary>{sync.errors.map(e => <p key={e.url}><a className="underline" href={e.url} target="_blank" rel="noreferrer">來源頁面</a>：{e.error}</p>)}</details>}
 
