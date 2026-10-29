@@ -40,6 +40,9 @@ export default function Midweek({ management = false, embedded = false }: { mana
   const publishedVersion = record ? publishedVersionOf(record) : undefined
   const laterVersions = baseVersion ? versions.filter(version => version.number > baseVersion.number) : []
   const deleteNeedsPublish = Boolean(record?.published && baseVersion && publishedVersion && publishedVersion.number > baseVersion.number)
+  const draftChanged = Boolean(meeting && (!baseVersion || !sameContent(meeting, baseVersion.meeting)))
+  const backToBase = Boolean(!draftChanged && baseVersion && (!record?.published || publishedVersion?.number !== baseVersion.number))
+  const range = (list: MeetingVersion[]) => list.length > 1 ? `第${list[0].number}～第${list.at(-1)!.number}版` : `第${list[0]?.number}版`
   const shown = historical || (management && meeting ? previewVersion(meeting, baseVersion) : versions.find(version => version.number === publicVersionNumber) || versions.at(-1))
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -107,20 +110,20 @@ export default function Midweek({ management = false, embedded = false }: { mana
   }
   async function save(action: string) {
     if (!meeting || busy) return
-    if (action === 'restore' && (!historical || !confirm(`將第${historical.number}版退回為草稿？目前草稿（含尚未儲存修改）會被取代，後續版本全部保留；公開內容暫時不變，確認後可按「發布第${historical.number}版」恢復原版號。`))) return
+    if (action === 'restore' && (!historical || !confirm(`用第${historical.number}版的內容取代目前草稿（含尚未儲存的修改）？公布欄暫時不變，之後的版本都會保留。`))) return
     if (action === 'reset' && !confirm('以最新手冊重新建立草稿？目前草稿的人員與修改將被清除，已發布版本會保留。')) return
     if (action === 'unpublish' && !confirm('下架這週節目？公開公布欄將不再顯示。')) return
     let deleteLaterVersions = false
     if (action === 'delete-later') {
       if (!baseVersion || !laterVersions.length) return
       if (deleteNeedsPublish) { setError(`請先發布第${baseVersion.number}版，再刪除後續版本`); return }
-      if (!confirm(`保留第${baseVersion.number}版及之前的版本，刪除第${laterVersions[0].number}～第${laterVersions.at(-1)!.number}版。刪除後無法復原，確定繼續？`)) return
+      if (!confirm(`刪除${range(laterVersions)}？第${baseVersion.number}版及之前的版本保留，刪除後無法復原。`)) return
       deleteLaterVersions = true
     }
     if (action === 'publish' && baseVersion && !sameContent(meeting, baseVersion.meeting)) {
       const later = versions.filter(version => version.number > baseVersion.number)
       if (later.length) {
-        if (!confirm(`將刪除第${later[0].number}～第${later.at(-1)!.number}版的歷史紀錄，並發布新的第${baseVersion.number + 1}版。刪除後無法復原，確定繼續？`)) return
+        if (!confirm(`發布第${baseVersion.number + 1}版，並刪除舊的${range(later)}？刪除後無法復原。`)) return
         deleteLaterVersions = true
       }
     }
@@ -130,7 +133,7 @@ export default function Midweek({ management = false, embedded = false }: { mana
       setRecord(data.record); setSource(data.source)
       if (!['unpublish', 'delete-later'].includes(action)) { setMeeting(data.record.draft); setDirty(false) }
       if (action === 'restore') { setVersionNumber(0); setSelected(null) }
-      setMessage(action === 'restore' ? `已將第${historical!.number}版退回為草稿，後續版本已保留，確認後請按「發布第${historical!.number}版」` : action === 'publish' ? `已發布第${data.record.publishedVersion}版到公布欄` : action === 'unpublish' ? '已下架' : action === 'delete-later' ? `已刪除第${baseVersion!.number}版之後的版本` : '草稿已儲存')
+      setMessage(action === 'restore' ? `草稿已換成第${historical!.number}版。不再修改就按「${record?.published ? '改回' : ''}公開第${historical!.number}版」；修改後發布會成為第${historical!.number + 1}版` : action === 'publish' ? `已發布第${data.record.publishedVersion}版到公布欄` : action === 'unpublish' ? '已下架' : action === 'delete-later' ? `已刪除${range(laterVersions)}` : '草稿已儲存')
       await refresh()
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
@@ -179,13 +182,13 @@ export default function Midweek({ management = false, embedded = false }: { mana
       <div className="space-y-5 border-t border-white/10 py-4">
         {meeting && <section className="space-y-3">
           <h2 className="text-sm font-semibold">版次紀錄</h2>
-          <p className="text-sm text-mc-text/60">{record?.published ? `目前公開：第${publishedVersion?.number || 1}版` : '尚未公開'}{baseVersion && ` · 草稿基準：第${baseVersion.number}版`}</p>
+          <p className="text-sm text-mc-text/60">{record?.published ? `目前公開：第${publishedVersion?.number || 1}版` : '尚未公開'}{baseVersion && baseVersion.number !== publishedVersion?.number && ` · 草稿來自第${baseVersion.number}版`}</p>
       {management && !!versions.length && <select aria-label="選擇版次" className="min-h-11 w-full min-w-0 rounded-lg border border-white/15 bg-mc-card px-3 text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
         <option value={0}>編輯草稿</option>
         {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
       </select>}
       <VersionDetails key={id} versions={versions} current={historical || baseVersion} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />
-          {!historical && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除後續版本</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">請先發布第{baseVersion?.number}版，再刪除後續版本。</p>}</div>}
+          {!historical && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除{range(laterVersions)}</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">公布欄還在用這些版本，請先按「改回公開第{baseVersion?.number}版」再刪除。</p>}</div>}
         </section>}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">手冊與發布管理</h2>
@@ -200,9 +203,12 @@ export default function Midweek({ management = false, embedded = false }: { mana
     {meeting && <>
       {management && <>
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-mc-card p-3 sm:p-4">
-          <p className="text-sm text-mc-text/70">{historical ? `查看第${historical.number}版（唯讀）` : dirty ? '有未儲存的修改' : '編輯草稿'}</p>
+          <div className="text-sm text-mc-text/70">{historical ? <p>查看第{historical.number}版（只能看）</p> : <>
+            <p>{record?.published ? `公開中：第${publishedVersion?.number || 1}版` : versions.length ? '已下架' : '尚未公開'}{backToBase && baseVersion && `・草稿是第${baseVersion.number}版`}{dirty ? '・有未儲存的修改' : draftChanged && versions.length ? '・有修改尚未發布' : ''}</p>
+            {draftChanged && !!laterVersions.length && <p className="text-amber-300">發布會成為第{(baseVersion?.number || 0) + 1}版，並刪除舊的{range(laterVersions)}</p>}
+          </>}</div>
           <div className="flex w-full gap-2 sm:w-auto">
-            {historical ? <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => setVersionNumber(0)}>返回編輯</button><button className={`${button} flex-1 sm:flex-none`} disabled={busy || loading} onClick={() => save('restore')}>退回此版</button></> : <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => save('save')}>儲存草稿</button><button className={`${button} flex-1 bg-blue-600 font-semibold text-white sm:flex-none`} disabled={busy} onClick={() => save('publish')}>發布第{shown?.number || 1}版</button></>}
+            {historical ? <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => setVersionNumber(0)}>返回編輯</button><button className={`${button} flex-1 sm:flex-none`} disabled={busy || loading} onClick={() => save('restore')}>用這版當草稿</button></> : <><button className={`${button} flex-1 sm:flex-none`} disabled={busy || !dirty} onClick={() => save('save')}>儲存草稿</button><button className={`${button} flex-1 bg-blue-600 font-semibold text-white sm:flex-none`} disabled={busy || (!draftChanged && !backToBase)} onClick={() => save('publish')}>{draftChanged ? `發布第${shown?.number || 1}版` : backToBase ? `${record?.published ? '改回' : ''}公開第${baseVersion!.number}版` : '已發布'}</button></>}
           </div>
         </div>
         {!historical && record?.published && <StudentNotices key={`${id}:${record.publishedVersion}`} weekId={id} />}
