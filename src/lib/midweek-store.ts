@@ -1,6 +1,6 @@
 import { prisma } from './db'
 import { MeetingConflict, MeetingError, newMeeting, validateMeeting, type MeetingRecord, type SourceWeek } from './midweek'
-import { draftBaseVersionOf, localDate, previewVersion, publishedVersionOf, sameContent, validatePalette, versionsOf } from './midweek-versions'
+import { localDate, previewVersion, publishedVersionOf, sameContent, validatePalette, versionsOf } from './midweek-versions'
 
 const PALETTE_KEY = 'midweek:palette'
 export async function getPalette() {
@@ -36,32 +36,29 @@ export async function meetingList(management: boolean) {
     return { id: s.id, week: s.week, date: r?.draft.date || newMeeting(s).date, reading: s.reading, label: s.label, revision: r?.revision || 0, publishedAt: r?.publishedAt, changedSource: Boolean(r && r.sourceHash !== s.hash) }
   }).sort((a, b) => b.week.localeCompare(a.week))
 }
-export async function editMeeting(id: string, action: string, revision: number, value?: unknown, options: { deleteLaterVersions?: unknown } = {}) {
-  if (!/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(revision) || revision < 0 || !['save', 'publish', 'unpublish', 'reset', 'restore', 'delete-later', 'version-date'].includes(action)) throw new MeetingError('操作格式錯誤')
+export async function editMeeting(id: string, action: string, revision: number, value?: unknown) {
+  if (!/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(revision) || revision < 0 || !['save', 'publish', 'unpublish', 'reset', 'undo', 'version-date'].includes(action)) throw new MeetingError('操作格式錯誤')
   const source = await getSource(id)
   const key = RECORD_PREFIX + id
   const oldRow = await prisma.setting.findUnique({ where: { key } })
   const old: MeetingRecord = oldRow ? JSON.parse(oldRow.value) : { revision: 0, sourceHash: source.hash, draft: newMeeting(source), published: null, publishedAt: null }
   if (old.revision !== revision) throw new MeetingConflict()
   const versions = versionsOf(old)
-  let restored: MeetingRecord['draft'] | undefined
-  if (action === 'restore') {
-    const number = (value as { number?: unknown } | null)?.number
-    const version = Number.isInteger(number) ? versions.find(v => v.number === number) : undefined
-    if (!version) throw new MeetingError('找不到已保存的版次，請重新選擇')
-    restored = structuredClone(version.meeting)
-  }
-  const draft = restored ?? (action === 'reset' ? newMeeting(source) : ['unpublish', 'delete-later', 'version-date'].includes(action) ? old.draft : validateMeeting(value))
+  // 版次只往前走：目前發布版就是最新版，高於它的只會是 ADR-0053 舊流程留下的版本（ADR-0092）。
+  const current = publishedVersionOf(old)
+  const keepThrough = (number: number) => Object.fromEntries(Object.entries(old.versionDates || {}).filter(([n]) => Number(n) <= number))
+  const draft = action === 'reset' ? newMeeting(source) : ['unpublish', 'undo', 'version-date'].includes(action) ? old.draft : validateMeeting(value)
   const next: MeetingRecord = { ...old, versions, revision: revision + 1, draft, sourceHash: action === 'reset' || !oldRow ? source.hash : old.sourceHash }
-  if (action === 'restore') next.draftBaseVersion = (value as { number: number }).number
-  if (action === 'delete-later') {
-    const base = draftBaseVersionOf(old)
-    if (!base || !versions.some(version => version.number > base.number)) throw new MeetingError('沒有後續版本可刪除')
-    if (options.deleteLaterVersions !== true) throw new MeetingError('請先確認刪除後續版本')
-    if (old.published && publishedVersionOf(old)!.number > base.number) throw new MeetingError(`請先發布第${base.number}版，再刪除後續版本`)
-    next.versions = versions.filter(version => version.number <= base.number)
-    next.versionDates = Object.fromEntries(Object.entries(old.versionDates || {}).filter(([number]) => Number(number) <= base.number))
-    if (!old.published) next.publishedVersion = base.number
+  delete next.draftBaseVersion
+  if (action === 'undo') {
+    const previous = current && versions.filter(version => version.number < current.number).at(-1)
+    if (!current || (value as { number?: unknown } | null)?.number !== current.number) throw new MeetingError('只能撤回目前的最新版，請重新整理')
+    if (!previous) throw new MeetingError('沒有更早的版本可回復')
+    next.versions = versions.filter(version => version.number <= previous.number)
+    next.versionDates = keepThrough(previous.number)
+    next.publishedVersion = previous.number
+    next.draft = structuredClone(previous.meeting)
+    if (old.published) { next.published = structuredClone(previous.meeting); next.publishedAt = new Date().toISOString() }
   }
   if (action === 'version-date') {
     const input = value as { number?: number; date?: string }
@@ -70,21 +67,17 @@ export async function editMeeting(id: string, action: string, revision: number, 
     next.versionDates = { ...old.versionDates, [input.number!]: input.date }
   }
   if (action === 'publish') {
-    const previous = draftBaseVersionOf(old)
-    const changed = !previous || !sameContent(draft, previous.meeting)
-    if (!changed && old.published && publishedVersionOf(old)?.number === previous.number) throw new MeetingError('沒有變更，不需發布新版')
+    const changed = !current || !sameContent(draft, current.meeting)
+    if (!changed && old.published) throw new MeetingError('沒有變更，不需發布新版')
     if (changed) {
-      const later = previous ? versions.filter(version => version.number > previous.number) : []
-      if (later.length && options.deleteLaterVersions !== true) throw new MeetingError('進版前需確認刪除後續版本')
-      const kept = previous ? versions.filter(version => version.number <= previous.number) : []
-      const version = { ...previewVersion(draft, previous), date: localDate() }
+      const kept = current ? versions.filter(version => version.number <= current.number) : []
+      const version = { ...previewVersion(draft, current), date: localDate() }
       next.versions = [...kept, version]
       next.publishedVersion = version.number
-      if (later.length) next.versionDates = Object.fromEntries(Object.entries(old.versionDates || {}).filter(([number]) => Number(number) <= previous!.number))
+      if (current && kept.length < versions.length) next.versionDates = keepThrough(current.number)
     } else {
-      next.publishedVersion = previous.number
+      next.publishedVersion = current!.number
     }
-    next.draftBaseVersion = next.publishedVersion
     next.published = structuredClone(draft); next.publishedAt = new Date().toISOString()
   }
   if (action === 'unpublish') { next.published = null; next.publishedAt = null }
