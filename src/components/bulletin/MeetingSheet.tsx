@@ -34,7 +34,7 @@ export default function MeetingSheet({ meeting, editor, marks, palette = {} }: {
   const rows = timeline(meeting)
   const [, month, day] = meeting.date.split('-')
   return <div>
-    <div ref={viewport} className={`${styles.viewport} ${!editor ? styles.gestures : ''}`} tabIndex={0} aria-label={editor ? '週中聚會節目表；手機雙指縮放，電腦 Ctrl＋滾輪縮放' : '週中聚會節目表；手機雙指縮放，Ctrl＋滾輪縮放、拖曳瀏覽；鍵盤加減號縮放，0 還原'}>
+    <div ref={viewport} className={`${styles.viewport} ${styles.gestures}`} tabIndex={0} aria-label={editor ? '週中聚會節目表；手機雙指縮放，電腦 Ctrl＋滾輪縮放、拖曳空白處瀏覽' : '週中聚會節目表；手機雙指縮放，Ctrl＋滾輪縮放、拖曳瀏覽；鍵盤加減號縮放，0 還原'}>
     <div style={{ width: 1200 * scale, height: height * scale, margin: 'auto', position: 'relative' }}>
     <article ref={sheet} className={styles.sheet} style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
       {editor && <datalist id="meeting-members">{editor.members.map(m => <option key={m.id} value={m.name} />)}</datalist>}

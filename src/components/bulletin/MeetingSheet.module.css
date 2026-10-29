@@ -1,6 +1,7 @@
 .viewport { overflow-x: auto; background: white; border-radius: 4px; color: #111; }
 .gestures { touch-action: auto; }
 @media (pointer: fine) { .gestures { cursor: grab; user-select: none; } }
+@media (pointer: fine) { .gestures :is(input, textarea) { cursor: text; } .gestures :is(button, select, a, label) { cursor: pointer; } }
 .sheet { width: 1200px; padding: 24px 24px 38px; font-family: Arial, 'Microsoft JhengHei', sans-serif; position: absolute; top: 0; left: 0; }
 .note { color: red; font-size: 24px; font-weight: bold; margin: 0 0 55px; white-space: pre-wrap; }
 .heading { font-size: 24px; font-weight: 700; margin: 35px 10px 0; }
