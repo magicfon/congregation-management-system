@@ -72,8 +72,8 @@ export default function AreaStatusPage() {
     void (async () => {
       try {
         const response = await fetch('/api/area-status/' + mapId, { cache: 'no-store', signal: controller.signal })
-        if (response.status === 401) { setSignedOut(true); throw new Error('登入已過期，請重新登入查看區域狀況。') }
-        if (!response.ok) throw new Error('無法載入區域狀況，請重試。')
+        if (response.status === 401) { setSignedOut(true); throw new Error('登入已過期，請重新登入查看地圖分配。') }
+        if (!response.ok) throw new Error('無法載入地圖分配，請重試。')
         const result: AreaStatusData = await response.json()
         if (!controller.signal.aborted) {
           setData(result)
@@ -108,7 +108,7 @@ export default function AreaStatusPage() {
   const synchronized = data?.syncedAt ? new Date(data.syncedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false }) : '尚未同步'
   return <DashboardLayout><div className="h-[calc(100dvh-3.5rem)] max-w-[1920px] mx-auto p-2 md:p-3 flex flex-col gap-2 overflow-hidden text-mc-text">
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-2">
-      <h1 className="text-lg font-semibold">區域狀況</h1>
+      <h1 className="text-lg font-semibold">地圖分配</h1>
       <div className="flex flex-wrap items-center gap-2">
         <form role="search" aria-label="輸入區域號碼跳轉" onSubmit={e => { e.preventDefault(); jumpToNumber() }} className="flex items-center gap-1">
           <input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="區域號碼" placeholder="區域號碼" value={jumpText} onChange={e => { setJumpText(e.target.value.replace(/\D/g, '')); setJumpMessage('') }} className="min-h-11 w-24 rounded-lg border border-white/10 bg-mc-card px-3 py-2 text-sm tabular-nums placeholder:text-mc-text/40" />
