@@ -3,7 +3,7 @@ import { requireApiUser } from '../../../../lib/api-auth'
 import { prisma } from '../../../../lib/db'
 import { boundaryMapId, boundaryOriginal, validateBoundarySave } from '../../../../lib/boundary-drafts'
 import { isAreaDispatched } from '../../../../lib/allocation'
-import { undoableDispatch } from '../../../../lib/batch-dispatch'
+import { undoableDispatch, undoKey } from '../../../../lib/batch-dispatch'
 import { regionHeat, maximumReportDays } from '../../../../lib/area-status'
 import { taipeiDate } from '../../../../lib/google-sheets'
 import { COMPLETION_SYNC_KEY } from '../../../../lib/report-completion-sync'
@@ -24,7 +24,7 @@ export async function GET(_request: Request, { params }: { params: { mapId: stri
     const draft = rows[0], original = boundaryOriginal(mapId)
     const { document } = validateBoundarySave(mapId, { expectedVersion: 0, document: draft?.document ?? original })
     const today = taipeiDate(new Date())
-    const allCompletionAreas = areas.map(a => ({ assignedTo: isAreaDispatched(a) ? a.assignedMember?.name ?? null : null, dispatchedDate: isAreaDispatched(a) ? taipeiDate(a.dispatchedAt) || null : null, personalTerritory: a.personalTerritory, dispatchEnabled: a.dispatchEnabled, areaId: a.id, isDispatched: isAreaDispatched(a), mapId: a.mapId, sheetNo: a.sheetNo, name: a.name, lastCompletedDate: taipeiDate(a.lastReportedCompletedAt) || null, doNotVisit: a.doNotVisit, undoDispatchedAt: auth.user.role === 'admin' && undoableDispatch(a) ? a.dispatchedAt!.toISOString() : null }))
+    const allCompletionAreas = areas.map(a => ({ assignedTo: isAreaDispatched(a) ? a.assignedMember?.name ?? null : null, dispatchedDate: isAreaDispatched(a) ? taipeiDate(a.dispatchedAt) || null : null, personalTerritory: a.personalTerritory, dispatchEnabled: a.dispatchEnabled, areaId: a.id, isDispatched: isAreaDispatched(a), mapId: a.mapId, sheetNo: a.sheetNo, name: a.name, lastCompletedDate: taipeiDate(a.lastReportedCompletedAt) || null, doNotVisit: a.doNotVisit, undoDispatchedAt: auth.user.role === 'admin' && isAreaDispatched(a) ? undoKey(a) : null, undoLegacy: !undoableDispatch(a) }))
     const scaleMaxDays = sync?.value ? maximumReportDays(allCompletionAreas, today) : null
     const completionAreas = allCompletionAreas.filter(a => a.mapId === mapId)
     const regions = document.candidates.map((c: { candidateId: string; numberCandidates: number[]; polygons: number[][][][]; pixelArea: number }) => ({
