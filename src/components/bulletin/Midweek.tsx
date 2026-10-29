@@ -180,16 +180,6 @@ export default function Midweek({ management = false, embedded = false }: { mana
     {management && <details key={id} className="rounded-xl border border-white/10 px-4">
       <summary className="cursor-pointer py-3 text-sm text-mc-text/70">更多管理</summary>
       <div className="space-y-5 border-t border-white/10 py-4">
-        {meeting && <section className="space-y-3">
-          <h2 className="text-sm font-semibold">版次紀錄</h2>
-          <p className="text-sm text-mc-text/60">{record?.published ? `目前公開：第${publishedVersion?.number || 1}版` : '尚未公開'}{baseVersion && baseVersion.number !== publishedVersion?.number && ` · 草稿來自第${baseVersion.number}版`}</p>
-      {management && !!versions.length && <select aria-label="選擇版次" className="min-h-11 w-full min-w-0 rounded-lg border border-white/15 bg-mc-card px-3 text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
-        <option value={0}>編輯草稿</option>
-        {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
-      </select>}
-      <VersionDetails key={id} versions={versions} current={historical || baseVersion} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />
-          {!historical && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除{range(laterVersions)}</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">公布欄還在用這些版本，請先按「改回公開第{baseVersion?.number}版」再刪除。</p>}</div>}
-        </section>}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold">手冊與發布管理</h2>
           <div className="flex flex-wrap gap-2"><button className={button} disabled={syncing || busy} onClick={runSync}>{syncing ? '匯入中…' : '檢查／匯入手冊'}</button>{meeting && !historical && record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架這週</button>}</div>
@@ -202,6 +192,16 @@ export default function Midweek({ management = false, embedded = false }: { mana
     </details>}
     {meeting && <>
       {management && <>
+        <section className="space-y-3 rounded-xl border border-white/10 p-3 sm:p-4">
+          <h2 className="text-sm font-semibold">版次紀錄</h2>
+          {baseVersion && baseVersion.number !== publishedVersion?.number && <p className="text-sm text-mc-text/60">草稿來自第{baseVersion.number}版</p>}
+      {management && !!versions.length && <select aria-label="選擇版次" className="min-h-11 w-full min-w-0 rounded-lg border border-white/15 bg-mc-card px-3 text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
+        <option value={0}>編輯草稿</option>
+        {[...versions].reverse().map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
+      </select>}
+      <VersionDetails key={id} versions={versions} current={historical || baseVersion} dates={dates} palette={palette} management={management} busy={busy} onPalette={value=>versionSetting('palette',value)} onDate={(number,date)=>versionSetting('version-date',{number,date})} />
+          {!historical && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除{range(laterVersions)}</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">公布欄還在用這些版本，請先按「改回公開第{baseVersion?.number}版」再刪除。</p>}</div>}
+        </section>
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-mc-card p-3 sm:p-4">
           <div className="text-sm text-mc-text/70">{historical ? <p>查看第{historical.number}版（只能看）</p> : <>
             <p>{record?.published ? `公開中：第${publishedVersion?.number || 1}版` : versions.length ? '已下架' : '尚未公開'}{backToBase && baseVersion && `・草稿是第${baseVersion.number}版`}{dirty ? '・有未儲存的修改' : draftChanged && versions.length ? '・有修改尚未發布' : ''}</p>
