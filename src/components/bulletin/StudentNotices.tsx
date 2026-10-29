@@ -8,7 +8,7 @@ const button = 'min-h-11 rounded-lg border border-white/15 px-4 py-2 disabled:op
 const badges: Record<NoticePlanRow['status'], [string, string]> = {
   new: ['將發送', 'bg-blue-500/15 text-blue-300'],
   updated: ['將發送更新', 'bg-blue-500/15 text-blue-300'],
-  unchanged: ['已發送', 'bg-green-500/15 text-green-300'],
+  unchanged: ['已發送，未確認', 'bg-slate-500/15 text-mc-text/70'],
   unreachable: ['需自行轉交', 'bg-amber-500/15 text-amber-300'],
   cancel: ['將通知取消', 'bg-red-500/15 text-red-300'],
 }
@@ -20,7 +20,8 @@ async function post(body: object) {
 }
 function Person({ label, row }: { label: string; row?: NoticePlanRow }) {
   if (!row) return null
-  const [text, color] = badges[row.status]
+  // 學生在 LINE 按「收到」後顯示已確認。
+  const [text, color] = row.confirmedAt ? ['已確認', 'bg-green-500/15 text-green-300'] : badges[row.status]
   return <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
     <span className="w-10 shrink-0 text-sm text-mc-text/60">{label}</span>
     <span className="text-base font-medium">{row.name}</span>
@@ -69,7 +70,7 @@ export default function StudentNotices({ weekId }: { weekId: string }) {
     {message && <p role="status" className="text-sm text-green-300">{message}</p>}
     {rows && <>
       {!rows.length && <p className="text-sm text-mc-text/60">這週已發布的節目沒有學生。</p>}
-      {!!rows.length && <p className="text-sm text-mc-text/70">{[['將發送', count('new') + count('updated')], ['已發送', count('unchanged')], ['需自行轉交', count('unreachable')], ['取消', cancels.length]].filter(([, n]) => n).map(([label, n]) => `${label} ${n}`).join('・')}</p>}
+      {!!rows.length && <p className="text-sm text-mc-text/70">{[['將發送', count('new') + count('updated')], ['已確認', rows.filter(row => row.confirmedAt).length], ['未確認', count('unchanged') - rows.filter(row => row.confirmedAt).length], ['需自行轉交', count('unreachable')], ['取消', cancels.length]].filter(([, n]) => n).map(([label, n]) => `${label} ${n}`).join('・')}</p>}
       <ul className="grid gap-2 sm:grid-cols-2">{parts.map(part => <li key={part.itemId} className="space-y-2 rounded-lg border border-white/10 p-3">
         <p className="font-semibold">{part.title}</p>
         <Person label="學生" row={part.student} />

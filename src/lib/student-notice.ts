@@ -5,7 +5,7 @@ import { MeetingError, type Meeting, type MeetingItem, type MeetingRecord } from
 
 // S-89-CH 學生練習通知單，以 LINE Flex 卡片呈現（ADR-0090）。
 export type StudentNotice = { name: string; assistant: string; date: string; title: string; classNumber: 1 | 2 | 3; weekId: string; itemId?: string }
-export type NoticeOptions = { preview?: boolean; updated?: boolean; asAssistant?: boolean }
+export type NoticeOptions = { preview?: boolean; updated?: boolean; asAssistant?: boolean; ack?: string }
 export const isStudentItem = (item: MeetingItem) => item.role === '學生' || item.role === '學生/助手'
 
 export function studentNotices(weekId: string, meeting: Meeting): StudentNotice[] {
@@ -44,8 +44,10 @@ export function studentNoticeFlex(notice: StudentNotice, options: NoticeOptions 
         { type: 'text', text: '學生注意：《傳道與生活聚會手冊》裡提供了學生練習的資料來源和學習要點。請查看《傳道與生活聚會指示》（S-38）中關於學生練習的指示。', size: 'xs', color: '#555555', wrap: true, margin: 'lg' },
         { type: 'text', text: 'S-89-CH', size: 'xxs', color: '#999999' },
       ] },
-      footer: { type: 'box', layout: 'vertical', contents: [
-        { type: 'button', style: 'primary', color: '#BE8900', height: 'sm', action: { type: 'uri', label: '查看節目表', uri: `${botSite}/bulletin/midweek-meeting${notice.weekId ? `?week=${encodeURIComponent(notice.weekId)}` : ''}` } },
+      footer: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [
+        // 「收到」以 postback 回傳，系統記錄學生已確認。
+        ...(options.ack ? [{ type: 'button', style: 'primary', color: '#BE8900', height: 'sm', action: { type: 'postback', label: '收到', data: options.ack, displayText: '收到' } }] : []),
+        { type: 'button', style: options.ack ? 'secondary' : 'primary', ...(options.ack ? {} : { color: '#BE8900' }), height: 'sm', action: { type: 'uri', label: '查看節目表', uri: `${botSite}/bulletin/midweek-meeting${notice.weekId ? `?week=${encodeURIComponent(notice.weekId)}` : ''}` } },
       ] },
     },
   }
@@ -59,15 +61,15 @@ export async function studentNoticeSample(db: PrismaClient, today: string) {
     .sort((a, b) => a.meeting.date.localeCompare(b.meeting.date))
   for (const week of weeks) {
     const notice = studentNotices(week.id, week.meeting)[0]
-    if (notice) return studentNoticeFlex(notice, { preview: true })
+    if (notice) return studentNoticeFlex(notice, { preview: true, ack: ACK_PREVIEW })
   }
-  return studentNoticeFlex({ name: '林敬', assistant: '陳孟庭', date: '2026-05-29', title: '初次交談', classNumber: 1, weekId: '' }, { preview: true })
+  return studentNoticeFlex({ name: '林敬', assistant: '陳孟庭', date: '2026-05-29', title: '初次交談', classNumber: 1, weekId: '' }, { preview: true, ack: ACK_PREVIEW })
 }
 
 // 正式發送：發布後由管理員按鈕發送，只發新增或變動的人；被換掉的人收到取消訊息（ADR-0090）。
-type SentEntry = { memberId: string; name: string; fingerprint: string; date: string; title: string }
+type SentEntry = { memberId: string; name: string; fingerprint: string; date: string; title: string; token?: string; confirmedAt?: string }
 type SentLog = Record<string, SentEntry>
-export type NoticePlanRow = { key: string; itemId: string; name: string; title: string; date: string; asAssistant: boolean; status: 'new' | 'updated' | 'cancel' | 'unchanged' | 'unreachable'; reason?: string }
+export type NoticePlanRow = { key: string; itemId: string; name: string; title: string; date: string; asAssistant: boolean; status: 'new' | 'updated' | 'cancel' | 'unchanged' | 'unreachable'; reason?: string; confirmedAt?: string }
 const LOG_PREFIX = 'midweek:student-notices:'
 const fingerprint = (notice: StudentNotice) => [notice.name, notice.assistant, notice.date, notice.title, notice.classNumber].join('|')
 
@@ -101,7 +103,7 @@ async function buildPlan(db: PrismaClient, weekId: string) {
       const member = matches.length === 1 ? matches[0] : null
       const previous = log[key]
       const base = { key, itemId: notice.itemId!, name, title: notice.title, date: notice.date, asAssistant }
-      if (previous && previous.memberId === member?.id && previous.fingerprint.replace(/[[\]]/g, '') === fingerprint(notice)) { rows.push({ ...base, status: 'unchanged' }); continue }
+      if (previous && previous.memberId === member?.id && previous.fingerprint.replace(/[[\]]/g, '') === fingerprint(notice)) { rows.push({ ...base, status: 'unchanged', ...(previous.confirmedAt ? { confirmedAt: previous.confirmedAt } : {}) }); continue }
       if (previous && previous.memberId !== member?.id) {
         rows.push(cancelRow(key, previous, asAssistant))
       }
@@ -145,9 +147,37 @@ export async function sendStudentNotices(db: PrismaClient, weekId: string) {
     if (result.accepted) { if (next[job.key]?.memberId === job.entry.memberId) delete next[job.key]; sent++ } else failed++
   }
   for (const job of send) {
-    const result = await lineRequest('push', { to: job.member.lineuid, messages: [studentNoticeFlex(job.notice, { updated: job.updated, asAssistant: job.asAssistant })] }).catch(() => ({ accepted: false }))
-    if (result.accepted) { next[job.key] = { memberId: job.member.id, name: job.asAssistant ? job.notice.assistant : job.notice.name, fingerprint: fingerprint(job.notice), date: job.notice.date, title: job.notice.title }; sent++ } else failed++
+    const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+    const ack = [ACK_PREFIX, weekId, job.key, token].join('|')
+    const result = await lineRequest('push', { to: job.member.lineuid, messages: [studentNoticeFlex(job.notice, { updated: job.updated, asAssistant: job.asAssistant, ack })] }).catch(() => ({ accepted: false }))
+    if (result.accepted) { next[job.key] = { memberId: job.member.id, name: job.asAssistant ? job.notice.assistant : job.notice.name, fingerprint: fingerprint(job.notice), date: job.notice.date, title: job.notice.title, token }; sent++ } else failed++
   }
+  // 發送期間學生可能已按「收到」，保留同一張通知的確認。
+  const latest = await db.setting.findUnique({ where: { key: LOG_PREFIX + weekId } })
+  if (latest) for (const [key, entry] of Object.entries(JSON.parse(latest.value) as SentLog)) if (entry.confirmedAt && next[key]?.token === entry.token) next[key].confirmedAt = entry.confirmedAt
   await db.setting.upsert({ where: { key: LOG_PREFIX + weekId }, create: { key: LOG_PREFIX + weekId, value: JSON.stringify(next) }, update: { value: JSON.stringify(next) } })
   return { sent, failed, rows: (await buildPlan(db, weekId)).rows }
+}
+
+// 學生按卡片上的「收到」：只接受該張通知收件人本人、且是最新一張通知。
+const ACK_PREFIX = 'notice-ack'
+const ACK_PREVIEW = `${ACK_PREFIX}|preview`
+export const isNoticeAck = (data: unknown): data is string => typeof data === 'string' && data.startsWith(`${ACK_PREFIX}|`)
+export async function acknowledgeNotice(db: PrismaClient, lineUid: string, data: string, now = new Date()) {
+  if (data === ACK_PREVIEW) return '這是樣式預覽，學生按「收到」後，發送名單會顯示「已確認」。'
+  const [, weekId, key, token] = data.split('|')
+  if (!weekId || !key || !token || !/^[a-f0-9]{24}$/.test(weekId)) return '無法辨識這張通知。'
+  const [row, member] = await Promise.all([
+    db.setting.findUnique({ where: { key: LOG_PREFIX + weekId } }),
+    db.member.findFirst({ where: { lineuid: lineUid, active: true, deletedAt: null }, select: { id: true } }),
+  ])
+  const log: SentLog = row ? JSON.parse(row.value) : {}
+  const entry = log[key]
+  if (!entry || entry.token !== token) return '這張通知已有更新或已取消，請以最新收到的通知為準。'
+  if (entry.memberId !== member?.id) return '這張通知不是發給你的帳號。'
+  if (!entry.confirmedAt) {
+    entry.confirmedAt = now.toISOString()
+    await db.setting.update({ where: { key: LOG_PREFIX + weekId }, data: { value: JSON.stringify(log) } })
+  }
+  return `已確認收到 ${displayDate(entry.date)} ${entry.title.replace(/[[\]]/g, '')}，謝謝！`
 }
