@@ -1,5 +1,6 @@
 import { botSite, lineBotReady, lineRequest } from './line-bot-client'
 import type { PrismaClient } from '@prisma/client'
+import { displayDate } from './student-notice-text'
 import { MeetingError, type Meeting, type MeetingItem, type MeetingRecord } from './midweek'
 
 // S-89-CH 學生練習通知單，以 LINE Flex 卡片呈現（ADR-0090）。
@@ -8,11 +9,9 @@ export type NoticeOptions = { preview?: boolean; updated?: boolean; asAssistant?
 export const isStudentItem = (item: MeetingItem) => item.role === '學生' || item.role === '學生/助手'
 
 export function studentNotices(weekId: string, meeting: Meeting): StudentNotice[] {
-  return meeting.items.filter(item => isStudentItem(item) && item.person.trim()).map(item => ({ name: item.person.trim(), assistant: item.assistant.trim(), date: meeting.date, title: item.title, classNumber: 1, weekId, itemId: item.id }))
+  return meeting.items.filter(item => isStudentItem(item) && item.person.trim()).map(item => ({ name: item.person.trim(), assistant: item.assistant.trim(), date: meeting.date, title: item.title.replace(/[[\]]/g, '').trim(), classNumber: 1, weekId, itemId: item.id }))
 }
 
-const weekday = ['日', '一', '二', '三', '四', '五', '六']
-const displayDate = (date: string) => `${Number(date.slice(0, 4))}/${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}（週${weekday[new Date(`${date}T12:00:00Z`).getUTCDay()]}）`
 const ink = '#111111'
 const field = (label: string, value: string) => ({ type: 'box', layout: 'horizontal', spacing: 'md', contents: [
   { type: 'text', text: label, weight: 'bold', size: 'md', flex: 0, color: ink },
@@ -68,7 +67,7 @@ export async function studentNoticeSample(db: PrismaClient, today: string) {
 // 正式發送：發布後由管理員按鈕發送，只發新增或變動的人；被換掉的人收到取消訊息（ADR-0090）。
 type SentEntry = { memberId: string; name: string; fingerprint: string; date: string; title: string }
 type SentLog = Record<string, SentEntry>
-export type NoticePlanRow = { key: string; name: string; title: string; asAssistant: boolean; status: 'new' | 'updated' | 'cancel' | 'unchanged' | 'unreachable'; reason?: string }
+export type NoticePlanRow = { key: string; itemId: string; name: string; title: string; date: string; asAssistant: boolean; status: 'new' | 'updated' | 'cancel' | 'unchanged' | 'unreachable'; reason?: string }
 const LOG_PREFIX = 'midweek:student-notices:'
 const fingerprint = (notice: StudentNotice) => [notice.name, notice.assistant, notice.date, notice.title, notice.classNumber].join('|')
 
@@ -91,7 +90,7 @@ async function buildPlan(db: PrismaClient, weekId: string) {
     const old = members.find(m => m.id === entry.memberId)
     const lineuid = old?.lineuid && old.lineNotificationsEnabled ? old.lineuid : null
     cancels.push({ key, entry, lineuid })
-    return { key: `${key}:cancel`, name: entry.name, title: entry.title, asAssistant, status: 'cancel', ...(lineuid ? {} : { reason: '無法用 LINE 通知，請自行告知' }) }
+    return { key: `${key}:cancel`, itemId: key.slice(0, key.lastIndexOf(':')), name: entry.name, title: entry.title.replace(/[[\]]/g, ''), date: entry.date, asAssistant, status: 'cancel', ...(lineuid ? {} : { reason: '無法用 LINE 通知，請自行告知' }) }
   }
   for (const notice of studentNotices(weekId, meeting)) {
     for (const asAssistant of notice.assistant ? [false, true] : [false]) {
@@ -101,8 +100,8 @@ async function buildPlan(db: PrismaClient, weekId: string) {
       const matches = members.filter(m => m.name.trim() === name)
       const member = matches.length === 1 ? matches[0] : null
       const previous = log[key]
-      const base = { key, name, title: notice.title, asAssistant }
-      if (previous && previous.memberId === member?.id && previous.fingerprint === fingerprint(notice)) { rows.push({ ...base, status: 'unchanged' }); continue }
+      const base = { key, itemId: notice.itemId!, name, title: notice.title, date: notice.date, asAssistant }
+      if (previous && previous.memberId === member?.id && previous.fingerprint.replace(/[[\]]/g, '') === fingerprint(notice)) { rows.push({ ...base, status: 'unchanged' }); continue }
       if (previous && previous.memberId !== member?.id) {
         rows.push(cancelRow(key, previous, asAssistant))
       }
@@ -141,7 +140,7 @@ export async function sendStudentNotices(db: PrismaClient, weekId: string) {
   let sent = 0, failed = 0
   for (const job of cancels) {
     if (!job.lineuid) { if (next[job.key]?.memberId === job.entry.memberId) delete next[job.key]; continue }
-    const text = `【學生練習取消】\n${displayDate(job.entry.date)} ${job.entry.title} 的委派已取消，請以最新節目表為準。\n${botSite}/bulletin/midweek-meeting?week=${encodeURIComponent(weekId)}`
+    const text = `【學生練習取消】\n${displayDate(job.entry.date)} ${job.entry.title.replace(/[[\]]/g, '')} 的委派已取消，請以最新節目表為準。\n${botSite}/bulletin/midweek-meeting?week=${encodeURIComponent(weekId)}`
     const result = await lineRequest('push', { to: job.lineuid, messages: [{ type: 'text', text }] }).catch(() => ({ accepted: false }))
     if (result.accepted) { if (next[job.key]?.memberId === job.entry.memberId) delete next[job.key]; sent++ } else failed++
   }
