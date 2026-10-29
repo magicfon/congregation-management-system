@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { UserRound, CalendarDays, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, type LucideIcon } from 'lucide-react'
+import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, type LucideIcon } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import DispatchSubmitBar from '../../components/map/DispatchSubmitBar'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
@@ -9,7 +9,7 @@ import AreaProperties from '../../components/map/AreaProperties'
 import AreaStatusMap from '../../components/map/AreaStatusMap'
 import DoNotVisitNotice from '../../components/map/DoNotVisitNotice'
 import { DISTRICT_NAMES } from '../../lib/allocation'
-import { type AreaStatusData } from '../../lib/area-status'
+import { type AreaStatusData, type HeatReport } from '../../lib/area-status'
 
 export default function AreaStatusPage() {
   const [infoOpen, setInfoOpen] = useState(true)
@@ -26,6 +26,21 @@ export default function AreaStatusPage() {
     setCategories(old => ({ ...old, [id]: personal }))
     setAvailability(old => ({ ...old, [id]: enabled }))
     if (!enabled) setQueue(old => old.filter(item => item.id !== id))
+  }
+  const [undoMessage, setUndoMessage] = useState('')
+  // 派錯人時撤銷派發：還原成派發前，不算完成、不留紀錄（ADR-0094）
+  async function undoDispatch(r: HeatReport) {
+    if (!r.areaId || !r.undoDispatchedAt) return
+    if (!window.confirm(`撤銷派給${r.assignedTo || '持有人'}的${DISTRICT_NAMES[mapId]} ${r.number} 號？\n地圖會回到派發前的狀態，不算完成，也不留使用紀錄。`)) return
+    setActionBusy(true); setUndoMessage('')
+    try {
+      const response = await fetch(`/api/areas/${r.areaId}/undo-dispatch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dispatchedAt: r.undoDispatchedAt }) })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || '撤銷派發失敗')
+      setUndoMessage(`已撤銷 ${r.number} 號的派發${result.sheetSynced ? '' : '（Sheet 稍後由同步補上）'}`)
+      setRevision(v => v + 1)
+    } catch (e) { setUndoMessage(e instanceof Error ? e.message : '撤銷派發失敗') }
+    finally { setActionBusy(false) }
   }
   const detailPanel = useRef<HTMLDivElement>(null)
   const [queue, setQueue] = useState<{ id: string; label: string }[]>([])
@@ -81,7 +96,7 @@ export default function AreaStatusPage() {
       <div className="min-h-0 min-w-0 relative">
         {loading && <div role="status" className="h-full rounded-xl bg-mc-card flex items-center justify-center text-sm text-mc-text/60">正在載入分區…</div>}
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
-        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setSelectedId(id); setInfoOpen(true) }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} />}
+        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setSelectedId(id); setInfoOpen(true); setUndoMessage('') }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} />}
       </div>
       <aside aria-label="區塊明細與領圖操作" className="min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card">
         {isAdmin && <div className="shrink-0 border-b border-white/10 p-2">
@@ -94,6 +109,7 @@ export default function AreaStatusPage() {
         <PanelToggle open={infoOpen} onToggle={() => setInfoOpen(open => !open)} controls="area-info-content" Icon={MapPinned}>地圖資訊</PanelToggle>
         <div id="area-info-content" ref={detailPanel} hidden={!infoOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <section aria-live="polite" className="p-3">
+          {undoMessage && <p role="status" className="mb-3 rounded-lg bg-white/5 px-3 py-2 text-sm text-mc-text/80">{undoMessage}</p>}
           {selected ? <>
             <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-semibold">{DISTRICT_NAMES[mapId]} {selected.numbers.length ? `${selected.numbers.join('、')} 號` : '未配對區塊'}</h2><button aria-label="取消查看區塊" onClick={() => setSelectedId(null)} className="flex h-11 w-11 items-center justify-center text-mc-text/70">×</button></div>
             {selected.numbers.length > 1 && <p className="mb-3 text-xs text-amber-300">此區塊包含多張地圖，請逐張選取。</p>}
@@ -107,6 +123,7 @@ export default function AreaStatusPage() {
               return <article key={r.number} className="space-y-3 border-b border-white/10 pb-3 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between"><span className="text-sm text-mc-text/60">{selected.numbers.length > 1 ? `${r.number} 號` : '地圖狀態'}{personal && <span className="ml-2 text-blue-300">個人區域</span>}</span><span className={`rounded-full px-2 py-1 text-xs ${unavailable ? 'bg-white/5 text-mc-text/60' : 'bg-emerald-400/10 text-emerald-300'}`}>{status}</span></div>
                 {r.isDispatched && <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm"><dt className="flex items-center gap-1.5 text-mc-text/50"><UserRound size={14} aria-hidden="true" />持有人</dt><dd>{r.assignedTo || '未記錄'}</dd><dt className="flex items-center gap-1.5 text-mc-text/50"><CalendarDays size={14} aria-hidden="true" />領取日</dt><dd>{r.dispatchedDate || '未記錄'}</dd></dl>}
+                {isAdmin && r.isDispatched && r.undoDispatchedAt && <button type="button" disabled={actionBusy} onClick={() => void undoDispatch(r)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 disabled:opacity-40"><Undo2 size={15} aria-hidden="true" />派錯了？撤銷派發</button>}
                 <DoNotVisitNotice text={r.doNotVisit} />
                 <div><p className="text-xs text-mc-text/60">距上次完成回報</p><p className="mt-1"><strong className="text-3xl font-semibold tabular-nums">{data?.syncedAt && r.days !== null ? r.days : '—'}</strong><span className="ml-1 text-sm text-mc-text/60">天</span></p><p className="mt-1 flex items-center gap-1.5 text-xs text-mc-text/50"><CalendarDays size={13} aria-hidden="true" />{!data?.syncedAt ? '回報日期尚未同步' : `上次完成：${r.lastCompletedDate || '無紀錄'}`}</p></div>
                 {!unavailable && <button disabled={actionBusy || (!dispatchMode && queue.length >= 5 && !queued)} aria-pressed={queued} onClick={() => { if (r.areaId) setQueue(old => old.some(i => i.id === r.areaId) ? old.filter(i => i.id !== r.areaId) : !dispatchMode && old.length >= 5 ? old : [...old, { id: r.areaId!, label: `${DISTRICT_NAMES[mapId]} ${r.number} 號` }]) }} className={`w-full rounded-lg px-3 py-2.5 text-sm disabled:opacity-40 ${queued ? 'bg-blue-400/10 text-blue-300' : 'bg-mc-highlight text-white'}`}>{queued ? '✓ 已加入 · 點此移除' : dispatchMode ? '＋ 加入分發清單' : queue.length >= 5 ? '已選滿 5 張' : '＋ 加入申請'}</button>}

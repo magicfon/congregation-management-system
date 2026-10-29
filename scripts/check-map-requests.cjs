@@ -7,7 +7,7 @@ let state, active=true;
 function reset() { state={ requests:[], areas:Array.from({length:8},(_,i)=>({id:'a'+i,sheetNo:i+1,personalTerritory:i%2===0,assignedMemberId:null,dispatchedAt:null,completedAt:null,lastReportedCompletedAt:'2026-01-01'})) }; active=true }
 const db={ $transaction:async(fn,options)=>{
  assert.equal(options.isolationLevel,'Serializable'); const before=structuredClone(state);
- const tx={member:{findUnique:async({where})=>({id:where.id,name:where.id,active})},area:{findMany:async({where})=>state.areas.filter(a=>where.id.in.includes(a.id)),updateMany:async({where,data})=>{const rows=state.areas.filter(a=>where.id.in.includes(a.id));rows.forEach(a=>Object.assign(a,data));return {count:rows.length}}},mapRequest:{
+ const tx={member:{findUnique:async({where})=>({id:where.id,name:where.id,active})},area:{findMany:async({where})=>state.areas.filter(a=>where.id.in.includes(a.id)),updateMany:async({where,data})=>{const rows=state.areas.filter(a=>where.id.in.includes(a.id));rows.forEach(a=>Object.assign(a,data));return {count:rows.length}},update:async({where,data})=>{const a=state.areas.find(a=>a.id===where.id);Object.assign(a,data);return a}},mapRequest:{
  findMany:async({where})=>state.requests.filter(r=>r.memberId===where.memberId&&r.status===where.status),
  createMany:async({data})=>{data.forEach(r=>state.requests.push({...r,id:'r'+state.requests.length,status:'pending'}));return{count:data.length}},
  findUnique:async({where})=>state.requests.find(r=>r.id===where.id),
