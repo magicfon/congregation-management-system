@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { MeetingConflict, MeetingError } from '@/lib/midweek'
 import { editMeeting, getPalette, savePalette, getRecord, getSource, meetingList } from '@/lib/midweek-store'
 import { syncMidweek, syncStatus } from '@/lib/midweek-sync'
+import { sendStudentNotices, studentNoticePlan } from '@/lib/student-notice'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 const json = (value: unknown) => NextResponse.json(value, { headers: { 'Cache-Control': 'no-store' } })
@@ -26,6 +27,8 @@ export async function POST(request: Request) {
     const body = JSON.parse(text)
     if (!body || typeof body !== 'object') throw new MeetingError('操作格式錯誤')
     if (body.action === 'sync') return json({ sync: await syncMidweek(true) })
+    if (body.action === 'student-notices') return json({ rows: await studentNoticePlan(prisma, String(body.id)) })
+    if (body.action === 'student-notices-send') return json(await sendStudentNotices(prisma, String(body.id)))
     if (body.action === 'palette') return json({ palette: await savePalette(body.palette) })
     return json(await editMeeting(body.id, body.action, body.revision, body.meeting, { deleteLaterVersions: body.deleteLaterVersions }))
   } catch (error) {
