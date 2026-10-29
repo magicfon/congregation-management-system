@@ -21,7 +21,7 @@ const navItems = [
   },
   {
     href: '/map',
-    label: '地圖分配',
+    label: '地圖列表',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -31,7 +31,7 @@ const navItems = [
   },
   {
     href: '/area-status',
-    label: '區域狀況',
+    label: '地圖分配',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 20V10m5 10V4m6 16v-7m5 7V7" /></svg>,
   },
   { href: '/map-requests', label: '領圖申請', icon: <ClipboardCheck size={20} aria-hidden="true" /> },
