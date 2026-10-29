@@ -70,8 +70,9 @@ async function main() {
     { mapId: 'nanzih', blockCode: 'A-10', sheetNo: 10 },
     { mapId: 'nanzih', blockCode: 'A-2', sheetNo: 3 },
     { mapId: 'nanzih', blockCode: 'A-2', sheetNo: 2 },
+    { mapId: 'nanzih', blockCode: 'A-1', sheetNo: 11 },
   ].sort(allocation.allocationOrder)
-  assert.equal(sorted.map((a) => a.sheetNo).join(','), '2,3,10,90')
+  assert.equal(sorted.map((a) => a.sheetNo).join(','), '2,3,10,11,90')
   const completed = new Date('2026-08-01T00:00:00Z')
   const oldDispatch = new Date('2026-07-01T00:00:00Z')
   let areas = [

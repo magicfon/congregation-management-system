@@ -13,9 +13,10 @@ export function isAreaDispatched(area: { assignedMemberId: string | null; dispat
 
 export function allocationOrder(a: Pick<AllocationArea, 'mapId' | 'blockCode' | 'sheetNo' | 'mapAreaId'>, b: Pick<AllocationArea, 'mapId' | 'blockCode' | 'sheetNo' | 'mapAreaId'>) {
   const rank = (id: string | null) => DISTRICT_ORDER.includes(id || '') ? DISTRICT_ORDER.indexOf(id!) : 99
+  // 區塊標題已隱藏，畫面只看得到號碼，所以地區內直接依號碼排，區塊只作同號時的次序
   return rank(a.mapId) - rank(b.mapId)
-    || (a.blockCode || '').localeCompare(b.blockCode || '', 'zh-TW', { numeric: true })
     || (a.sheetNo ?? a.mapAreaId ?? 9999) - (b.sheetNo ?? b.mapAreaId ?? 9999)
+    || (a.blockCode || '').localeCompare(b.blockCode || '', 'zh-TW', { numeric: true })
 }
 
 export function idleCalendarDays(completedDate: string | null, today: string): number | null {
