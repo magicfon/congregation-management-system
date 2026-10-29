@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
 
-/** Touch uses native browser pinch zoom; mouse zoom stays local to the paper. Editing keeps only Ctrl+wheel so clicks and typing reach the fields. */
+/** Touch uses native browser pinch zoom; mouse zoom stays local to the paper. Editing drags only from blank paper and skips key zoom so clicks and typing reach the fields. */
 export function useSheetGestures(viewport: RefObject<HTMLDivElement>, sheet: RefObject<HTMLElement>, editing: boolean, scale: number, fit: number, setZoom: (zoom: number | null) => void) {
   const current = useRef(scale)
   const anchor = useRef<{ x: number; y: number; paperX: number; paperY: number } | null>(null)
@@ -33,6 +33,7 @@ export function useSheetGestures(viewport: RefObject<HTMLDivElement>, sheet: Ref
     }
     const down = (event: PointerEvent) => {
       if (event.pointerType !== 'mouse' || event.button !== 0) return
+      if (editing && event.target instanceof Element && event.target.closest('input, textarea, button, select, a, label')) return
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY }
       view.setPointerCapture(event.pointerId)
       view.style.cursor = 'grabbing'
@@ -51,12 +52,11 @@ export function useSheetGestures(viewport: RefObject<HTMLDivElement>, sheet: Ref
       setZoom(event.key === '0' ? null : Math.max(fit, Math.min(3, current.current * (event.key === '-' ? 1 / 1.15 : 1.15))))
     }
     view.addEventListener('wheel', wheel, { passive: false })
-    if (editing) return () => view.removeEventListener('wheel', wheel)
     view.addEventListener('pointerdown', down)
     view.addEventListener('pointermove', move)
     view.addEventListener('pointerup', up)
     view.addEventListener('lostpointercapture', up)
-    view.addEventListener('keydown', key)
+    if (!editing) view.addEventListener('keydown', key)
     return () => {
       view.removeEventListener('wheel', wheel)
       view.removeEventListener('pointerdown', down)
