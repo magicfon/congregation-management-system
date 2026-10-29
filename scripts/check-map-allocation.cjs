@@ -86,25 +86,50 @@ async function main() {
       member: { findUnique: async () => member },
       area: {
         findMany: async ({ where }) => structuredClone(areas.filter((area) => where.id.in.includes(area.id))),
-        updateMany: async ({ data }) => {
+        update: async ({ where, data }) => {
           assert.equal(data.lastReportedCompletedAt, undefined)
+          const before = areas.find((area) => area.id === where.id)
+          assert.equal(data.dispatchUndo.dispatchedAt, now.toISOString())
+          assert.equal(data.dispatchUndo.assignedMemberId, before.assignedMemberId)
+          assert.equal(data.dispatchUndo.previousDispatchedAt, before.dispatchedAt?.toISOString() ?? null)
           updates++
-          return { count: 2 }
+          return { ...before, ...data }
         },
       },
     })
   } }
   assert.equal((await dispatch.batchDispatch(db, ['a', 'b'], 'member', null, now)).count, 2)
-  assert.equal(updates, 1)
+  assert.equal(updates, 2)
   assert.equal(areas[0].lastReportedCompletedAt, completed)
   areas[0].assignedMemberId = 'other'
   await assert.rejects(dispatch.batchDispatch(db, ['a', 'b'], 'member', null, now), /已被領取/)
-  assert.equal(updates, 1, 'conflict must reject the entire batch before any write')
+  assert.equal(updates, 2, 'conflict must reject the entire batch before any write')
   areas[0].assignedMemberId = null; member.active = false
   await assert.rejects(dispatch.batchDispatch(db, ['a', 'b'], 'member', null, now), /停用/)
   member.active = true
   await assert.rejects(dispatch.batchDispatch(db, ['missing'], 'member', null, now), /不存在/)
   assert.equal(allocation.isAreaDispatched({ assignedMemberId: 'm', dispatchedAt: completed, completedAt: completed }), true)
+
+  // 撤銷派發：還原成派發前（舊持有人、舊派發日、舊完成日），刪掉這次派發的傳道安排（ADR-0094）
+  const ministry = { ministryCycle: (area) => `${area.assignedMemberId || 'none'}:${area.dispatchedAt?.toISOString() || 'legacy'}` }
+  const undo = load('src/lib/dispatch-undo.ts', { './batch-dispatch': dispatch, './ministry': ministry, '@prisma/client': { Prisma: { DbNull: 'DbNull', TransactionIsolationLevel: { Serializable: 'Serializable' } } } })
+  const undoState = dispatch.dispatchUndoState({ assignedMemberId: 'old', assignedTo: '舊成員', assignNote: null, dispatchedAt: oldDispatch, completedAt: completed, lastActivityAt: completed }, now)
+  let undoArea = { id: 'b', sheetNo: 2, assignedMemberId: 'member', assignedTo: '測試成員', assignNote: '派錯', dispatchedAt: now, completedAt: null, dispatchUndo: undoState }
+  let deletedCycle = null
+  const undoDb = { $transaction: async (fn) => fn({
+    area: { findUnique: async () => structuredClone(undoArea), update: async ({ data }) => { undoArea = { ...undoArea, ...data }; return undoArea } },
+    ministryVisit: { deleteMany: async ({ where }) => { deletedCycle = where.cycleKey; return { count: 1 } } },
+  }) }
+  await assert.rejects(undo.undoDispatch(undoDb, 'b', oldDispatch.toISOString()), /無法撤銷/)
+  const undone = await undo.undoDispatch(undoDb, 'b', now.toISOString())
+  assert.equal(deletedCycle, `member:${now.toISOString()}`)
+  assert.equal(undone.previousDispatchedAt.toISOString(), oldDispatch.toISOString())
+  assert.equal(undoArea.assignedMemberId, 'old')
+  assert.equal(undoArea.completedAt.toISOString(), completed.toISOString())
+  assert.equal(undoArea.dispatchUndo, 'DbNull')
+  assert.equal(allocation.isAreaDispatched(undoArea), false)
+  assert.equal(dispatch.undoableDispatch(undoArea), null, '撤銷後不能再撤銷')
+  assert.equal(dispatch.undoableDispatch({ assignedMemberId: 'm', dispatchedAt: now, completedAt: null, dispatchUndo: { ...undoState, dispatchedAt: oldDispatch.toISOString() } }), null, 'Sheet 匯入的新派發不能用舊紀錄撤銷')
 
   const forbidden = new Response(null, { status: 403 })
   const authMocks = {

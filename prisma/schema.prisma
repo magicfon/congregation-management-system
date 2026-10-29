@@ -64,6 +64,7 @@ model Area {
   doNotVisit       String   @default("") // Sheet「區域狀態」J 欄拒絕拜訪，一行一個地址（ADR-0083）
   assignNote       String? // 分配目的/備註，沒有就是 null
   dispatchedAt     DateTime? // 分發日期
+  dispatchUndo     Json? // 派發前的狀態，供撤銷派發還原（ADR-0094）
   completedAt      DateTime? // 完成日期（完成時間 > 分發時間 → 已收回，可重新分配）
   lastReportedCompletedAt DateTime? // Sheet E 欄最後回報完成日，不受分發／收回影響
   lastActivityAt   DateTime @default(now())
