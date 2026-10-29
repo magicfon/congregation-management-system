@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { NoticePlanRow } from '@/lib/student-notice'
-import { studentNoticeText } from '@/lib/student-notice-text'
+import { studentNoticeImage } from '@/lib/student-notice-text'
 
 // 發布後發送 S-89 學生練習通知單：先依節目列出學生與助手的狀態，確認才送出（ADR-0090）。
 const button = 'min-h-11 rounded-lg border border-white/15 px-4 py-2 disabled:opacity-40'
@@ -30,7 +30,7 @@ function Person({ label, row }: { label: string; row?: NoticePlanRow }) {
 }
 export default function StudentNotices({ weekId }: { weekId: string }) {
   const [rows, setRows] = useState<NoticePlanRow[] | null>(null)
-  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState(''), [copied, setCopied] = useState('')
+  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('')
   const pending = rows?.filter(row => row.status === 'new' || row.status === 'updated' || (row.status === 'cancel' && !row.reason)).length || 0
   const parts = rows ? [...new Set(rows.filter(row => row.status !== 'cancel').map(row => row.itemId))].map(itemId => {
     const list = rows.filter(row => row.itemId === itemId && row.status !== 'cancel')
@@ -46,11 +46,19 @@ export default function StudentNotices({ weekId }: { weekId: string }) {
       if (action === 'student-notices-send') setMessage(data.failed ? `已送出 ${data.sent} 則，${data.failed} 則失敗，可再按一次重送` : `已送出 ${data.sent} 則`)
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
-  async function copy(part: (typeof parts)[number]) {
+  // 手機可直接分享到 LINE；不支援分享時改為下載圖片。
+  async function share(part: (typeof parts)[number], row: NoticePlanRow) {
+    setBusy(true); setError('')
     try {
-      await navigator.clipboard.writeText(studentNoticeText({ name: part.student?.name || '', assistant: part.assistant?.name || '', date: part.date, title: part.title }))
-      setCopied(part.itemId)
-    } catch { setError('無法複製，請手動選取文字') }
+      const notice = { name: part.student?.name || '', assistant: part.assistant?.name || '', date: part.date, title: part.title }
+      const file = new File([await studentNoticeImage(notice)], `學生練習通知-${part.date}-${row.name}.png`, { type: 'image/png' })
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: '學生練習通知' }).catch(e => { if ((e as Error).name !== 'AbortError') throw e })
+      } else {
+        const url = URL.createObjectURL(file), link = document.createElement('a')
+        link.href = url; link.download = file.name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+      }
+    } catch { setError('無法產生通知單圖片，請稍後再試') } finally { setBusy(false) }
   }
   return <div className="space-y-3 rounded-xl border border-white/10 bg-mc-card p-3 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -66,7 +74,7 @@ export default function StudentNotices({ weekId }: { weekId: string }) {
         <p className="font-semibold">{part.title}</p>
         <Person label="學生" row={part.student} />
         <Person label="助手" row={part.assistant} />
-        {(part.student?.status === 'unreachable' || part.assistant?.status === 'unreachable') && <button className="min-h-9 rounded-lg border border-white/15 px-3 text-sm" onClick={() => copy(part)}>{copied === part.itemId ? '已複製' : '複製通知文字（轉交用）'}</button>}
+        {[part.student, part.assistant].some(row => row?.status === 'unreachable') && <div className="flex flex-wrap gap-2">{[part.student, part.assistant].filter((row): row is NoticePlanRow => row?.status === 'unreachable').map(row => <button key={row.key} className="min-h-9 rounded-lg border border-white/15 px-3 text-sm" disabled={busy} onClick={() => share(part, row)}>{row.name}的通知單圖片</button>)}</div>}
       </li>)}</ul>
       {!!cancels.length && <section className="space-y-1">
         <h3 className="text-sm font-semibold text-red-300">已換人或取消（{cancels.length}）</h3>
