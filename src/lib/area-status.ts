@@ -34,4 +34,6 @@ export type AreaStatusData = {
   mapId: string; today: string; scaleMaxDays: number | null; syncedAt: string | null; sourceImage: string; imageSize: number[]
   boundary: { source: 'cloud' | 'original'; version: number | null; updatedAt: string | null }
   regions: HeatRegion[]; unlocatedNumbers: number[]
+  // 全會眾地圖號碼 → 所屬分區，供輸入號碼跳轉（ADR-0096）
+  numberMaps: Record<number, string>
 }

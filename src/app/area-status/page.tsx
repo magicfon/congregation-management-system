@@ -11,6 +11,8 @@ import DoNotVisitNotice from '../../components/map/DoNotVisitNotice'
 import { DISTRICT_NAMES } from '../../lib/allocation'
 import { type AreaStatusData, type HeatReport } from '../../lib/area-status'
 
+const LAST_MAP_KEY = 'area-status:last-map'
+
 export default function AreaStatusPage() {
   const [infoOpen, setInfoOpen] = useState(true)
   const [queueOpen, setQueueOpen] = useState(false)
@@ -46,6 +48,17 @@ export default function AreaStatusPage() {
   const [queue, setQueue] = useState<{ id: string; label: string }[]>([])
   const [grayDispatched, setGrayDispatched] = useState(true)
   const [mapId, setMapId] = useState('nanzih')
+  // 記住上次看的分區（每台瀏覽器各自記，ADR-0096）；讀完才開始載入，避免先閃楠梓
+  const [mapRestored, setMapRestored] = useState(false)
+  useEffect(() => {
+    try { const saved = localStorage.getItem(LAST_MAP_KEY); if (saved && saved in DISTRICT_NAMES) setMapId(saved) } catch {}
+    setMapRestored(true)
+  }, [])
+  useEffect(() => { if (mapRestored) try { localStorage.setItem(LAST_MAP_KEY, mapId) } catch {} }, [mapId, mapRestored])
+  const [jumpText, setJumpText] = useState('')
+  const [jumpMessage, setJumpMessage] = useState('')
+  const [pendingNumber, setPendingNumber] = useState<number | null>(null)
+  const [focus, setFocus] = useState<{ id: string; seq: number } | null>(null)
   const [data, setData] = useState<AreaStatusData | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -53,6 +66,7 @@ export default function AreaStatusPage() {
   const [loading, setLoading] = useState(true)
   const [revision, setRevision] = useState(0)
   useEffect(() => {
+    if (!mapRestored) return
     const controller = new AbortController()
     setLoading(true); setError(''); setData(null); setSelectedId(null); setSignedOut(false)
     void (async () => {
@@ -71,8 +85,23 @@ export default function AreaStatusPage() {
       finally { if (!controller.signal.aborted) setLoading(false) }
     })()
     return () => controller.abort()
-  }, [mapId, revision])
-  useEffect(() => { if (detailPanel.current) detailPanel.current.scrollTop = 0 }, [selectedId])
+  }, [mapId, revision, mapRestored])
+  // 輸入號碼跳轉：切到該號所在分區，載入後選取該區塊
+  useEffect(() => {
+    if (pendingNumber === null || !data || loading || data.mapId !== mapId) return
+    const region = data.regions.find(r => r.numbers.includes(pendingNumber))
+    if (region) { setSelectedId(region.candidateId); setFocus(old => ({ id: region.candidateId, seq: (old?.seq ?? 0) + 1 })); setInfoOpen(true); setUndoMessage('') }
+    else setJumpMessage(`${DISTRICT_NAMES[mapId]} ${pendingNumber} 號尚未定位在地圖上`)
+    setPendingNumber(null)
+  }, [pendingNumber, data, loading, mapId])
+  function jumpToNumber() {
+    const number = Number(jumpText.trim())
+    const target = Number.isInteger(number) ? data?.numberMaps?.[number] : undefined
+    if (!target) { setJumpMessage(jumpText.trim() ? `找不到 ${jumpText.trim()} 號` : '請輸入區域號碼'); return }
+    setJumpMessage('')
+    setPendingNumber(number)
+    if (target !== mapId) setMapId(target)
+  }  useEffect(() => { if (detailPanel.current) detailPanel.current.scrollTop = 0 }, [selectedId])
   const maxDays = data?.scaleMaxDays ?? null
   const selected = data?.regions.find(r => r.candidateId === selectedId)
   const known = data?.regions.filter(r => r.days !== null && !(grayDispatched && r.isDispatched)) || []
@@ -80,13 +109,18 @@ export default function AreaStatusPage() {
   return <DashboardLayout><div className="h-[calc(100dvh-3.5rem)] max-w-[1920px] mx-auto p-2 md:p-3 flex flex-col gap-2 overflow-hidden text-mc-text">
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-2">
       <h1 className="text-lg font-semibold">區域狀況</h1>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <form role="search" aria-label="輸入區域號碼跳轉" onSubmit={e => { e.preventDefault(); jumpToNumber() }} className="flex items-center gap-1">
+          <input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="區域號碼" placeholder="區域號碼" value={jumpText} onChange={e => { setJumpText(e.target.value.replace(/\D/g, '')); setJumpMessage('') }} className="min-h-11 w-24 rounded-lg border border-white/10 bg-mc-card px-3 py-2 text-sm tabular-nums placeholder:text-mc-text/40" />
+          <button type="submit" disabled={!data || actionBusy} className="min-h-11 rounded-lg border border-white/10 px-3 py-2 text-sm disabled:opacity-40">前往</button>
+        </form>
         <div role="group" aria-label="選擇大地圖" className="flex gap-1 rounded-lg border border-white/10 bg-mc-card p-1">
           {Object.entries(DISTRICT_NAMES).map(([id, name]) => <button key={id} type="button" disabled={actionBusy} aria-pressed={mapId === id} onClick={() => setMapId(id)} className={`min-h-11 rounded-md px-3 py-1.5 text-sm transition-colors disabled:opacity-40 ${mapId === id ? 'bg-mc-highlight text-white' : 'text-mc-text/60 hover:bg-white/5'}`}>{name}</button>)}
         </div>
         <button onClick={() => setRevision(v => v + 1)} disabled={loading || actionBusy} className="rounded-lg border border-white/10 min-h-11 px-3 py-2 text-sm disabled:opacity-40">重新整理</button>
       </div>
     </header>
+    {jumpMessage && <p role="status" className="shrink-0 text-sm text-amber-300">{jumpMessage}</p>}
     <div className="shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
       <div className="w-44"><div className="h-2 rounded-full" style={{ background: maxDays === null ? '#64748b' : maxDays === 0 ? '#22c55e' : 'linear-gradient(to right, #22c55e, #facc15, #ef4444)' }} /><div className="flex justify-between mt-0.5 text-mc-text/60"><span>0 天</span><span>{maxDays === null ? '無紀錄' : `${maxDays} 天`}</span></div></div>
       <label className="flex items-center gap-1.5"><input type="checkbox" checked={grayDispatched} onChange={e => setGrayDispatched(e.target.checked)} />已分發地圖顯示灰色</label>
@@ -96,7 +130,7 @@ export default function AreaStatusPage() {
       <div className="min-h-0 min-w-0 relative">
         {loading && <div role="status" className="h-full rounded-xl bg-mc-card flex items-center justify-center text-sm text-mc-text/60">正在載入分區…</div>}
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
-        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setSelectedId(id); setInfoOpen(true); setUndoMessage('') }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} />}
+        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setSelectedId(id); setInfoOpen(true); setUndoMessage('') }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} focus={focus} />}
       </div>
       <aside aria-label="區塊明細與領圖操作" className="min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card">
         {isAdmin && <div className="shrink-0 border-b border-white/10 p-2">
