@@ -12,6 +12,9 @@ export function versionColor(number: number, palette: Palette = {}) {
   const rgb = hue < 1 ? [chroma,x,0] : hue < 2 ? [x,chroma,0] : hue < 3 ? [0,chroma,x] : hue < 4 ? [0,x,chroma] : hue < 5 ? [x,0,chroma] : [chroma,0,x]
   return '#' + rgb.map(v=>Math.round((v+m)*255).toString(16).padStart(2,'0')).join('')
 }
+export function versionLabel(number: number, date?: string | null) {
+  return `第${number}版・${date ? `${Number(date.slice(5,7))}/${Number(date.slice(8,10))}更新` : '日期未記錄'}`
+}
 export function localDate(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 }
