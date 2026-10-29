@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/db'
 import { botText, lineBotReady, lineRequest, verifyLineSignature } from '../../../../lib/line-bot-client'
 import { lineBotAnswer } from '../../../../lib/line-bot-queries'
-import { studentNoticeSample } from '../../../../lib/student-notice'
+import { acknowledgeNotice, isNoticeAck, studentNoticeSample } from '../../../../lib/student-notice'
 import { taipeiDate } from '../../../../lib/google-sheets'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -18,8 +18,13 @@ export async function POST(request: NextRequest) {
     // Private queries register unknown identities without granting access.
     // Reply tokens are single-use, including redelivery; registration is idempotent.
     for (let offset = 0; offset < payload.events.length; offset += 4) {
-      await Promise.all(payload.events.slice(offset, offset + 4).map(async (event: { source?: { type?: string; userId?: string }; replyToken?: string; type?: string; message?: { type?: string; text?: string } }) => {
+      await Promise.all(payload.events.slice(offset, offset + 4).map(async (event: { source?: { type?: string; userId?: string }; replyToken?: string; type?: string; message?: { type?: string; text?: string }; postback?: { data?: string } }) => {
       if (event?.source?.type !== 'user' || typeof event.source.userId !== 'string' || typeof event.replyToken !== 'string') return
+      if (event.type === 'postback' && isNoticeAck(event.postback?.data)) {
+        const reply = await lineRequest('reply', { replyToken: event.replyToken, messages: [{ type: 'text', text: await acknowledgeNotice(prisma, event.source.userId, event.postback!.data!) }] })
+        if (!reply.accepted && reply.status !== 400) throw new Error('LINE reply unavailable')
+        return
+      }
       if (event.type !== 'follow' && !(event.type === 'message' && event.message?.type === 'text')) return
       const command = event.type === 'follow' ? '選單' : String(event.message?.text || '').trim()
       // 學生練習通知單樣式只給已綁定的管理員預覽（ADR-0090）。
