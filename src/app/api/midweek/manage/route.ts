@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (body.action === 'student-notices') return json({ rows: await studentNoticePlan(prisma, String(body.id)) })
     if (body.action === 'student-notices-send') return json(await sendStudentNotices(prisma, String(body.id)))
     if (body.action === 'palette') return json({ palette: await savePalette(body.palette) })
-    return json(await editMeeting(body.id, body.action, body.revision, body.meeting))
+    return json(await editMeeting(body.id, body.action, body.revision, body.meeting, { deleteLaterVersions: body.deleteLaterVersions }))
   } catch (error) {
     return NextResponse.json({ error: error instanceof MeetingConflict ? '其他管理員已更新這週，請重新載入後再編輯' : error instanceof MeetingError ? error.message : '操作失敗，請稍後重試' }, { status: error instanceof MeetingConflict ? 409 : error instanceof MeetingError || error instanceof SyntaxError ? 400 : 503 })
   }

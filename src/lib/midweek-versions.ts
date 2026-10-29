@@ -54,6 +54,9 @@ export function publishedVersionOf(record: MeetingRecord): MeetingVersion | unde
   const versions = versionsOf(record)
   return versions.find(version => version.number === record.publishedVersion) ?? versions.at(-1)
 }
+export function draftBaseVersionOf(record: MeetingRecord): MeetingVersion | undefined {
+  return versionsOf(record).find(version => version.number === record.draftBaseVersion) ?? publishedVersionOf(record)
+}
 export function previewVersion(meeting: Meeting, previous?: MeetingVersion): MeetingVersion {
   if (!previous) return { number: 1, date: null, meeting, marks: {} }
   const before = contentFields(previous.meeting), after = contentFields(meeting)
