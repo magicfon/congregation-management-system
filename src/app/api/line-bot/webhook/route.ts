@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/db'
 import { botText, lineBotReady, lineRequest, verifyLineSignature } from '../../../../lib/line-bot-client'
 import { lineBotAnswer } from '../../../../lib/line-bot-queries'
+import { studentNoticeSample } from '../../../../lib/student-notice'
+import { taipeiDate } from '../../../../lib/google-sheets'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 export async function POST(request: NextRequest) {
@@ -20,8 +22,10 @@ export async function POST(request: NextRequest) {
       if (event?.source?.type !== 'user' || typeof event.source.userId !== 'string' || typeof event.replyToken !== 'string') return
       if (event.type !== 'follow' && !(event.type === 'message' && event.message?.type === 'text')) return
       const command = event.type === 'follow' ? '選單' : String(event.message?.text || '').trim()
-      const text = await lineBotAnswer(prisma, event.source.userId, command)
-      const response = await lineRequest('reply', { replyToken: event.replyToken, messages: [botText(text)] })
+      // 學生練習通知單樣式只給已綁定的管理員預覽（ADR-0090）。
+      const admin = command === '通知單樣式' && await prisma.member.findFirst({ where: { lineuid: event.source.userId, active: true, deletedAt: null, role: 'admin' }, select: { id: true } })
+      const message = admin ? await studentNoticeSample(prisma, taipeiDate(new Date())) : botText(await lineBotAnswer(prisma, event.source.userId, command))
+      const response = await lineRequest('reply', { replyToken: event.replyToken, messages: [message] })
       if (!response.accepted && response.status !== 400) throw new Error('LINE reply unavailable')
       }))
     }

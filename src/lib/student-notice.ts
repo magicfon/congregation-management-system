@@ -1,5 +1,6 @@
 import { botSite } from './line-bot-client'
-import type { Meeting, MeetingItem } from './midweek'
+import type { PrismaClient } from '@prisma/client'
+import type { Meeting, MeetingItem, MeetingRecord } from './midweek'
 
 // S-89-CH 學生練習通知單，以 LINE Flex 卡片呈現（ADR-0090）。
 export type StudentNotice = { name: string; assistant: string; date: string; title: string; classNumber: 1 | 2 | 3; weekId: string }
@@ -29,7 +30,7 @@ export function studentNoticeFlex(notice: StudentNotice, options: { preview?: bo
     contents: {
       type: 'bubble', size: 'mega',
       header: { type: 'box', layout: 'vertical', backgroundColor: '#BE8900', paddingAll: '14px', contents: [
-        ...(options.preview ? [{ type: 'text', text: '樣式預覽（只傳給你）', size: 'xs', color: '#FFFFFFCC' }] : []),
+        ...(options.preview ? [{ type: 'text', text: '樣式預覽', size: 'xs', color: '#FFFFFFCC' }] : []),
         { type: 'text', text: '傳道與生活聚會學生練習通知', weight: 'bold', size: 'lg', color: '#FFFFFF', wrap: true },
       ] },
       body: { type: 'box', layout: 'vertical', spacing: 'md', backgroundColor: '#FFFFFF', contents: [
@@ -43,8 +44,21 @@ export function studentNoticeFlex(notice: StudentNotice, options: { preview?: bo
         { type: 'text', text: 'S-89-CH', size: 'xxs', color: '#999999' },
       ] },
       footer: { type: 'box', layout: 'vertical', contents: [
-        { type: 'button', style: 'primary', color: '#BE8900', height: 'sm', action: { type: 'uri', label: '查看節目表', uri: `${botSite}/bulletin/midweek-meeting?week=${encodeURIComponent(notice.weekId)}` } },
+        { type: 'button', style: 'primary', color: '#BE8900', height: 'sm', action: { type: 'uri', label: '查看節目表', uri: `${botSite}/bulletin/midweek-meeting${notice.weekId ? `?week=${encodeURIComponent(notice.weekId)}` : ''}` } },
       ] },
     },
   }
+}
+
+// LINE 輸入「通知單樣式」時回覆的預覽：取最近一週已發布節目的第一位學生，沒有就用範例（ADR-0090）。
+export async function studentNoticeSample(db: PrismaClient, today: string) {
+  const rows = await db.setting.findMany({ where: { key: { startsWith: 'midweek:record:' } } })
+  const weeks = rows.map(row => ({ id: row.key.slice('midweek:record:'.length), meeting: (JSON.parse(row.value) as MeetingRecord).published }))
+    .filter((week): week is { id: string; meeting: Meeting } => !!week.meeting && week.meeting.date >= today)
+    .sort((a, b) => a.meeting.date.localeCompare(b.meeting.date))
+  for (const week of weeks) {
+    const notice = studentNotices(week.id, week.meeting)[0]
+    if (notice) return studentNoticeFlex(notice, { preview: true })
+  }
+  return studentNoticeFlex({ name: '林敬', assistant: '陳孟庭', date: '2026-05-29', title: '初次交談', classNumber: 1, weekId: '' }, { preview: true })
 }
