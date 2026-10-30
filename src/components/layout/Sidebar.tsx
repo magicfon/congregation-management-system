@@ -78,7 +78,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, cu
     { label: '日常查看', items: [navItems[1], navItems[0], navItems[5], ...(!isAdmin ? [{ ...navItems[7], label: '成員一覽' }] : [])] },
     { label: '地圖工作', items: [navItems[2], navItems[3], navItems[6], navItems[4],
       { href: '/schedules', label: '傳道行程', icon: <CalendarDays size={20} aria-hidden="true" /> },
-      { href: '/reports', label: '傳道回報', icon: <FileCheck2 size={20} aria-hidden="true" /> }] },
+      { href: '/bulletin/territory-report', label: '傳道回報', icon: <FileCheck2 size={20} aria-hidden="true" /> }] },
     ...(isAdmin ? [{ label: '管理', items: adminManagementLinks.map(link => ({ ...link, icon: <Settings2 size={20} aria-hidden="true" /> })) }] : []),
   ]
 

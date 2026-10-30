@@ -37,6 +37,9 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
       const value = await res.json()
       if (!res.ok) throw new Error(value.error || '無法讀取區域資料')
       setOptions(value)
+      // 從看板「提交回報」帶入區號（ADR-0102）
+      const preset = Number(new URLSearchParams(window.location.search).get('area'))
+      if (preset && value.areas.some((a: Area) => a.sheetNo === preset)) setTags(current => current.length ? current : [preset])
       setSlotChoice(current => current || value.timeslots[0] || OTHER)
       setEndDate(current => current || value.today)
     } catch (e) { setError(e instanceof Error ? e.message : '無法讀取區域資料') }
