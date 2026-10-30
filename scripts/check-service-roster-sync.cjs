@@ -49,6 +49,14 @@ const stopped=grid('Schedule');stopped.data[0].rowData[1].values.splice(4,11,...
 assert.equal(sheet.parseSheets([stopped,grid('History')]).rows[0].week.stopped,true);
 const badHeader=grid('Schedule');badHeader.data[0].rowData[0].values[12]=cell('未知欄');
 assert.throws(()=>sheet.parseSheets([badHeader,grid('History')]),/標題/);
+const dupHistory=grid('History');dupHistory.data[0].rowData.push(dupHistory.data[0].rowData[1]);
+assert.throws(()=>sheet.parseSheets([grid('Schedule'),dupHistory]),/History 第 3 列與第 2 列週次重複/);
+const dashed=grid('Schedule');dashed.data[0].rowData[1].values[5]=cell('-');
+const dashedSource=sheet.parseSheets([dashed,grid('History')]);
+assert.equal(dashedSource.rows[0].week.names.backup,undefined);
+assert.ok(!sheet.prepareWrites(dashedSource,[{...base,names:{...base.names,audio:'新音響'}}]).data.some(d=>d.range==="'Schedule'!F2"));
+const badEnd=grid('History');badEnd.data[0].rowData[1].values[3]=cell(serial+7);
+assert.throws(()=>sheet.parseSheets([grid('Schedule'),badEnd]),/History 第 2 列結束日 2027-01-11 應為 2027-01-10/);
 let local=[{...base,assignments:{host:{personId:'p1',name:'甲'},audio:{personId:'p2',name:'音響人員'},video:{personId:'p3',name:'影像人員'}}}], incoming=[remote(),remote(base,'History')], persisted, revision=1, locked=true, writesCount=0, failWrite=false;
 const people=[['p1','甲'],['p2','音響人員'],['p3','影像人員']].map(([id,name])=>({id,name,memberId:id,enabled:true,roles:roles.serviceRoles.map(r=>r.id)}));
 const coordinator=load('src/lib/service-roster-sync.ts', {'./service-roster':roles,'./service-roster-sync-plan':plan,'./service-roster-sheet':{
