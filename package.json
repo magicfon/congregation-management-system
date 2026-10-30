@@ -6,7 +6,7 @@
     "check:midweek": "tsx scripts/check-midweek.ts && tsx scripts/check-midweek-versions.ts && tsx scripts/check-midweek-store.ts",
     "import:midweek": "tsx scripts/import-midweek.ts",
     "dev": "next dev",
-    "build": "node scripts/sync-bulletin-reader.cjs && npm run db:member-gender && npm run db:line-profile && npm run db:line-picture && npm run db:area-completion && npm run db:boundary-drafts && npm run db:map-requests && npm run db:area-dispatch-enabled && npm run db:member-dispatch-visibility && npm run db:ministry-visits && npm run db:line-notifications && npm run db:pending-line && npm run db:member-deletion && npm run db:personal-territory && npm run db:personal-reminders && npm run db:bulletin-announcements && npm run db:service-roster && npm run db:do-not-visit && npm run db:dispatch-undo && prisma generate && npx tsx scripts/seed-service-roster.ts && next build",
+    "build": "node scripts/sync-bulletin-reader.cjs && npm run db:member-gender && npm run db:line-profile && npm run db:line-picture && npm run db:area-completion && npm run db:boundary-drafts && npm run db:map-requests && npm run db:area-dispatch-enabled && npm run db:member-dispatch-visibility && npm run db:ministry-visits && npm run db:line-notifications && npm run db:pending-line && npm run db:member-deletion && npm run db:personal-territory && npm run db:personal-reminders && npm run db:bulletin-announcements && npm run db:service-roster && npm run db:do-not-visit && npm run db:dispatch-undo && npm run db:report-alerts && prisma generate && npx tsx scripts/seed-service-roster.ts && next build",
     "db:map-requests": "node scripts/execute-db-sql.cjs prisma/map-requests.sql",
     "db:boundary-drafts": "node scripts/execute-db-sql.cjs prisma/map-boundary-drafts.sql",
     "check:area-status": "node scripts/check-area-status.cjs",
@@ -22,7 +22,7 @@
     "check:line-pairing": "node scripts/check-line-pairing.cjs",
     "check:map-allocation": "node scripts/check-map-allocation.cjs",
     "check:map-requests": "node scripts/check-map-requests.cjs",
-    "check:territory-report": "node scripts/check-territory-report.cjs",
+    "check:territory-report": "node scripts/check-territory-report.cjs && node scripts/check-report-alerts.cjs",
     "db:area-dispatch-enabled": "node scripts/execute-db-sql.cjs prisma/area-dispatch-enabled.sql",
     "check:area-properties": "node scripts/check-area-properties.cjs",
     "check:do-not-visit": "node scripts/check-do-not-visit.cjs",
@@ -37,7 +37,8 @@
     "db:bulletin-announcements": "node scripts/execute-db-sql.cjs prisma/bulletin-announcements.sql",
     "db:service-roster": "node scripts/execute-db-sql.cjs prisma/service-roster.sql",
     "db:do-not-visit": "node scripts/execute-db-sql.cjs prisma/do-not-visit.sql",
-    "db:dispatch-undo": "node scripts/execute-db-sql.cjs prisma/dispatch-undo.sql"
+    "db:dispatch-undo": "node scripts/execute-db-sql.cjs prisma/dispatch-undo.sql",
+    "db:report-alerts": "node scripts/execute-db-sql.cjs prisma/report-alerts.sql"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",

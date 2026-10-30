@@ -14,6 +14,8 @@ import { randomUUID } from 'crypto'
 import { syncReportCompletions } from '../../../../lib/report-completion-sync'
 import { syncServiceRoster } from '../../../../lib/service-roster-sync'
 import { syncDoNotVisit } from '../../../../lib/do-not-visit'
+import { currentHolder, syncReportAlerts, SheetMismatch } from '../../../../lib/report-alerts'
+import { addNotHolderReport, returnUndoState } from '../../../../lib/territory-report'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -29,6 +31,7 @@ export const maxDuration = 60
  *    Sheet ≠ 快照 → Sheet 贏，匯入 DB（後寫的贏）
  * 3. 推送補救：DB isDispatched 但 Sheet C/D 落後 → 推回 Sheet
  * 4. J 欄拒絕拜訪雙向同步（快照比對，兩邊都改則合併）
+ * 5. 回報待確認偵測（ADR-0100）：回報了卻未交回、交回依據已刪除、C 欄衝突
  *
  * Auth：Vercel Cron 自帶 Authorization: Bearer $CRON_SECRET
  */
@@ -43,7 +46,7 @@ export async function POST(request: NextRequest) {
     if ('response' in auth) return auth.response
   }
 
-  const result = { doNotVisit: { imported: 0, pushed: 0, conflicts: 0 }, completionDatesUpdated: 0, imported: 0, sheetEdits: 0, conflicts: 0, pushedBack: 0, errors: [] as string[] }
+  const result = { reportAlerts: { created: 0, autoResolved: 0 }, doNotVisit: { imported: 0, pushed: 0, conflicts: 0 }, completionDatesUpdated: 0, imported: 0, sheetEdits: 0, conflicts: 0, pushedBack: 0, errors: [] as string[] }
   const serviceRosterSync = syncServiceRoster(prisma)
 
   try {
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
     const lastTs = lastSetting ? new Date(lastSetting.value) : new Date(0)
 
     const reportRows = await readValues(DEFAULT_SHEET_ID, '傳道區域回報!A2:G')
-    const areas = await prisma.area.findMany()
+    const areas = await prisma.area.findMany({ include: { assignedMember: { select: { name: true } } } })
     const bySheetNo = new Map(areas.filter(a => a.sheetNo != null).map(a => [a.sheetNo!, a] as const))
     const memberCache = new Map((await prisma.member.findMany({ where: { deletedAt: null } })).map(m => [m.name, m.id]))
 
@@ -96,9 +99,18 @@ export async function POST(request: NextRequest) {
         (!area.dispatchedAt || !area.completedAt || area.dispatchedAt >= area.completedAt)
       if (!isActive) continue
 
+      // 表單姓名不是持有人：不交回，交管理員確認（ADR-0100）
+      if (area.assignedMember && area.assignedMember.name !== name) {
+        const endDate = taipeiDate(completedAt)
+        // 站內回報也會寫進這張表，送出時已處理過（ADR-0076），用系統紀錄辨識
+        const inApp = await prisma.report.findFirst({ where: { areaId: area.id, content: { contains: `"endDate":"${endDate}"` } }, select: { id: true } })
+        if (!inApp) await prisma.$transaction(tx => addNotHolderReport(tx, area, { name, startDate: '', endDate, at: ts.toISOString() }, null, new Date()))
+        if (!maxTs || ts > maxTs) maxTs = ts
+        continue
+      }
       await prisma.area.update({
         where: { id: area.id },
-        data: { completedAt, lastActivityAt: new Date() },
+        data: { completedAt, lastActivityAt: new Date(), returnUndo: returnUndoState(area, taipeiDate(completedAt), completedAt) },
       })
       result.imported++
 
@@ -134,6 +146,7 @@ export async function POST(request: NextRequest) {
     const freshBySheetNo = new Map(freshAreas.filter(a => a.sheetNo != null).map(a => [a.sheetNo!, a] as const))
 
     const pushQueue: { sheetNo: number; memberName: string | null; dispatchedAt: Date | null }[] = []
+    const mismatches: SheetMismatch[] = []
     const snapUpdates: { sheetNo: number; member: string; date: Date | null; keepDate?: boolean }[] = []
 
     for (let i = 0; i < statusRows.length; i++) {
@@ -158,7 +171,8 @@ export async function POST(request: NextRequest) {
 
       // Sheet 與快照不同 → 有人改了 Sheet
       // 判斷 DB 是否也變了（跟快照比）
-      const dbMember = area.assignedMember?.name || ''
+      // 已交回的地圖保留歷史持有人，但 C 欄應是空白（ADR-0100）
+      const dbMember = currentHolder(area)
       const dbDate = taipeiDate(area.dispatchedAt)
       const dbChanged = dbMember !== snapMember || dbDate !== snapDate
 
@@ -166,6 +180,7 @@ export async function POST(request: NextRequest) {
         // 兩邊都變 → 真衝突 → DB 贏（後寫的贏：DB 操作時間 > Sheet 手動編輯）
         // 推 DB 回 Sheet + 記錄
         result.conflicts++
+        mismatches.push({ sheetNo, sheetMember, sheetDate: sheetDateNorm, dbMember, dbDate: dbMember ? dbDate : '' })
         pushQueue.push({ sheetNo, memberName: dbMember || null, dispatchedAt: area.dispatchedAt })
         snapUpdates.push({ sheetNo, member: dbMember, date: area.dispatchedAt })
       } else {
@@ -222,6 +237,14 @@ export async function POST(request: NextRequest) {
     }
     if (snapUpdates.length > 0) {
       await updateSnapshot(snapUpdates)
+    }
+
+    // ============ 5. 回報待確認；失敗不影響其他同步 ============
+    try {
+      result.reportAlerts = await syncReportAlerts(prisma, mismatches)
+    } catch (error) {
+      console.error('Report alert sync failed:', error)
+      result.errors.push('回報待確認偵測失敗，下次排程重試')
     }
 
     // ============ 4. J 欄拒絕拜訪雙向同步（ADR-0086）；失敗不影響 C/D ============
