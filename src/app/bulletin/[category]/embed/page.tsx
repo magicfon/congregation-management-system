@@ -17,7 +17,7 @@ export function generateMetadata({ params }: Props): Metadata {
 export default function BulletinEmbedPage({ params }: Props) {
   const category = bulletinCategories.find(item => item.slug === params.category)
   if (!category || !embeddable.includes(category.slug)) notFound()
-  if (category.slug === 'midweek-meeting') return <main className="bulletin-embed fixed inset-0 overflow-auto bg-mc-bg p-2 text-mc-text sm:p-4">
+  if (category.slug === 'midweek-meeting') return <main className="bulletin-embed fixed inset-0 overflow-auto [scrollbar-gutter:stable] bg-mc-bg p-2 text-mc-text sm:p-4">
     <Midweek embedded />
   </main>
   const source = category.sources.find(item => item.pdf)
