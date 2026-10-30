@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { newMeeting, sectionNames, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 import StudentNotices from './StudentNotices'
-import { draftBaseVersionOf, publishedVersionOf, sameContent, previewVersion, versionLabel, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
+import { draftBaseVersionOf, draftOwnerStale, publishedVersionOf, sameContent, previewVersion, versionLabel, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
 
 export type ManagedWeek = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
 const field = 'w-full min-w-0 min-h-11 rounded-lg border border-white/15 bg-mc-card px-3 py-2 text-base font-normal text-mc-text'
@@ -24,9 +24,14 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
   const [error, setError] = useState(''), [message, setMessage] = useState('')
   const [selected, setSelected] = useState<number | null>(null)
   const [versionNumber, setVersionNumber] = useState(0)
+  const [me, setMe] = useState('')
   const versions = record?.versions || []
   const dates = record?.versionDates || {}
   const historical = versions.find(v=>v.number===versionNumber)
+  // 別人儲存了草稿就只能看，發布或放棄前不能編輯（ADR-0102）。
+  const lockedBy = record?.draftOwner && me && record.draftOwner.id !== me ? record.draftOwner : undefined
+  const ownDraft = Boolean(record?.draftOwner && record.draftOwner.id === me)
+  const editable = !historical && !lockedBy
   const baseVersion = record ? draftBaseVersionOf(record) : undefined
   const publishedVersion = record ? publishedVersionOf(record) : undefined
   const laterVersions = baseVersion ? versions.filter(version => version.number > baseVersion.number) : []
@@ -46,7 +51,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
   useEffect(() => {
     const controller = new AbortController()
     api(`${endpoint}?id=${id}`, { signal: controller.signal }).then(data => {
-      setSource(data.source); setRecord(data.record); setMeeting(data.record?.draft || newMeeting(data.source))
+      setSource(data.source); setRecord(data.record); setMe(data.me || ''); setMeeting(data.record?.draft || newMeeting(data.source))
     }).catch(e => { if (!controller.signal.aborted) setError(e.message) }).finally(() => { if (!controller.signal.aborted) { setLoading(false); loadedOnce.current(id) } })
     return () => controller.abort()
   }, [id])
@@ -62,6 +67,8 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
     if (action === 'restore' && (!historical || !confirm(`用第${historical.number}版的內容取代目前草稿（含尚未儲存的修改）？公布欄暫時不變，之後的版本都會保留。`))) return
     if (action === 'reset' && !confirm('以最新手冊重新建立草稿？目前草稿的人員與修改將被清除，已發布版本會保留。')) return
     if (action === 'unpublish' && !confirm('下架這週節目？公開公布欄將不再顯示。')) return
+    if (action === 'discard' && !confirm(publishedVersion ? `放棄草稿，改回第${publishedVersion.number}版的內容？尚未發布的修改都會清除。` : '放棄草稿，改回手冊原稿？尚未發布的修改都會清除。')) return
+    if (action === 'take-over' && (!lockedBy || !confirm(`接手${lockedBy.name}的草稿？草稿內容保留，之後由你編輯與發布。`))) return
     let deleteLaterVersions = false
     if (action === 'delete-later') {
       if (!baseVersion || !laterVersions.length) return
@@ -80,9 +87,9 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
     try {
       const data = await api(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action, revision: record?.revision || 0, deleteLaterVersions, meeting: action === 'restore' ? { number: historical!.number } : meeting }) })
       setRecord(data.record); setSource(data.source)
-      if (!['unpublish', 'delete-later'].includes(action)) { setMeeting(data.record.draft); setDirty(false) }
+      if (!['unpublish', 'delete-later', 'take-over'].includes(action)) { setMeeting(data.record.draft); setDirty(false) }
       if (action === 'restore') { setVersionNumber(0); setSelected(null) }
-      setMessage(action === 'restore' ? `草稿已換成第${historical!.number}版。不再修改就按「${record?.published ? '改回' : ''}公開第${historical!.number}版」；修改後發布會成為第${historical!.number + 1}版` : action === 'publish' ? `已發布第${data.record.publishedVersion}版到公布欄` : action === 'unpublish' ? '已下架' : action === 'delete-later' ? `已刪除${range(laterVersions)}` : '草稿已儲存')
+      setMessage(action === 'restore' ? `草稿已換成第${historical!.number}版。不再修改就按「${record?.published ? '改回' : ''}公開第${historical!.number}版」；修改後發布會成為第${historical!.number + 1}版` : action === 'publish' ? `已發布第${data.record.publishedVersion}版到公布欄` : action === 'unpublish' ? '已下架' : action === 'delete-later' ? `已刪除${range(laterVersions)}` : action === 'discard' ? '已放棄草稿' : action === 'take-over' ? '已接手草稿，現在由你編輯' : '草稿已儲存')
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
   const move = (index: number, direction: number) => {
@@ -95,6 +102,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
     <h2 id={`week-${id}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-white/10 pb-2 text-lg font-semibold">
       <span>{week.date.slice(5).replace('-', '/')}　{week.reading}</span>
       {status && <span className={`text-sm font-normal ${record?.published ? 'text-emerald-300' : 'text-mc-text/60'}`}>{status}</span>}
+      {lockedBy && <span className="text-sm font-normal text-amber-300">{lockedBy.name}編輯中</span>}
     </h2>
     {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
     {message && <p role="status" className="text-green-300">{message}</p>}
@@ -104,23 +112,23 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
         <h3 className="text-sm font-semibold">版次紀錄</h3>
         {baseVersion && baseVersion.number !== publishedVersion?.number && <p className="text-sm text-mc-text/60">草稿來自第{baseVersion.number}版</p>}
         {!!versions.length && <select aria-label="選擇版次" className="min-h-11 w-full min-w-0 rounded-lg border border-white/15 bg-mc-card px-3 text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
-          <option value={0}>{showingPublished ? `${versionLabel(publishedVersion!.number, publishedVersion!.date || dates[publishedVersion!.number])}（目前公開）` : `第${previewVersion(meeting, baseVersion).number}版草稿（編輯中）`}</option>
-          {[...versions].reverse().filter(v => !showingPublished || v.number !== publishedVersion?.number).map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number])}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
+          <option value={0}>{showingPublished ? `${versionLabel(publishedVersion!.number, publishedVersion!.date || dates[publishedVersion!.number], publishedVersion!.by)}（目前公開）` : `第${previewVersion(meeting, baseVersion).number}版草稿（編輯中）`}</option>
+          {[...versions].reverse().filter(v => !showingPublished || v.number !== publishedVersion?.number).map(v=><option key={v.number} value={v.number}>{versionLabel(v.number,v.date || dates[v.number],v.by)}{record?.published && v.number === publishedVersion?.number ? '（目前公開）' : ''}</option>)}
         </select>}
-        {!historical && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除{range(laterVersions)}</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">公布欄還在用這些版本，請先按「改回公開第{baseVersion?.number}版」再刪除。</p>}</div>}
-        {!historical && (source || record?.published) && <details className="text-sm"><summary className="cursor-pointer py-2 text-mc-text/70">這週的手冊與下架</summary><div className="flex flex-wrap items-center gap-3">{source && <><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a><button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button></>}{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架這週</button>}</div></details>}
+        {editable && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除{range(laterVersions)}</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">公布欄還在用這些版本，請先按「改回公開第{baseVersion?.number}版」再刪除。</p>}</div>}
+        {!historical && (source || record?.published) && <details className="text-sm"><summary className="cursor-pointer py-2 text-mc-text/70">這週的手冊與下架</summary><div className="flex flex-wrap items-center gap-3">{source && <><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a>{!lockedBy && <button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button>}</>}{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架這週</button>}</div></details>}
       </section>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-mc-card p-3 sm:p-4">
-        <div className="text-sm text-mc-text/70">{historical ? <p>查看第{historical.number}版（只能看）</p> : <>
+        <div className="text-sm text-mc-text/70">{historical ? <p>查看第{historical.number}版（只能看）</p> : lockedBy ? <p className="text-amber-300">{lockedBy.name}正在編輯草稿（{new Date(lockedBy.at).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}儲存），發布或放棄前其他人只能看。{draftOwnerStale(lockedBy) ? '已超過24小時沒更新，可以接手。' : ''}</p> : <>
           <p>{record?.published ? `公開中：第${publishedVersion?.number || 1}版` : versions.length ? '已下架' : '尚未公開'}{backToBase && baseVersion && `・草稿是第${baseVersion.number}版`}{dirty ? '・有未儲存的修改' : draftChanged && versions.length ? '・有修改尚未發布' : ''}</p>
           {draftChanged && !!laterVersions.length && <p className="text-amber-300">發布會成為第{(baseVersion?.number || 0) + 1}版，並刪除舊的{range(laterVersions)}</p>}
         </>}</div>
         <div className="flex w-full gap-2 sm:w-auto">
-          {historical ? <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => setVersionNumber(0)}>返回編輯</button><button className={`${button} flex-1 sm:flex-none`} disabled={busy || loading} onClick={() => save('restore')}>用這版當草稿</button></> : <><button className={`${button} flex-1 sm:flex-none`} disabled={busy || !dirty} onClick={() => save('save')}>儲存草稿</button><button className={`${button} flex-1 bg-blue-600 font-semibold text-white sm:flex-none`} disabled={busy || (!draftChanged && !backToBase)} onClick={() => save('publish')}>{draftChanged ? `發布第${shown?.number || 1}版` : backToBase ? `${record?.published ? '改回' : ''}公開第${baseVersion!.number}版` : '已發布'}</button></>}
+          {lockedBy && !historical ? (draftOwnerStale(lockedBy) && <button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => save('take-over')}>接手草稿</button>) : historical ? <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => setVersionNumber(0)}>返回編輯</button>{!lockedBy && <button className={`${button} flex-1 sm:flex-none`} disabled={busy || loading} onClick={() => save('restore')}>用這版當草稿</button>}</> : <>{ownDraft && <button className={`${button} flex-1 text-red-300 sm:flex-none`} disabled={busy} onClick={() => save('discard')}>放棄草稿</button>}<button className={`${button} flex-1 sm:flex-none`} disabled={busy || !dirty} onClick={() => save('save')}>儲存草稿</button><button className={`${button} flex-1 bg-blue-600 font-semibold text-white sm:flex-none`} disabled={busy || (!draftChanged && !backToBase)} onClick={() => save('publish')}>{draftChanged ? `發布第${shown?.number || 1}版` : backToBase ? `${record?.published ? '改回' : ''}公開第${baseVersion!.number}版` : '已發布'}</button></>}
         </div>
       </div>
       {!historical && record?.published && <StudentNotices key={`${id}:${record.publishedVersion}`} weekId={id} />}
-      {!historical && <>
+      {editable && <>
         {source && record && source.hash !== record.sourceHash && <p className="text-sm text-amber-300">手冊已更新，現有安排已保留。可至「這週的手冊與下架」查看來源。</p>}
         <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
           {selected === -1 && <div className="grid gap-3 sm:grid-cols-2"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label></div>}
@@ -136,9 +144,9 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
         </fieldset></dialog>
       </>}
       <fieldset disabled={busy} className="min-w-0">
-        {!historical && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>點選節目或姓名即可編輯。</p><button className={button} onClick={() => setSelected(-1)}>節目表設定</button></div>}
-        <MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={!historical ? { change, itemChange, settings: setSelected, members } : undefined} />
-        {!historical && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
+        {editable && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>點選節目或姓名即可編輯。</p><button className={button} onClick={() => setSelected(-1)}>節目表設定</button></div>}
+        <MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={editable ? { change, itemChange, settings: setSelected, members } : undefined} />
+        {editable && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
       </fieldset>
     </>}
   </section>

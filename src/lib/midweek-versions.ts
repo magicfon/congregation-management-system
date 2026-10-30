@@ -1,7 +1,7 @@
-import { MeetingError, timeline, type Meeting, type MeetingRecord } from './midweek'
+import { MeetingError, timeline, type DraftOwner, type Meeting, type MeetingRecord } from './midweek'
 
 export type Marks = Record<string, number>
-export type MeetingVersion = { number: number; date: string | null; meeting: Meeting; marks: Marks }
+export type MeetingVersion = { number: number; date: string | null; meeting: Meeting; marks: Marks; by?: string }
 export type Palette = Record<string, string>
 export const defaultPalette: Palette = { 2: '#ffff00', 3: '#00ff00', 4: '#bae6fd', 5: '#e9d5ff', 6: '#fed7aa' }
 export const fieldKey = (id: string, field: string) => `item:${id}:${field}`
@@ -12,8 +12,13 @@ export function versionColor(number: number, palette: Palette = {}) {
   const rgb = hue < 1 ? [chroma,x,0] : hue < 2 ? [x,chroma,0] : hue < 3 ? [0,chroma,x] : hue < 4 ? [0,x,chroma] : hue < 5 ? [x,0,chroma] : [chroma,0,x]
   return '#' + rgb.map(v=>Math.round((v+m)*255).toString(16).padStart(2,'0')).join('')
 }
-export function versionLabel(number: number, date?: string | null) {
-  return `第${number}版・${date ? `${Number(date.slice(5,7))}/${Number(date.slice(8,10))}更新` : '日期未記錄'}`
+export function versionLabel(number: number, date?: string | null, by?: string) {
+  return `第${number}版・${date ? `${Number(date.slice(5,7))}/${Number(date.slice(8,10))}更新` : '日期未記錄'}${by ? `・${by}` : ''}`
+}
+// 草稿超過這段時間沒再儲存，其他管理員才可接手（ADR-0102）。
+export const DRAFT_TAKEOVER_MS = 24 * 3600000
+export function draftOwnerStale(owner: DraftOwner, now = Date.now()) {
+  return now - Date.parse(owner.at) >= DRAFT_TAKEOVER_MS
 }
 export function localDate(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const auth = await requireApiUser(['admin']); if ('response' in auth) return auth.response
   try {
     const id = new URL(request.url).searchParams.get('id')
-    if (id) return json({ source: await getSource(id), record: await getRecord(id), palette: await getPalette() })
+    if (id) return json({ source: await getSource(id), record: await getRecord(id), palette: await getPalette(), me: auth.user.id })
     const [weeks, members, sync] = await Promise.all([meetingList(true), prisma.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: 'asc' } }), syncStatus()])
     return json({ weeks, members, sync })
   } catch { return NextResponse.json({ error: '節目暫時無法讀取' }, { status: 503 }) }
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (body.action === 'student-notices') return json({ rows: await studentNoticePlan(prisma, String(body.id)) })
     if (body.action === 'student-notices-send') return json(await sendStudentNotices(prisma, String(body.id)))
     if (body.action === 'palette') return json({ palette: await savePalette(body.palette) })
-    return json(await editMeeting(body.id, body.action, body.revision, body.meeting, { deleteLaterVersions: body.deleteLaterVersions }))
+    return json(await editMeeting(body.id, body.action, body.revision, body.meeting, { deleteLaterVersions: body.deleteLaterVersions, editor: { id: auth.user.id!, name: auth.user.name || '管理員' } }))
   } catch (error) {
     return NextResponse.json({ error: error instanceof MeetingConflict ? '其他管理員已更新這週，請重新載入後再編輯' : error instanceof MeetingError ? error.message : '操作失敗，請稍後重試' }, { status: error instanceof MeetingConflict ? 409 : error instanceof MeetingError || error instanceof SyntaxError ? 400 : 503 })
   }
