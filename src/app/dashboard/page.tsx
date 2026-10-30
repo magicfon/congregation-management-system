@@ -27,7 +27,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!data) return
     const view = new URLSearchParams(window.location.search).get('view')
-    if (!view || !['maps', 'week', 'handoffs', 'assignments'].includes(view)) return
+    if (!view || !['maps', 'week', 'handoffs', 'assignments', 'manage'].includes(view)) return
     const target = view === 'week' || (!data.showTerritory && ['maps', 'handoffs'].includes(view)) ? 'assignments' : view
     const frame = requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }))
     return () => cancelAnimationFrame(frame)
@@ -68,7 +68,7 @@ export default function DashboardPage() {
       </>}
       {/* 先看自己的委派與服務，再看管理待辦，最後是管理入口（ADR-0074）。 */}
       {data.isAdmin && <AdminTaskCenter />}
-      {data.isAdmin && <nav aria-label="常用管理" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {data.isAdmin && <nav id="manage" aria-label="常用管理" className="scroll-mt-20 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {adminManagementLinks.map(link => <a key={link.href} href={link.href} className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-white/15 bg-mc-card px-4 text-sm text-mc-text hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Settings2 size={16} aria-hidden="true" />{link.label}<ArrowRight size={16} aria-hidden="true" className="ml-auto" /></a>)}
       </nav>}
       <footer className="space-y-4">

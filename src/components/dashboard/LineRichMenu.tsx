@@ -1,7 +1,12 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-type Status = { enabled: boolean; installed: boolean; currentId: string | null }
+type Status = { enabled: boolean; installed: boolean; currentId: string | null; linked?: { brother: number; admin: number } }
+const previews = [
+  { kind: 'sister', label: '姊妹（預設）', width: 1000 },
+  { kind: 'brother', label: '弟兄', width: 999 },
+  { kind: 'admin', label: '管理者', width: 1332 },
+]
 export default function LineRichMenu() {
   const [status, setStatus] = useState<Status | null>(null)
   const [busy, setBusy] = useState(false)
@@ -20,22 +25,25 @@ export default function LineRichMenu() {
   useEffect(() => { void load() }, [])
   async function publish() {
     if (!status?.enabled || lock.current) return
-    if (!window.confirm(status.currentId && !status.installed ? 'LINE 目前已有預設選單。要改用下方四格選單嗎？原選單會保留，可由 LINE 後台另行調整。' : '將下方四格選單發布為官方帳號的預設圖文選單？')) return
+    if (!window.confirm(status.currentId && !status.installed ? 'LINE 目前已有預設選單。要改用下方三種選單嗎？姊妹版會成為預設選單，弟兄與管理者另外綁定；原選單會保留。' : '發布下方三種選單？姊妹版會成為預設選單，弟兄與管理者另外綁定。')) return
     lock.current = true; setBusy(true); setError(''); setMessage('')
     try {
       const res = await fetch('/api/line-bot/rich-menu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedCurrentId: status.currentId }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '發布失敗')
-      setStatus({ ...data, enabled: true }); setMessage('已發布。請重新開啟 LINE 官方帳號聊天室查看。')
+      setStatus({ ...data, enabled: true }); setMessage(`已發布，並綁定 ${data.linked?.brother ?? 0} 位弟兄、${data.linked?.admin ?? 0} 位管理者。請重新開啟 LINE 官方帳號聊天室查看。`)
     } catch (e) { setError(e instanceof Error ? e.message : '無法確認發布結果，請重新整理') }
     finally { lock.current = false; setBusy(false) }
   }
   return <details className="mt-4 border-t border-white/10 pt-3">
     <summary className="cursor-pointer text-sm">底部圖文選單 · {status?.installed ? '已發布' : status ? '待發布' : '尚未確認'}</summary>
-    <p className="mt-3 text-xs leading-6 text-mc-text/60">我的委派直接在 LINE 列出服務安排與週中節目；其他選單開啟對應網頁，傳道地圖直達地圖交接。未確認身分的使用者仍需由管理員連結成員。</p>
-    {/* A fixed PNG is also the exact image uploaded to LINE. */}
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src="/line/rich-menu-v1.png" alt="四格圖文選單：公佈欄、我的看板、我的委派、傳道地圖" width={1000} height={674} className="mt-3 w-full max-w-sm rounded-xl border border-white/10" />
+    <p className="mt-3 text-xs leading-6 text-mc-text/60">依成員管理的權限與性別顯示：管理者、弟兄各有專用選單，其他人（含未設性別、未連結）看姊妹版。改權限、改性別、連結 LINE、停用或刪除成員時自動換選單。</p>
+    {/* Fixed PNGs are also the exact images uploaded to LINE. */}
+    <div className="mt-3 grid gap-3">{previews.map(preview => <figure key={preview.kind} className="max-w-sm">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/line/rich-menu-${preview.kind}.png`} alt={`${preview.label}圖文選單`} width={preview.width} height={674} className="w-full rounded-xl border border-white/10" />
+      <figcaption className="mt-1 text-xs text-mc-text/60">{preview.label}</figcaption>
+    </figure>)}</div>
     <div className="mt-3 flex flex-wrap gap-2">
       <button disabled={busy || !status?.enabled || status.installed} onClick={() => void publish()} className="min-h-11 rounded-lg bg-mc-highlight px-4 text-sm disabled:opacity-40">{busy ? '發布中…' : status?.installed ? '已發布至 LINE' : '發布至 LINE'}</button>
       <button disabled={busy} onClick={() => void load()} className="min-h-11 rounded-lg bg-white/5 px-4 text-sm disabled:opacity-40">重新整理狀態</button>
@@ -43,6 +51,5 @@ export default function LineRichMenu() {
     {status && !status.enabled && <p className="mt-2 text-xs text-amber-300">請先完成 LINE Bot 設定。</p>}
     {error && <p role="alert" className="mt-2 text-xs text-amber-300">{error}</p>}
     {message && <p role="status" className="mt-2 text-xs text-emerald-300">{message}</p>}
-    <p className="mt-2 text-xs text-mc-text/40">已指定個人專用選單的使用者，仍會優先顯示原個人選單。</p>
   </details>
 }
