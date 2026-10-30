@@ -105,6 +105,7 @@ model Member {
   active    Boolean  @default(true)
   deletedAt DateTime?
   showInDispatch Boolean @default(true)
+  selfManagedReports Boolean @default(false) // 自主管理地圖：可回報未領取的地圖，只留紀錄（ADR-0101）
   lineuid   String?  @unique
   lineDisplayName String?
   linePictureUrl String?

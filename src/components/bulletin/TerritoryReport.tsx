@@ -5,7 +5,7 @@ import { AlertTriangle, ExternalLink, Plus, X } from 'lucide-react'
 
 type Area = { sheetNo: number; label: string; holder: string | null; dispatched: string | null }
 type Options = { guest: boolean; admin: boolean; name: string; today: string; timeslots: string[]; maxAreas: number; held: Area[]; areas: Area[] }
-type Verdict = { sheetNo: number; action: 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked'; reason: string }
+type Verdict = { sheetNo: number; action: 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self'; reason: string }
 const OTHER = 'other'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 bg-mc-accent px-3 text-base'
 const label = 'mb-1 block text-sm text-mc-text/70'
@@ -68,7 +68,7 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkKey, Boolean(options)])
   const blocked = selected.filter(a => verdicts[a.sheetNo]?.action === 'blocked')
-  const warned = selected.filter(a => !['return', 'blocked'].includes(verdicts[a.sheetNo]?.action || 'return'))
+  const warned = selected.filter(a => !['return', 'blocked', 'self'].includes(verdicts[a.sheetNo]?.action || 'return'))
   function outcome(a: Area) {
     const v = verdicts[a.sheetNo]
     if (!v) return '檢查中…'

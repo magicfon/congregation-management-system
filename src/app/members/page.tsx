@@ -16,6 +16,7 @@ interface Member {
   lineuid?: string | null
   lineDisplayName?: string | null
   showInDispatch?: boolean
+  selfManagedReports?: boolean
   active: boolean
   gender?: string
   role?: string
@@ -39,6 +40,7 @@ function MemberModal({
   const [phone, setPhone] = useState(member?.phone ?? '')
   const [showInDispatch, setShowInDispatch] = useState(member?.showInDispatch ?? true)
   const [active, setActive] = useState(member?.active ?? true)
+  const [selfManaged, setSelfManaged] = useState(member?.selfManagedReports ?? false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -52,6 +54,7 @@ function MemberModal({
       const body: Record<string, unknown> = { name, phone, active, gender }
       if (member && role !== member.role) { body.role = role; body.expectedRole = member.role }
       if (!member) body.showInDispatch = showInDispatch
+      if (member && selfManaged !== Boolean(member.selfManagedReports)) body.selfManagedReports = selfManaged
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -134,6 +137,10 @@ function MemberModal({
               <span className="text-sm text-mc-text/70">帳號啟用中</span>
             </label>
           )}
+          {member && <label className="flex items-start gap-2.5 cursor-pointer">
+            <input type="checkbox" checked={selfManaged} disabled={loading} onChange={e => setSelfManaged(e.target.checked)} className="mt-1 h-4 w-4 accent-blue-500" />
+            <span className="text-sm text-mc-text/70">自主管理地圖<span className="mt-1 block text-xs text-mc-text/40">可回報未領取的地圖，只寫入回報紀錄；別人領取中的地圖仍交管理員確認。</span></span>
+          </label>}
 
           {!member && <label className="flex items-start gap-2.5 cursor-pointer">
             <input type="checkbox" checked={showInDispatch} disabled={loading} onChange={e => setShowInDispatch(e.target.checked)} className="mt-1 h-4 w-4 accent-blue-500" />

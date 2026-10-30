@@ -66,13 +66,14 @@ export function reportContent(input: TerritoryReportInput, sheetNo: number) {
 }
 
 /** 回報者：登入帳號，或未登入時以自填姓名對到的成員（永遠不算管理員）。 */
-export type ReportActor = { memberId: string | null; name: string; admin: boolean }
+export type ReportActor = { memberId: string | null; name: string; admin: boolean; selfManaged?: boolean }
 /**
  * 每區的處理（ADR-0100）：
  * return 自己的地圖交回；proxy 管理員代持有人回報並交回；confirm 別人的地圖，交管理員確認；
- * merge 管理員回報已有待確認的地圖，併入同一則；record 只留紀錄；blocked 不能送出。
+ * merge 管理員回報已有待確認的地圖，併入同一則；record 只留紀錄；blocked 不能送出；
+ * self 自主管理地圖的成員（ADR-0101）回報未領取的地圖：只留紀錄，免確認；別人領取中的照一般規則。
  */
-export type ReportAction = 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked'
+export type ReportAction = 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self'
 export type ReportVerdict = { action: ReportAction; reason: string }
 
 export function classifyReportArea(area: ReportArea, actor: ReportActor, endDate: string, pendingAlert: boolean): ReportVerdict {
@@ -85,6 +86,7 @@ export function classifyReportArea(area: ReportArea, actor: ReportActor, endDate
   if (pendingAlert) return actor.admin
     ? { action: 'merge', reason: '已有人回報，待管理員確認；這筆會併入同一則待確認，不交回' }
     : { action: 'blocked', reason: '這張地圖已有人回報，待管理員確認' }
+  if (!held && actor.selfManaged) return { action: 'self', reason: '自主管理：只寫入回報紀錄與完成日' }
   if (!held) return actor.admin
     ? { action: 'record', reason: '目前未領取，只寫入回報紀錄與完成日，不改變分配' }
     : { action: 'blocked', reason: '這張地圖目前未領取，請洽管理員' }
@@ -93,7 +95,7 @@ export function classifyReportArea(area: ReportArea, actor: ReportActor, endDate
     ? { action: 'proxy', reason: '不是你領取的，將以持有人名義代為回報並交回' }
     : { action: 'record', reason: '結束日早於目前持有人的領取日，只寫入回報紀錄，不交回' }
 }
-export const needsConfirmation = (verdict: ReportVerdict) => verdict.action !== 'return' && verdict.action !== 'blocked'
+export const needsConfirmation = (verdict: ReportVerdict) => !['return', 'blocked', 'self'].includes(verdict.action)
 
 /** 同一輪派發的鍵：領取時間；沒有領取時間的舊資料用 none。 */
 export const dispatchKey = (area: { dispatchedAt: Date | null }) => area.dispatchedAt ? area.dispatchedAt.toISOString() : 'none'
@@ -123,10 +125,10 @@ export function returnUndoState(area: AlertArea, endDate: string, returnedAt: Da
 /** 登入者用帳號；未登入者以姓名對應啟用中的成員，對不到仍可回報，只是不留系統紀錄。 */
 export async function resolveReportActor(db: Tx | PrismaClient, accountId: string | null, admin: boolean, name: string): Promise<ReportActor> {
   const member = accountId
-    ? await db.member.findUnique({ where: { id: accountId }, select: { id: true, name: true, active: true, deletedAt: true } })
-    : await db.member.findFirst({ where: { name, active: true, deletedAt: null }, select: { id: true, name: true, active: true, deletedAt: true } })
+    ? await db.member.findUnique({ where: { id: accountId }, select: { id: true, name: true, active: true, deletedAt: true, selfManagedReports: true } })
+    : await db.member.findFirst({ where: { name, active: true, deletedAt: null }, select: { id: true, name: true, active: true, deletedAt: true, selfManagedReports: true } })
   if (accountId && (!member?.active || member.deletedAt)) throw new TerritoryReportError('帳號未啟用', 403)
-  return { memberId: member?.id ?? null, name: accountId ? member!.name : name, admin: Boolean(accountId) && admin }
+  return { memberId: member?.id ?? null, name: accountId ? member!.name : name, admin: Boolean(accountId) && admin, selfManaged: Boolean(member?.selfManagedReports) }
 }
 
 /** 送出前的確認畫面用：逐區判斷，不寫入。 */
