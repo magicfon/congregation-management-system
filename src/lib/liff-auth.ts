@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client'
 import { recordPendingLineIdentity } from './pending-line-identities'
 import { configuredLiffId } from './liff-settings'
+import { linePictureUrl } from './line-picture'
 
 export async function authorizeLiff(db: PrismaClient, idToken?: string) {
   if (!configuredLiffId() || !idToken || idToken.length > 16000) return null
@@ -25,6 +26,6 @@ export async function authorizeLiff(db: PrismaClient, idToken?: string) {
     throw new Error('LinePending')
   }
   if (!member.active || member.deletedAt) return null
-  await db.member.update({ where: { id: member.id }, data: { lineDisplayName: name } })
+  await db.member.update({ where: { id: member.id }, data: { lineDisplayName: name, linePictureUrl: linePictureUrl(identity.picture) } })
   return { id: member.id, name: member.name, email: member.email, role: member.role, lineUid: identity.sub }
 }

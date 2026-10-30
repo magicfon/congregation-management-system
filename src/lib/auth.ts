@@ -5,6 +5,7 @@ import { prisma } from './db'
 import { recordPendingLineIdentity } from './pending-line-identities'
 import { authorizeLiff } from './liff-auth'
 import { configuredLiffId } from './liff-settings'
+import { linePictureUrl } from './line-picture'
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -45,14 +46,14 @@ export const authOptions: NextAuthOptions = {
       const lineUid = account.providerAccountId
       if (!lineUid) return false
 
-      const data = profile as { displayName?: string; name?: string } | undefined
+      const data = profile as { displayName?: string; name?: string; picture?: string; pictureUrl?: string } | undefined
       const lineName = data?.displayName || data?.name || null
       const member = await prisma.member.findUnique({ where: { lineuid: lineUid } })
       if (member) {
         if (!member.active) return false
         await prisma.member.update({
           where: { id: member.id },
-          data: { lineDisplayName: lineName },
+          data: { lineDisplayName: lineName, linePictureUrl: linePictureUrl(data?.picture || data?.pictureUrl) },
         })
       } else {
         await recordPendingLineIdentity(prisma, lineUid, lineName)
@@ -85,11 +86,13 @@ export const authOptions: NextAuthOptions = {
         delete token.role
         token.name = null
         token.email = null
+        token.picture = null
         return token
       }
       token.role = member.role
       token.name = member.name
       token.email = member.email
+      token.picture = member.linePictureUrl
       return token
     },
 

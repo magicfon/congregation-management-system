@@ -22,7 +22,7 @@ export async function deleteMember(db: PrismaClient, id: string, actorId: string
     if (visit || schedule) throw new MemberDeletionError('請先取消或轉移未完成行程')
     // Preserve historical relations, but release the login identity.
     await tx.member.update({ where: { id }, data: {
-      deletedAt: now, active: false, showInDispatch: false, lineuid: null, lineDisplayName: null,
+      deletedAt: now, active: false, showInDispatch: false, lineuid: null, lineDisplayName: null, linePictureUrl: null,
       email: `deleted-${id}@deleted.invalid`, password: '', phone: null,
     } })
     await tx.mapRequest.updateMany({ where: { memberId: id, status: 'pending' }, data: { status: 'cancelled' } })
