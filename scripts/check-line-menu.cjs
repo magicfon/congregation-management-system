@@ -42,7 +42,7 @@ function reset(){current=null;remote=new Set();images=new Set();uploadFails=fals
 const uid=c=>'U'+c.repeat(32);
 const member=(c,role,gender,extra={})=>({lineuid:uid(c),role,gender,active:true,deletedAt:null,...extra});
 (async()=>{
- for(const [kind,count] of [['sister',4],['brother',6],['admin',7]]){
+ for(const [kind,count] of [['sister',4],['brother',menu.SHOW_HANDOFFS?6:5],['admin',menu.SHOW_HANDOFFS?7:6]]){
   const def=menu.menuDefinitions[kind],meta=await sharp(`public/line/rich-menu-${kind}.png`).metadata();
   assert.equal(meta.width,def.size.width);assert.equal(meta.height,def.size.height);assert(fs.statSync(`public/line/rich-menu-${kind}.png`).size<1000000);
   assert.equal(def.areas.length,count);assert(def.size.width/def.size.height>=1.45);
@@ -51,8 +51,9 @@ const member=(c,role,gender,extra={})=>({lineuid:uid(c),role,gender,active:true,
  }
  const uris=kind=>menu.menuDefinitions[kind].areas.filter(a=>a.action.type==='uri').map(a=>a.action.uri.slice(client.botSite.length));
  same(uris('sister'),['/bulletin','/dashboard','/area-status']);
- same(uris('brother'),['/bulletin','/dashboard','/area-status','/dashboard?view=handoffs','/bulletin/territory-report']);
- same(uris('admin'),['/bulletin','/dashboard','/area-status','/dashboard?view=handoffs','/bulletin/territory-report','/dashboard?view=manage']);
+ const h=menu.SHOW_HANDOFFS?['/dashboard?view=handoffs']:[];
+ same(uris('brother'),['/bulletin','/dashboard','/area-status',...h,'/bulletin/territory-report']);
+ same(uris('admin'),['/bulletin','/dashboard','/area-status',...h,'/bulletin/territory-report','/dashboard?view=manage']);
  const liffMenu=load('src/lib/line-rich-menu.ts',{'./line-bot-client':client,'./liff-settings':{...settings,configuredLiffId:()=> '123-test'}});assert(Object.values(liffMenu.menuDefinitions).every(d=>d.areas.filter(a=>a.action.type==='uri').every(a=>new URL(a.action.uri).origin==='https://liff.line.me')));
  assert.equal(menu.memberMenuKind(member('1','admin','sister')),'admin');assert.equal(menu.memberMenuKind(member('1','publisher','brother')),'brother');assert.equal(menu.memberMenuKind(member('1','elder','brother')),'brother');
  assert.equal(menu.memberMenuKind(member('1','publisher','unspecified')),'sister');assert.equal(menu.memberMenuKind(member('1','admin','brother',{active:false})),'sister');assert.equal(menu.memberMenuKind(member('1','admin','brother',{deletedAt:new Date()})),'sister');assert.equal(menu.memberMenuKind(null),'sister');

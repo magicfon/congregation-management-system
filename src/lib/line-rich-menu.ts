@@ -23,11 +23,18 @@ const tiles: Record<string, { type: 'uri'; uri: string } | { type: 'message'; te
   report: { type: 'uri', uri: menuUrl('report') },
   manage: { type: 'uri', uri: menuUrl('manage') },
 }
+// 地圖交接先隱藏，等多數弟兄連結 LINE 後改成 true，並用 scripts/create-line-menu.cjs 重新產生圖片（ADR-0102）。
+// 圖片會變，所以開回時也要把 stateKey 的 v5 升版，讓發布建立新選單。
+export const SHOW_HANDOFFS = false
 // Same rows as scripts/create-line-menu.cjs, which draws the images.
-const layouts: Record<MenuKind, { width: number; label: string; rows: string[][] }> = {
+const layouts: Record<MenuKind, { width: number; label: string; rows: string[][] }> = SHOW_HANDOFFS ? {
   sister: { width: 1000, label: '姊妹', rows: [['bulletin', 'dashboard'], ['assignments', 'territory']] },
   brother: { width: 999, label: '弟兄', rows: [['bulletin', 'dashboard', 'assignments'], ['territory', 'handoffs', 'report']] },
   admin: { width: 1332, label: '管理者', rows: [['bulletin', 'dashboard', 'assignments', 'territory'], ['handoffs', 'report', 'manage']] },
+} : {
+  sister: { width: 1000, label: '姊妹', rows: [['bulletin', 'dashboard'], ['assignments', 'territory']] },
+  brother: { width: 999, label: '弟兄', rows: [['bulletin', 'dashboard', 'assignments'], ['territory', 'report']] },
+  admin: { width: 999, label: '管理者', rows: [['bulletin', 'dashboard', 'assignments'], ['territory', 'report', 'manage']] },
 }
 function definition(kind: MenuKind) {
   const { width, label, rows } = layouts[kind]

@@ -11,11 +11,17 @@ const tiles={
  report:{title:'區域回報',subtitle:'回報完成情況',color:'#7fd0f0',icon:'<rect x="-38" y="-46" width="76" height="92" rx="10"/><path d="M-18-46V-36H18V-46M-20 0-6 14 22-14"/>'},
  manage:{title:'管理入口',subtitle:'服務・週中・公告',color:'#b9c4d4',icon:'<circle r="16"/><path d="M0-44V-30M0 30V44M-44 0H-30M30 0H44M-31-31-21-21M21 21 31 31M-31 31-21 21M21-21 31-31"/>'},
 };
-// Rows of tile keys; src/lib/line-rich-menu.ts uses the same layout.
-const menus={
+// Rows of tile keys; src/lib/line-rich-menu.ts uses the same layout and switch.
+// 地圖交接先隱藏，等多數弟兄連結 LINE 後改成 true 並重新產生圖片（ADR-0102）。
+const SHOW_HANDOFFS=false;
+const menus=SHOW_HANDOFFS?{
  sister:{width:1000,rows:[['bulletin','dashboard'],['assignments','territory']]},
  brother:{width:999,rows:[['bulletin','dashboard','assignments'],['territory','handoffs','report']]},
  admin:{width:1332,rows:[['bulletin','dashboard','assignments','territory'],['handoffs','report','manage']]},
+}:{
+ sister:{width:1000,rows:[['bulletin','dashboard'],['assignments','territory']]},
+ brother:{width:999,rows:[['bulletin','dashboard','assignments'],['territory','report']]},
+ admin:{width:999,rows:[['bulletin','dashboard','assignments'],['territory','report','manage']]},
 };
 const H=674,rowH=337;
 function render({width:W,rows}){

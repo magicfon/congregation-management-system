@@ -5,7 +5,7 @@ type Status = { enabled: boolean; installed: boolean; currentId: string | null; 
 const previews = [
   { kind: 'sister', label: '姊妹（預設）', width: 1000 },
   { kind: 'brother', label: '弟兄', width: 999 },
-  { kind: 'admin', label: '管理者', width: 1332 },
+  { kind: 'admin', label: '管理者', width: 999 },
 ]
 export default function LineRichMenu() {
   const [status, setStatus] = useState<Status | null>(null)
