@@ -21,6 +21,18 @@ export async function lineDisplayName(uid: string): Promise<string | null> {
     return typeof profile.displayName === 'string' ? profile.displayName.slice(0, 200) : null
   } catch { return null }
 }
+// Members who added the official account can get their picture without signing in again.
+export async function lineBotPicture(uid: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://api.line.me/v2/bot/profile/${encodeURIComponent(uid)}`, {
+      headers: { Authorization: `Bearer ${process.env.LINE_BOT_ACCESS_TOKEN}` },
+      signal: AbortSignal.timeout(4000),
+    })
+    if (!response.ok) return null
+    const profile = await response.json()
+    return typeof profile.pictureUrl === 'string' ? profile.pictureUrl : null
+  } catch { return null }
+}
 export async function lineRequest(kind: 'reply' | 'push', body: unknown, retryKey?: string) {
   const response = await fetch(`https://api.line.me/v2/bot/message/${kind}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.LINE_BOT_ACCESS_TOKEN}`, ...(retryKey ? { 'X-Line-Retry-Key': retryKey } : {}) },
