@@ -35,45 +35,85 @@ assert.equal(report.reportedButHeld(held('2026-10-01','2026-10-01')),false)
 assert.equal(report.reportedButHeld(held('2026-10-01','2026-09-30')),false)
 assert.equal(report.reportedButHeld({...held('2026-10-01','2026-10-05'),completedAt:tp('2026-10-06')}),false,'已交回不列')
 
-let state, appended, failAppend
-function reset(area={}) { state={reports:[],area6:{id:'a6',sheetNo:6,assignedMemberId:null,dispatchedAt:null,completedAt:null,lastReportedCompletedAt:null},area:{id:'a5',sheetNo:5,assignedMemberId:'m1',dispatchedAt:tp('2026-10-10'),completedAt:null,lastReportedCompletedAt:new Date('2026-09-01T00:00:00+08:00'),...area}}; appended=[]; failAppend=false }
+// 每區處理（ADR-0100）
+const me={memberId:'m1',name:'王一',admin:false}, boss={memberId:'m9',name:'管理員',admin:true}
+const act=(area,actor,end='2026-10-22',pending=false)=>report.classifyReportArea({id:'a',sheetNo:5,completedAt:null,lastReportedCompletedAt:null,...area},actor,end,pending).action
+const mine={assignedMemberId:'m1',dispatchedAt:tp('2026-10-10')}, theirs={assignedMemberId:'m2',dispatchedAt:tp('2026-10-10')}, free={assignedMemberId:'m2',dispatchedAt:tp('2026-09-01'),completedAt:tp('2026-09-20')}
+assert.equal(act(mine,me),'return'); assert.equal(act(mine,me,'2026-10-05'),'blocked')
+assert.equal(act(mine,me,'2026-10-22',true),'return','持有人本人不受待確認阻擋')
+assert.equal(act(theirs,me),'confirm'); assert.equal(act(theirs,me,'2026-10-01'),'confirm')
+assert.equal(act(free,me),'blocked'); assert.equal(act({assignedMemberId:null,dispatchedAt:null},me),'blocked')
+assert.equal(act(theirs,me,'2026-10-22',true),'blocked')
+assert.equal(act(theirs,{...me,memberId:null}),'confirm','未登入對不到成員')
+assert.equal(act(theirs,boss),'proxy'); assert.equal(act(theirs,boss,'2026-10-01'),'record')
+assert.equal(act(free,boss),'record'); assert.equal(act(theirs,boss,'2026-10-22',true),'merge')
+assert.equal(report.needsConfirmation({action:'return'}),false); assert.equal(report.needsConfirmation({action:'confirm'}),true)
+
+let state, appended, failAppend, nextId
+function reset(area={}) { nextId=0; state={reports:[],alerts:[],members:{m1:'王一',m2:'李二',m9:'管理員'},area6:{id:'a6',sheetNo:6,assignedMemberId:null,dispatchedAt:null,completedAt:null,lastReportedCompletedAt:null},area:{id:'a5',sheetNo:5,assignedMemberId:'m1',dispatchedAt:tp('2026-10-10'),completedAt:null,lastReportedCompletedAt:new Date('2026-09-01T00:00:00+08:00'),...area}}; appended=[]; failAppend=false }
+const withHolder=a=>({...a,assignedMember:a.assignedMemberId?{name:state.members[a.assignedMemberId]}:null})
+const matchAlert=(a,w)=>Object.entries(w).every(([k,v])=>k==='areaId_kind_cycleKey'?Object.entries(v).every(([k2,v2])=>a[k2]===v2):a[k]===v)
 const db={$transaction:async(fn,opts)=>{assert.equal(opts.isolationLevel,'Serializable');const before=structuredClone(state);const tx={
- member:{findUnique:async({where})=>({id:where.id,name:where.id==='m1'?'王一':'李二',active:true,deletedAt:null}),findFirst:async({where})=>where.name==='王一'?{id:'m1',name:'王一',active:true,deletedAt:null}:null},
- area:{findUnique:async({where})=>where.sheetNo===5?{...state.area}:where.sheetNo===6?{...state.area6}:null,updateMany:async({where,data})=>{const a=state.area;const ok=a.id===where.id&&a.assignedMemberId===where.assignedMemberId&&+a.dispatchedAt===+where.dispatchedAt&&a.completedAt===where.completedAt;if(ok)Object.assign(a,data);return{count:ok?1:0}},update:async({where,data})=>Object.assign(where.id==='a6'?state.area6:state.area,data)},
- report:{findFirst:async({where})=>state.reports.find(r=>r.memberId===where.memberId&&r.content===where.content&&r.submittedAt>=where.submittedAt.gte)||null,create:async({data})=>state.reports.push(data)}}
+ member:{findUnique:async({where})=>({id:where.id,name:state.members[where.id],active:true,deletedAt:null}),findFirst:async({where})=>where.name==='王一'?{id:'m1',name:'王一',active:true,deletedAt:null}:null},
+ area:{findUnique:async({where})=>where.sheetNo===5?withHolder(state.area):where.sheetNo===6?withHolder(state.area6):null,updateMany:async({where,data})=>{const a=state.area;const ok=a.id===where.id&&a.assignedMemberId===where.assignedMemberId&&+a.dispatchedAt===+where.dispatchedAt&&a.completedAt===where.completedAt;if(ok)Object.assign(a,data);return{count:ok?1:0}},update:async({where,data})=>Object.assign(where.id==='a6'?state.area6:state.area,data)},
+ report:{findFirst:async({where})=>state.reports.find(r=>r.memberId===where.memberId&&r.content===where.content&&r.submittedAt>=where.submittedAt.gte)||null,create:async({data})=>{const r={id:`r${++nextId}`,...data};state.reports.push(r);return r}},
+ reportAlert:{findFirst:async({where})=>state.alerts.find(a=>matchAlert(a,where))||null,findUnique:async({where})=>state.alerts.find(a=>matchAlert(a,where))||null,create:async({data})=>{state.alerts.push({id:`al${++nextId}`,status:'pending',...data})},update:async({where,data})=>Object.assign(state.alerts.find(a=>a.id===where.id),data)}}
  try{return await fn(tx)}catch(e){state=before;throw e}}}
 const append=async rows=>{if(failAppend)throw new Error('sheet down');appended.push(...rows)}
+const ok={confirmed:true}, asBoss={admin:true,confirmed:true}
 ;(async()=>{
  reset(); let r=await report.submitTerritoryReport(db,'m1',input(),append,now)
- assert.equal(r[0].returned,true); assert.equal(+state.area.completedAt,+now); assert.equal(taipeiDate(state.area.lastReportedCompletedAt),'2026-10-22'); assert.equal(appended.length,1); assert.equal(appended[0][1],'王一')
+ assert.equal(r[0].action,'return'); assert.equal(+state.area.completedAt,+now); assert.equal(taipeiDate(state.area.lastReportedCompletedAt),'2026-10-22'); assert.equal(appended.length,1); assert.equal(appended[0][1],'王一')
  assert.equal(allocation.isAreaDispatched(state.area),false,'交回後不再使用中')
- await assert.rejects(report.submitTerritoryReport(db,'m1',input(),append,now),/重複/)
+ assert.equal(state.area.returnUndo.memberId,'m1'); assert.equal(state.area.returnUndo.endDate,'2026-10-22'); assert.equal(state.area.returnUndo.returnedAt,now.toISOString()); assert.equal(state.area.returnUndo.completedAt,null)
+ await assert.rejects(report.submitTerritoryReport(db,'m1',input(),append,now),/目前未領取/,'交回後再送就是未領取')
 
  reset(); await assert.rejects(report.submitTerritoryReport(db,'m1',input({startDate:'2026-10-01',endDate:'2026-10-05'}),append,now),/早於您領取/)
  assert.equal(appended.length,0)
 
- reset({assignedMemberId:'m2'}); r=await report.submitTerritoryReport(db,'m1',input({startDate:'2026-10-01',endDate:'2026-10-05'}),append,now)
- assert.equal(r[0].returned,false,'他人地圖的上一輪遲交回報不交回'); assert.equal(state.area.completedAt,null); assert.equal(taipeiDate(state.area.lastReportedCompletedAt),'2026-10-05'); assert.equal(state.reports.length,1)
+ // 別人的地圖：要確認、不交回、建待確認
+ reset({assignedMemberId:'m2'}); await assert.rejects(report.submitTerritoryReport(db,'m1',input(),append,now),/需要確認/)
+ assert.equal(appended.length,0); assert.equal(state.alerts.length,0)
+ r=await report.submitTerritoryReport(db,'m1',input(),append,now,ok)
+ assert.equal(r[0].action,'confirm'); assert.equal(state.area.completedAt,null,'不交回'); assert.equal(taipeiDate(state.area.lastReportedCompletedAt),'2026-10-22'); assert.equal(appended[0][1],'王一')
+ assert.equal(state.alerts.length,1); assert.equal(state.alerts[0].kind,'not_holder'); assert.equal(state.alerts[0].cycleKey,tp('2026-10-10').toISOString()); assert.equal(state.alerts[0].details.holder,'李二'); assert.equal(state.alerts[0].details.reports[0].name,'王一'); assert.equal(state.alerts[0].reportId,'r1')
+ // 第二人（一般成員）被擋；管理員併入同一則
+ await assert.rejects(report.submitTerritoryReport(db,null,report.parseReportInput({name:'陳三',sheetNos:[5],timeslot:'x',startDate:'2026-10-20',endDate:'2026-10-21'},now,true),append,now,ok),/已有人回報/)
+ r=await report.submitTerritoryReport(db,'m9',input({endDate:'2026-10-21'}),append,now,asBoss)
+ assert.equal(r[0].action,'merge'); assert.equal(state.alerts.length,1); assert.equal(state.alerts[0].details.reports.length,2); assert.equal(state.area.completedAt,null)
+ // 持有人自己回報：交回，待確認自動結案
+ r=await report.submitTerritoryReport(db,'m2',input({endDate:'2026-10-22',note:'本人'}),append,now)
+ assert.equal(r[0].action,'return'); assert.equal(state.alerts[0].status,'pending','留給管理員知道'); assert.equal(state.alerts[0].kind,'not_holder_returned'); assert.equal(state.alerts[0].details.holderReturned.name,'李二'); assert.equal(state.alerts[0].details.reports.length,2)
 
- reset({assignedMemberId:'m2'}); r=await report.submitTerritoryReport(db,'m1',input({startDate:'2026-10-10',endDate:'2026-10-10'}),append,now)
- assert.equal(r[0].returned,true,'結束日＝領取日也交回')
+ // 管理員代持有人回報並交回：Sheet 與紀錄記在持有人名下
+ reset({assignedMemberId:'m2'}); await assert.rejects(report.submitTerritoryReport(db,'m9',input(),append,now,{admin:true}),/需要確認/)
+ r=await report.submitTerritoryReport(db,'m9',input(),append,now,asBoss)
+ assert.equal(r[0].action,'proxy'); assert.equal(+state.area.completedAt,+now); assert.equal(appended[0][1],'李二'); assert.equal(state.reports[0].memberId,'m2'); assert.equal(JSON.parse(state.reports[0].content).reportedBy,'管理員')
+ reset({assignedMemberId:'m2'}); r=await report.submitTerritoryReport(db,'m9',input({startDate:'2026-10-01',endDate:'2026-10-05'}),append,now,asBoss)
+ assert.equal(r[0].action,'record','結束日早於持有人領取日只留紀錄'); assert.equal(state.area.completedAt,null)
 
- reset({assignedMemberId:null}); r=await report.submitTerritoryReport(db,'m1',input(),append,now); assert.equal(r[0].returned,false)
+ // 未領取：一般成員擋下，管理員只留紀錄
+ reset({assignedMemberId:null}); await assert.rejects(report.submitTerritoryReport(db,'m1',input(),append,now,ok),/目前未領取，請洽管理員/)
+ r=await report.submitTerritoryReport(db,'m9',input(),append,now,asBoss); assert.equal(r[0].action,'record'); assert.equal(appended.length,1); assert.equal(taipeiDate(state.area.lastReportedCompletedAt),'2026-10-22')
 
  reset(); failAppend=true; await assert.rejects(report.submitTerritoryReport(db,'m1',input(),append,now),/sheet down/)
  assert.equal(state.area.completedAt,null,'Sheet 失敗整筆回滾'); assert.equal(state.reports.length,0)
- // 多區：每區一列，失敗整筆回滾
- reset(); r=await report.submitTerritoryReport(db,'m1',input({sheetNos:[5,6]}),append,now)
- assert.equal(JSON.stringify(r.map(x=>[x.sheetNo,x.returned])),"[[5,true],[6,false]]"); assert.equal(appended.length,2); assert.equal(appended.map(x=>x[3]).join(),"5,6"); assert.equal(state.reports.length,2)
+ // 多區：任何一區被擋就整筆不送
+ reset(); await assert.rejects(report.submitTerritoryReport(db,'m1',input({sheetNos:[5,6]}),append,now,ok),/6 號：這張地圖目前未領取/)
+ assert.equal(state.area.completedAt,null); assert.equal(appended.length,0)
+ reset(); state.area6={...state.area6,assignedMemberId:'m2',dispatchedAt:tp('2026-10-01')}; await assert.rejects(report.submitTerritoryReport(db,'m1',input({sheetNos:[5,6]}),append,now),/6 號需要確認/)
+ r=await report.submitTerritoryReport(db,'m1',input({sheetNos:[5,6]}),append,now,ok)
+ assert.equal(JSON.stringify(r.map(x=>[x.sheetNo,x.action])),'[[5,"return"],[6,"confirm"]]'); assert.equal(appended.map(x=>x[3]).join(),'5,6'); assert.equal(state.reports.length,2)
  reset(); await assert.rejects(report.submitTerritoryReport(db,'m1',input({sheetNos:[5,99]}),append,now),/找不到區域號碼 99/)
  assert.equal(state.area.completedAt,null); assert.equal(state.reports.length,0); assert.equal(appended.length,0)
- // 未登入：須填姓名；對到成員照成員規則，對不到只寫 Sheet
+ // 未登入：須填姓名；對到持有人才算本人，對不到只寫 Sheet，永遠不算管理員
  assert.throws(()=>report.parseReportInput({sheetNos:[5],timeslot:'x',startDate:'2026-10-20',endDate:'2026-10-22'},now,true),/姓名/)
  assert.equal(report.parseReportInput({name:'不採用',sheetNos:[5],timeslot:'x',startDate:'2026-10-20',endDate:'2026-10-22'},now).name,'','登入者不採用 body 姓名')
  const guest=o=>report.parseReportInput({sheetNos:[5],timeslot:'星期六早上',startDate:'2026-10-20',endDate:'2026-10-22',...o},now,true)
  reset(); await assert.rejects(report.submitTerritoryReport(db,null,guest({name:'王一',startDate:'2026-10-01',endDate:'2026-10-05'}),append,now),/早於您領取/)
- reset(); r=await report.submitTerritoryReport(db,null,guest({name:' 陳 三 '}),append,now)
- assert.equal(r[0].returned,true); assert.equal(state.reports.length,0,'對不到成員不留紀錄'); assert.equal(appended[0][1],'陳 三')
- reset(); r=await report.submitTerritoryReport(db,null,guest({name:'王一'}),append,now); assert.equal(state.reports[0].memberId,'m1')
+ reset(); r=await report.submitTerritoryReport(db,null,guest({name:'王一'}),append,now); assert.equal(r[0].action,'return'); assert.equal(state.reports[0].memberId,'m1')
+ reset(); r=await report.submitTerritoryReport(db,null,guest({name:' 陳 三 '}),append,now,ok)
+ assert.equal(r[0].action,'confirm','對不到持有人：交管理員確認'); assert.equal(state.area.completedAt,null); assert.equal(state.reports.length,0,'對不到成員不留紀錄'); assert.equal(appended[0][1],'陳 三'); assert.equal(state.alerts[0].details.reports[0].name,'陳 三')
+ reset({assignedMemberId:null}); await assert.rejects(report.submitTerritoryReport(db,null,guest({name:'陳三'}),append,now,{admin:true,confirmed:true}),/目前未領取/,'未登入不算管理員')
  console.log('territory report checks passed')
 })().catch(e=>{console.error(e);process.exit(1)})

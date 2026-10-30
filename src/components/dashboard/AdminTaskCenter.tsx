@@ -8,7 +8,7 @@ const categories = [
   { key: 'line', label: 'LINE 待確認', unit: '人' },
   { key: 'requests', label: '領圖待審', unit: '張' },
   { key: 'handoffs', label: '待交接', unit: '張' },
-  { key: 'unreturned', label: '回報未交回', unit: '張' },
+  { key: 'alerts', label: '回報待確認', unit: '則' },
   { key: 'doNotVisit', label: '拒訪待審', unit: '筆' },
 ] as const
 type Category = typeof categories[number]['key']
@@ -46,15 +46,22 @@ export default function AdminTaskCenter() {
     return () => { request.current?.abort(); window.removeEventListener('focus', focus) }
   }, [load])
 
-  const [returning, setReturning] = useState('')
-  async function collect(item: AdminTasks['unreturned']['items'][number]) {
-    if (returning || !window.confirm(`${item.label} 已於 ${item.reported} 回報完成，確定代 ${item.holder} 交回？`)) return
-    setReturning(item.areaId); setError('')
+  const [resolving, setResolving] = useState('')
+  async function resolveAlert(item: AdminTasks['alerts']['items'][number], action: string, label: string) {
+    const ask: Record<string, string> = {
+      return: `確定交回 ${item.label}（${item.holder} 領取中）？`,
+      restore: `確定把 ${item.label} 恢復為 ${item.holder} 使用中（領取日 ${item.dispatched}）？`,
+      use_sheet: `確定照 Sheet 把 ${item.label} 改為「${('sheetMember' in item && item.sheetMember) || '未領取'}」？`,
+    }
+    if (resolving || (ask[action] && !window.confirm(ask[action]))) return
+    setResolving(item.id); setError(''); setNotice('')
     try {
-      const res = await fetch('/api/areas/collect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ areaIds: [item.areaId] }) })
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || '交回失敗，請重新整理後再試')
+      const res = await fetch(`/api/admin/report-alerts/${encodeURIComponent(item.id)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
+      const value = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(value.error || '處理失敗，請重新整理後再試')
+      setNotice(value.message || `${item.label}：已${label}。${value.warning || ''}`)
       await load()
-    } catch (e) { setError(e instanceof Error ? e.message : '交回失敗') } finally { setReturning('') }
+    } catch (e) { setError(e instanceof Error ? e.message : '處理失敗') } finally { setResolving('') }
   }
   const [reviewing, setReviewing] = useState('')
   const [notice, setNotice] = useState('')
@@ -92,7 +99,12 @@ export default function AdminTaskCenter() {
         {category === 'requests' && data.requests.items.map(item => <a key={item.id} href={`/map-requests#request-${encodeURIComponent(item.id)}`} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block break-words text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">{item.name}</span></strong><p className="mt-1 text-xs text-mc-text/50">{item.date}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">審核<ArrowRight size={14}/></span></a>)}
         {category === 'handoffs' && handoffs.map(item => <a key={item.areaId} href={`/map/ministry/${encodeURIComponent(item.areaId)}`} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">管理者 {item.manager}</span></strong><p className="mt-1 text-xs text-amber-200">{item.next ? `下一位 ${item.next.name} · ${item.next.date}` : '待安排'}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">交接<ArrowRight size={14}/></span></a>)}
         {category === 'doNotVisit' && data.doNotVisit.items.map(item => <div key={item.id} className="flex min-h-14 flex-wrap items-center justify-between gap-3 px-1 py-3"><div className="min-w-0 flex-1"><strong className="block break-words text-sm">{item.address}</strong><p className="mt-1 text-xs text-mc-text/60">{item.label} · {item.name} · {item.date}</p></div><div className="flex shrink-0 gap-2"><button disabled={Boolean(reviewing)} onClick={() => void reviewDoNotVisit(item, 'approve')} className="min-h-11 rounded-lg bg-blue-400/15 px-3 text-xs text-blue-200 disabled:opacity-40">{reviewing === item.id ? '處理中…' : '核准'}</button><button disabled={Boolean(reviewing)} onClick={() => void reviewDoNotVisit(item, 'reject')} className="min-h-11 rounded-lg bg-white/5 px-3 text-xs text-mc-text/70 disabled:opacity-40">不採用</button></div></div>)}
-        {category === 'unreturned' && data.unreturned.items.map(item => <div key={item.areaId} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3"><div className="min-w-0"><strong className="block text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">{item.holder}</span></strong><p className="mt-1 text-xs text-amber-200">領取 {item.dispatched} · 回報完成 {item.reported}</p></div><button disabled={Boolean(returning)} onClick={() => void collect(item)} className="min-h-11 shrink-0 rounded-lg bg-white/5 px-3 text-xs text-blue-300 disabled:opacity-40">{returning === item.areaId ? '交回中…' : '交回'}</button></div>)}
+        {category === 'alerts' && data.alerts.items.map(item => <div key={item.id} className="space-y-2 px-1 py-3">
+          <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-xs text-amber-200">{item.badge}</span><strong className="text-sm">{item.label}</strong><span className="text-xs text-mc-text/50">{item.date}</span></div>
+          <p className="text-xs text-mc-text/60">持有人 {item.holder || '—'}{item.reporter && ` · 回報者 ${item.reporter}`}{item.dispatched && ` · 領取 ${item.dispatched}`}{item.endDate && ` · 結束 ${item.endDate}`}</p>
+          <p className="text-sm text-mc-text/80">{item.text}</p>
+          <div className="flex flex-wrap gap-2">{item.actions.map((a, i) => <button key={a.action} disabled={Boolean(resolving)} onClick={() => void resolveAlert(item, a.action, a.label)} className={`min-h-11 rounded-lg px-3 text-xs disabled:opacity-40 ${i === 0 ? 'bg-blue-400/15 text-blue-200' : 'bg-white/5 text-mc-text/70'}`}>{resolving === item.id ? '處理中…' : a.label}</button>)}</div>
+        </div>)}
       </div>
       <div className="text-xs">
         {category === 'line' && data.line.count > 5 && <a href="/members#pending-line" className="inline-flex min-h-11 items-center text-blue-300">查看全部（{data.line.count}）</a>}

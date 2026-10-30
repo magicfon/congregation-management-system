@@ -13,8 +13,8 @@ const respond = (data: unknown, status = 200) => NextResponse.json(data, { statu
 
 async function currentUser() {
   const session = await getServerSession(authOptions)
-  const user = session?.user as { id?: string; name?: string | null } | undefined
-  return user?.id ? { id: user.id, name: user.name || '' } : null
+  const user = session?.user as { id?: string; name?: string | null; role?: string } | undefined
+  return user?.id ? { id: user.id, name: user.name || '', admin: user.role === 'admin' } : null
 }
 
 // GET /api/territory-reports — 回報表單選項。過渡期免登入；未登入不揭露持有人
@@ -28,6 +28,7 @@ export async function GET() {
     })
     return respond({
       guest: !user,
+      admin: Boolean(user?.admin),
       name: user?.name || '',
       today: taipeiDate(new Date()),
       timeslots: REPORT_TIMESLOTS,
@@ -42,11 +43,13 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const user = await currentUser()
   try {
-    const input = parseReportInput(await request.json(), new Date(), !user)
+    const body = await request.json()
+    const input = parseReportInput(body, new Date(), !user)
     const snapshot = await readSnapshot()
     if (snapshot.size !== 213 || Array.from({ length: 213 }, (_, i) => i + 1).some(no => !snapshot.has(no))) return respond({ error: '同步快照不完整，暫時不能回報，請稍後再試' }, 503)
-    const results = await submitTerritoryReport(prisma, user?.id ?? null, input, rows => appendValues(DEFAULT_SHEET_ID, REPORT_SHEET_RANGE, rows))
-    const returned = results.filter(result => result.returned).map(result => result.sheetNo)
+    const results = await submitTerritoryReport(prisma, user?.id ?? null, input, rows => appendValues(DEFAULT_SHEET_ID, REPORT_SHEET_RANGE, rows), new Date(), { admin: user?.admin, confirmed: body?.confirmed === true })
+    const returned = results.filter(result => result.action === 'return' || result.action === 'proxy').map(result => result.sheetNo)
+    const pending = results.filter(result => result.action === 'confirm' || result.action === 'merge').map(result => result.sheetNo)
     let warning = ''
     if (returned.length) {
       try {
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
         await updateSnapshot(returned.map(sheetNo => ({ sheetNo, member: '', date: null, keepDate: true })))
       } catch { warning = '回報已送出、地圖已交回，區域狀態表稍後會自動同步。' }
     }
-    return respond({ ok: true, returned, warning }, 201)
+    return respond({ ok: true, returned, pending, warning }, 201)
   } catch (error) {
     if (error instanceof TerritoryReportError) return respond({ error: error.message }, error.status)
     if (error instanceof SyntaxError) return respond({ error: '資料格式無效' }, 400)
