@@ -8,7 +8,7 @@ const prisma = {$transaction:async (fn,options)=>{
   calls++;let count=0;for(const member of draft) if(q.where.id.in.includes(member.id)&&member.gender===q.where.gender&&member.deletedAt===null){member.gender=q.data.gender;count++;}return {count};
  }}});members=draft;
 }};
-const mocks={'@/lib/db':{prisma},'@/lib/api-auth':{requireApiUser:async roles=>{assert.deepEqual(Array.from(roles),['admin']);return allowed?{user:{id:'actor'}}:{response:new Response(null,{status:403})}}}};
+let synced=[];const mocks={'@/lib/line-rich-menu':{syncMemberRichMenusById:async(_db,uids)=>{synced.push(...uids)}},'@/lib/db':{prisma},'@/lib/api-auth':{requireApiUser:async roles=>{assert.deepEqual(Array.from(roles),['admin']);return allowed?{user:{id:'actor'}}:{response:new Response(null,{status:403})}}}};
 const exportsObj={};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/app/api/members/gender-batch/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports:exportsObj,console,require:n=>mocks[n]||require(n)});
 const change=(id,gender,expectedGender='unspecified')=>({id,gender,expectedGender});
 const call=changes=>exportsObj.PATCH({json:async()=>({changes})});
@@ -22,5 +22,5 @@ const call=changes=>exportsObj.PATCH({json:async()=>({changes})});
  assert.equal((await call([change('missing','sister')])).status,409);
  calls=0;assert.equal((await call([change('a','sister'),change('c','sister'),change('b','unspecified','brother')])).status,200);
  assert.equal(calls,2,'same changes use one grouped write');assert.deepEqual(members.map(m=>m.gender),['sister','unspecified','sister']);
- console.log('PASS: admin-only batch, validation, duplicate IDs, stale values, rollback, missing IDs and grouped writes');
+ assert(synced.length>0,'gender change switches LINE menus');console.log('PASS: admin-only batch, validation, duplicate IDs, stale values, rollback, missing IDs and grouped writes');
 })().catch(e=>{console.error(e);process.exitCode=1});

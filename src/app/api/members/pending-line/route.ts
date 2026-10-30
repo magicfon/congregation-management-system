@@ -5,6 +5,7 @@ import { prisma } from '../../../../lib/db'
 import { linkPendingLineIdentity, createPendingLineMember } from '../../../../lib/pending-line-identities'
 import { LinePairingError } from '../../../../lib/line-pairing'
 import { deliverPairingNotice } from '../../../../lib/line-pairing-notification'
+import { syncMemberRichMenus } from '../../../../lib/line-rich-menu'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
   try {
     const { notificationId, ...result } = await (create ? createPendingLineMember(prisma, body.uid, body.name.trim(), body.role, auth.user.id!) : linkPendingLineIdentity(prisma, body.uid, body.targetId))
     const notification = await deliverPairingNotice(prisma, notificationId)
+    await syncMemberRichMenus(prisma, [body.uid])
     return NextResponse.json({ ...result, notification })
   } catch (error) {
     if (error instanceof LinePairingError) return NextResponse.json({ error: error.message }, { status: 409 })

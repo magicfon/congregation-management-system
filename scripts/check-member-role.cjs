@@ -1,9 +1,10 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
-let allowed=false, actorRole='admin', existingRole='publisher', others=0, writes=0;
-const tx={member:{findUnique:async q=>q.where.id==='actor'?{role:actorRole,active:true,deletedAt:null}:{id:'target',email:'test@example.com',role:existingRole,active:true},count:async()=>others,update:async q=>{writes++;existingRole=q.data.role;return q.data}}};
+let synced=[],allowed=false, actorRole='admin', existingRole='publisher', others=0, writes=0;
+const tx={member:{findUnique:async q=>q.where.id==='actor'?{role:actorRole,active:true,deletedAt:null}:{id:'target',email:'test@example.com',role:existingRole,active:true},count:async()=>others,update:async q=>{writes++;existingRole=q.data.role;return {...q.data,lineuid:'U1'}}}};
 const mocks={
  '../../../../lib/member-fields':{memberLineFields:{}},
  '../../../../lib/member-deletion':{},
+ '../../../../lib/line-rich-menu':{syncMemberRichMenus:async(_db,uids)=>{synced.push(...uids)}},
  '../../../../lib/api-auth':{requireApiUser:async roles=>{assert.equal(roles[0],'admin');return allowed?{user:{id:'actor'}}:{response:new Response(null,{status:403})}}},
  '../../../../lib/db':{prisma:{$transaction:async(fn,options)=>{assert.equal(options.isolationLevel,'Serializable');return fn(tx)}}},
 };
@@ -20,5 +21,5 @@ const call=body=>exported.PUT({json:async()=>({name:'Test',...body})},{params:{i
  assert.equal((await call({active:false})).status,409);
  others=1;assert.equal((await call({role:'publisher',expectedRole:'admin'})).status,200);assert.equal(existingRole,'publisher');
  existingRole='elder';assert.equal((await call({phone:'123'})).status,200);assert.equal(existingRole,'elder');
- console.log('PASS: admin access, transaction authorization, allowed roles, stale role, last admin demotion/deactivation, successful role changes, legacy role preserved.');
+ assert(synced.includes('U1'),'role change switches LINE menu');console.log('PASS: admin access, transaction authorization, allowed roles, stale role, last admin demotion/deactivation, successful role changes, legacy role preserved.');
 })().catch(e=>{console.error(e);process.exitCode=1});
