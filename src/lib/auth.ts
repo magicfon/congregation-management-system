@@ -6,6 +6,7 @@ import { recordPendingLineIdentity } from './pending-line-identities'
 import { authorizeLiff } from './liff-auth'
 import { configuredLiffId } from './liff-settings'
 import { linePictureUrl } from './line-picture'
+import { lineBotPicture, lineBotReady } from './line-bot-client'
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -92,7 +93,14 @@ export const authOptions: NextAuthOptions = {
       token.role = member.role
       token.name = member.name
       token.email = member.email
-      token.picture = member.linePictureUrl
+      // Existing sessions never pass through sign-in again; ask the bot once per token.
+      let picture = member.linePictureUrl
+      if (!picture && member.lineuid && !token.linePictureChecked && lineBotReady()) {
+        token.linePictureChecked = true
+        picture = linePictureUrl(await lineBotPicture(member.lineuid))
+        if (picture) await prisma.member.update({ where: { id: member.id }, data: { linePictureUrl: picture } })
+      }
+      token.picture = picture
       return token
     },
 
