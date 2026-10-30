@@ -5,7 +5,7 @@ import { MeetingError, type Meeting, type MeetingItem, type MeetingRecord } from
 
 // S-89-CH 學生練習通知單，以 LINE Flex 卡片呈現（ADR-0090）。
 export type StudentNotice = { name: string; assistant: string; date: string; title: string; classNumber: 1 | 2 | 3; weekId: string; itemId?: string }
-export type NoticeOptions = { preview?: boolean; updated?: boolean; asAssistant?: boolean; ack?: string }
+export type NoticeOptions = { preview?: boolean; updated?: boolean; ack?: string }
 export const isStudentItem = (item: MeetingItem) => item.role === '學生' || item.role === '學生/助手'
 
 export function studentNotices(weekId: string, meeting: Meeting): StudentNotice[] {
@@ -34,7 +34,6 @@ export function studentNoticeFlex(notice: StudentNotice, options: NoticeOptions 
         { type: 'text', text: '傳道與生活聚會學生練習通知', weight: 'bold', size: 'lg', color: '#FFFFFF', wrap: true },
       ] },
       body: { type: 'box', layout: 'vertical', spacing: 'md', backgroundColor: '#FFFFFF', contents: [
-        ...(options.asAssistant ? [{ type: 'text', text: '你擔任這個節目的助手', size: 'sm', weight: 'bold', color: '#BE8900' }] : []),
         field('姓名：', notice.name), separator,
         field('助手：', notice.assistant), separator,
         field('日期：', displayDate(notice.date)), separator,
@@ -69,7 +68,7 @@ export async function studentNoticeSample(db: PrismaClient, today: string) {
 // 正式發送：發布後由管理員按鈕發送，只發新增或變動的人；被換掉的人收到取消訊息（ADR-0090）。
 type SentEntry = { memberId: string; name: string; fingerprint: string; date: string; title: string; token?: string; confirmedAt?: string }
 type SentLog = Record<string, SentEntry>
-export type NoticePlanRow = { key: string; itemId: string; name: string; title: string; date: string; asAssistant: boolean; status: 'new' | 'updated' | 'cancel' | 'unchanged' | 'unreachable'; reason?: string; confirmedAt?: string }
+export type NoticePlanRow = { key: string; itemId: string; name: string; assistant: string; title: string; date: string; status: 'new' | 'updated' | 'cancel' | 'unchanged' | 'unreachable'; reason?: string; confirmedAt?: string }
 const LOG_PREFIX = 'midweek:student-notices:'
 const fingerprint = (notice: StudentNotice) => [notice.name, notice.assistant, notice.date, notice.title, notice.classNumber].join('|')
 
@@ -83,52 +82,36 @@ async function buildPlan(db: PrismaClient, weekId: string) {
   const meeting = row ? (JSON.parse(row.value) as MeetingRecord).published : null
   if (!meeting) throw new MeetingError('這週尚未發布，發布後才能發送通知單')
   const log: SentLog = logRow ? JSON.parse(logRow.value) : {}
-  const send: { key: string; notice: StudentNotice; asAssistant: boolean; updated: boolean; member: { id: string; lineuid: string } }[] = []
+  const send: { key: string; notice: StudentNotice; updated: boolean; member: { id: string; lineuid: string } }[] = []
   const cancels: { key: string; entry: SentEntry; lineuid: string | null }[] = []
   const rows: NoticePlanRow[] = []
   const current = new Set<string>()
   // 被換掉或移除的人：可聯絡就發取消訊息，否則只列出由管理員自行告知。
-  const cancelRow = (key: string, entry: SentEntry, asAssistant: boolean): NoticePlanRow => {
+  const cancelRow = (key: string, entry: SentEntry): NoticePlanRow => {
     const old = members.find(m => m.id === entry.memberId)
     const lineuid = old?.lineuid && old.lineNotificationsEnabled ? old.lineuid : null
     cancels.push({ key, entry, lineuid })
-    return { key: `${key}:cancel`, itemId: key.slice(0, key.lastIndexOf(':')), name: entry.name, title: entry.title.replace(/[[\]]/g, ''), date: entry.date, asAssistant, status: 'cancel', ...(lineuid ? {} : { reason: '無法用 LINE 通知，請自行告知' }) }
+    return { key: `${key}:cancel`, itemId: key.slice(0, key.lastIndexOf(':')), name: entry.name, assistant: '', title: entry.title.replace(/[[\]]/g, ''), date: entry.date, status: 'cancel', ...(lineuid ? {} : { reason: '無法用 LINE 通知，請自行告知' }) }
   }
+  // 只發給學生本人，助手不發（ADR-0090）。
   for (const notice of studentNotices(weekId, meeting)) {
-    for (const asAssistant of notice.assistant ? [false, true] : [false]) {
-      const key = `${notice.itemId}:${asAssistant ? 'assistant' : 'student'}`
-      const name = asAssistant ? notice.assistant : notice.name
-      current.add(key)
-      const matches = members.filter(m => m.name.trim() === name)
-      const member = matches.length === 1 ? matches[0] : null
-      const previous = log[key]
-      const base = { key, itemId: notice.itemId!, name, title: notice.title, date: notice.date, asAssistant }
-      if (previous && previous.memberId === member?.id && previous.fingerprint.replace(/[[\]]/g, '') === fingerprint(notice)) { rows.push({ ...base, status: 'unchanged', ...(previous.confirmedAt ? { confirmedAt: previous.confirmedAt } : {}) }); continue }
-      if (previous && previous.memberId !== member?.id) {
-        rows.push(cancelRow(key, previous, asAssistant))
-      }
-      const reason = !member ? (matches.length ? '成員姓名重複' : '找不到成員') : !member.lineuid ? '未綁定 LINE' : !member.lineNotificationsEnabled ? '已關閉 LINE 通知' : ''
-      if (reason) { rows.push({ ...base, status: 'unreachable', reason }); continue }
-      const updated = !!previous && previous.memberId === member!.id
-      send.push({ key, notice, asAssistant, updated, member: { id: member!.id, lineuid: member!.lineuid! } })
-      rows.push({ ...base, status: updated ? 'updated' : 'new' })
-    }
+    const key = `${notice.itemId}:student`
+    current.add(key)
+    const matches = members.filter(m => m.name.trim() === notice.name)
+    const member = matches.length === 1 ? matches[0] : null
+    const previous = log[key]
+    const base = { key, itemId: notice.itemId!, name: notice.name, assistant: notice.assistant, title: notice.title, date: notice.date }
+    if (previous && previous.memberId === member?.id && previous.fingerprint.replace(/[[\]]/g, '') === fingerprint(notice)) { rows.push({ ...base, status: 'unchanged', ...(previous.confirmedAt ? { confirmedAt: previous.confirmedAt } : {}) }); continue }
+    if (previous && previous.memberId !== member?.id) rows.push(cancelRow(key, previous))
+    const reason = !member ? (matches.length ? '成員姓名重複' : '找不到成員') : !member.lineuid ? '未綁定 LINE' : !member.lineNotificationsEnabled ? '已關閉 LINE 通知' : ''
+    if (reason) { rows.push({ ...base, status: 'unreachable', reason }); continue }
+    const updated = !!previous && previous.memberId === member!.id
+    send.push({ key, notice, updated, member: { id: member!.id, lineuid: member!.lineuid! } })
+    rows.push({ ...base, status: updated ? 'updated' : 'new' })
   }
-  for (const [key, entry] of Object.entries(log)) if (!current.has(key)) {
-    rows.push(cancelRow(key, entry, key.endsWith(':assistant')))
-  }
-  // 同一節目只是學生／助手互換或換角色的人，不發取消，新通知標為更新。
-  const itemOf = (key: string) => key.slice(0, key.lastIndexOf(':'))
-  const kept = cancels.filter(cancel => {
-    const replacement = send.find(job => job.member.id === cancel.entry.memberId && itemOf(job.key) === itemOf(cancel.key))
-    if (!replacement) return true
-    replacement.updated = true
-    const sendRow = rows.find(row => row.key === replacement.key)
-    if (sendRow) sendRow.status = 'updated'
-    rows.splice(rows.findIndex(row => row.key === `${cancel.key}:cancel`), 1)
-    return false
-  })
-  return { rows, send, cancels: kept, log }
+  // 先前發給助手的紀錄不再追蹤，也不發取消。
+  for (const [key, entry] of Object.entries(log)) if (!current.has(key) && !key.endsWith(':assistant')) rows.push(cancelRow(key, entry))
+  return { rows, send, cancels, log }
 }
 
 export async function studentNoticePlan(db: PrismaClient, weekId: string) {
@@ -149,8 +132,8 @@ export async function sendStudentNotices(db: PrismaClient, weekId: string) {
   for (const job of send) {
     const token = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
     const ack = [ACK_PREFIX, weekId, job.key, token].join('|')
-    const result = await lineRequest('push', { to: job.member.lineuid, messages: [studentNoticeFlex(job.notice, { updated: job.updated, asAssistant: job.asAssistant, ack })] }).catch(() => ({ accepted: false }))
-    if (result.accepted) { next[job.key] = { memberId: job.member.id, name: job.asAssistant ? job.notice.assistant : job.notice.name, fingerprint: fingerprint(job.notice), date: job.notice.date, title: job.notice.title, token }; sent++ } else failed++
+    const result = await lineRequest('push', { to: job.member.lineuid, messages: [studentNoticeFlex(job.notice, { updated: job.updated, ack })] }).catch(() => ({ accepted: false }))
+    if (result.accepted) { next[job.key] = { memberId: job.member.id, name: job.notice.name, fingerprint: fingerprint(job.notice), date: job.notice.date, title: job.notice.title, token }; sent++ } else failed++
   }
   // 發送期間學生可能已按「收到」，保留同一張通知的確認。
   const latest = await db.setting.findUnique({ where: { key: LOG_PREFIX + weekId } })
