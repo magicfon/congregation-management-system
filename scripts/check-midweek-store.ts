@@ -176,6 +176,45 @@ async function main() {
   assert.equal((await publicMeeting(new Request(`http://localhost/api/midweek?id=${source.id}`))).status, 404)
   const showAgain = await editMeeting(source.id, 'publish', 11, hiddenDelete.record.draft)
   assert.equal(showAgain.record.publishedVersion, 1)
+  // 提交者與草稿鎖定（ADR-0102）
+  rows.delete(recordKey)
+  const alice = { editor: { id: 'a', name: '王弟兄' } }, bob = { editor: { id: 'b', name: '李弟兄' } }
+  const fresh = newMeeting(source); fresh.chair = '甲'
+  const first = await editMeeting(source.id, 'publish', 0, fresh, alice)
+  assert.equal(first.record.versions?.[0].by, '王弟兄', '版次記錄提交者')
+  assert.equal(first.record.draftOwner, undefined, '發布後不鎖定')
+  const publicBy = await (await publicMeeting(new Request(`http://localhost/api/midweek?id=${source.id}`))).json()
+  assert.equal(publicBy.versions[0].by, undefined, '公開 API 不回傳提交者')
+  const aliceDraft = structuredClone(fresh); aliceDraft.chair = '乙'
+  const locked = await editMeeting(source.id, 'save', 1, aliceDraft, alice)
+  assert.equal(locked.record.draftOwner?.id, 'a', '儲存草稿即鎖定')
+  const bobDraft = structuredClone(fresh); bobDraft.chair = '丙'
+  for (const action of ['save', 'publish', 'reset', 'discard', 'delete-later']) {
+    await assert.rejects(editMeeting(source.id, action, 2, bobDraft, { ...bob, deleteLaterVersions: true }), /王弟兄正在編輯草稿/)
+  }
+  await assert.rejects(editMeeting(source.id, 'restore', 2, { number: 1 }, bob), /王弟兄正在編輯草稿/)
+  await assert.rejects(editMeeting(source.id, 'take-over', 2, undefined, bob), /還不到24小時/)
+  assert.deepEqual((await getRecord(source.id))?.draft, aliceDraft, '他人不可改動鎖定草稿')
+  const hidden = await editMeeting(source.id, 'unpublish', 2, undefined, bob)
+  assert.equal(hidden.record.draftOwner?.id, 'a', '他人可下架，草稿仍保留')
+  await editMeeting(source.id, 'publish', 3, first.record.draft, alice)
+  const reverted = await editMeeting(source.id, 'save', 4, first.record.draft, alice)
+  assert.equal(reverted.record.draftOwner, undefined, '改回公開內容即解除鎖定')
+  await editMeeting(source.id, 'save', 5, aliceDraft, alice)
+  const discarded = await editMeeting(source.id, 'discard', 6, undefined, alice)
+  assert.equal(discarded.record.draftOwner, undefined, '放棄草稿解除鎖定')
+  assert.deepEqual(discarded.record.draft, first.record.draft, '放棄草稿回到公開版')
+  await editMeeting(source.id, 'save', 7, bobDraft, bob)
+  const stale = (await getRecord(source.id))!
+  stale.draftOwner!.at = new Date(Date.now() - 25 * 3600000).toISOString()
+  rows.set(recordKey, { key: recordKey, value: JSON.stringify(stale) })
+  const taken = await editMeeting(source.id, 'take-over', 8, undefined, alice)
+  assert.equal(taken.record.draftOwner?.id, 'a', '超過24小時可接手')
+  assert.deepEqual(taken.record.draft, bobDraft, '接手保留草稿內容')
+  const second = await editMeeting(source.id, 'publish', 9, bobDraft, alice)
+  assert.deepEqual(second.record.versions?.map(v => [v.number, v.by]), [[1, '王弟兄'], [2, '王弟兄']])
+  assert.equal(second.record.draftOwner, undefined)
+  console.log('週中節目：提交者記錄、草稿鎖定、放棄與逾時接手通過')
   console.log('週中節目：獨立刪除確認、公開版保護、草稿保留、日期清理、競爭更新與再次進版通過')
   console.log('週中節目：退回原版號、保留後續版、確認刪除再進版、公開高亮、舊資料相容與並行保護通過')
   console.log('週中節目：草稿隔離、發布快照、競爭更新、來源更新、重建與下架檢查通過')
