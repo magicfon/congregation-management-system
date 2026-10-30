@@ -47,14 +47,18 @@ assert.equal(act(theirs,me,'2026-10-22',true),'blocked')
 assert.equal(act(theirs,{...me,memberId:null}),'confirm','未登入對不到成員')
 assert.equal(act(theirs,boss),'proxy'); assert.equal(act(theirs,boss,'2026-10-01'),'record')
 assert.equal(act(free,boss),'record'); assert.equal(act(theirs,boss,'2026-10-22',true),'merge')
+// 自主管理（ADR-0101）：未領取的只留紀錄、免確認；別人的照一般規則
+const self={...me,selfManaged:true}
+assert.equal(act(free,self),'self'); assert.equal(act(theirs,self),'confirm'); assert.equal(act(mine,self),'return'); assert.equal(act(theirs,self,'2026-10-22',true),'blocked')
+assert.equal(report.needsConfirmation({action:'self'}),false)
 assert.equal(report.needsConfirmation({action:'return'}),false); assert.equal(report.needsConfirmation({action:'confirm'}),true)
 
 let state, appended, failAppend, nextId
-function reset(area={}) { nextId=0; state={reports:[],alerts:[],members:{m1:'王一',m2:'李二',m9:'管理員'},area6:{id:'a6',sheetNo:6,assignedMemberId:null,dispatchedAt:null,completedAt:null,lastReportedCompletedAt:null},area:{id:'a5',sheetNo:5,assignedMemberId:'m1',dispatchedAt:tp('2026-10-10'),completedAt:null,lastReportedCompletedAt:new Date('2026-09-01T00:00:00+08:00'),...area}}; appended=[]; failAppend=false }
+function reset(area={}) { nextId=0; state={reports:[],alerts:[],members:{m1:'王一',m2:'李二',m3:'曾湖',m9:'管理員'},area6:{id:'a6',sheetNo:6,assignedMemberId:null,dispatchedAt:null,completedAt:null,lastReportedCompletedAt:null},area:{id:'a5',sheetNo:5,assignedMemberId:'m1',dispatchedAt:tp('2026-10-10'),completedAt:null,lastReportedCompletedAt:new Date('2026-09-01T00:00:00+08:00'),...area}}; appended=[]; failAppend=false }
 const withHolder=a=>({...a,assignedMember:a.assignedMemberId?{name:state.members[a.assignedMemberId]}:null})
 const matchAlert=(a,w)=>Object.entries(w).every(([k,v])=>k==='areaId_kind_cycleKey'?Object.entries(v).every(([k2,v2])=>a[k2]===v2):a[k]===v)
 const db={$transaction:async(fn,opts)=>{assert.equal(opts.isolationLevel,'Serializable');const before=structuredClone(state);const tx={
- member:{findUnique:async({where})=>({id:where.id,name:state.members[where.id],active:true,deletedAt:null}),findFirst:async({where})=>where.name==='王一'?{id:'m1',name:'王一',active:true,deletedAt:null}:null},
+ member:{findUnique:async({where})=>({id:where.id,name:state.members[where.id],active:true,deletedAt:null,selfManagedReports:where.id==='m3'}),findFirst:async({where})=>where.name==='王一'?{id:'m1',name:'王一',active:true,deletedAt:null}:null},
  area:{findUnique:async({where})=>where.sheetNo===5?withHolder(state.area):where.sheetNo===6?withHolder(state.area6):null,updateMany:async({where,data})=>{const a=state.area;const ok=a.id===where.id&&a.assignedMemberId===where.assignedMemberId&&+a.dispatchedAt===+where.dispatchedAt&&a.completedAt===where.completedAt;if(ok)Object.assign(a,data);return{count:ok?1:0}},update:async({where,data})=>Object.assign(where.id==='a6'?state.area6:state.area,data)},
  report:{findFirst:async({where})=>state.reports.find(r=>r.memberId===where.memberId&&r.content===where.content&&r.submittedAt>=where.submittedAt.gte)||null,create:async({data})=>{const r={id:`r${++nextId}`,...data};state.reports.push(r);return r}},
  reportAlert:{findFirst:async({where})=>state.alerts.find(a=>matchAlert(a,where))||null,findUnique:async({where})=>state.alerts.find(a=>matchAlert(a,where))||null,create:async({data})=>{state.alerts.push({id:`al${++nextId}`,status:'pending',...data})},update:async({where,data})=>Object.assign(state.alerts.find(a=>a.id===where.id),data)}}
@@ -95,6 +99,10 @@ const ok={confirmed:true}, asBoss={admin:true,confirmed:true}
  // 未領取：一般成員擋下，管理員只留紀錄
  reset({assignedMemberId:null}); await assert.rejects(report.submitTerritoryReport(db,'m1',input(),append,now,ok),/目前未領取，請洽管理員/)
  r=await report.submitTerritoryReport(db,'m9',input(),append,now,asBoss); assert.equal(r[0].action,'record'); assert.equal(appended.length,1); assert.equal(taipeiDate(state.area.lastReportedCompletedAt),'2026-10-22')
+
+ // 自主管理：未領取的不擋、免確認，只留紀錄
+ reset({assignedMemberId:null}); r=await report.submitTerritoryReport(db,'m3',input(),append,now); assert.equal(r[0].action,'self'); assert.equal(state.area.completedAt,null); assert.equal(appended[0][1],'曾湖'); assert.equal(state.reports.length,1)
+ reset({assignedMemberId:'m2'}); await assert.rejects(report.submitTerritoryReport(db,'m3',input(),append,now),/需要確認/)
 
  reset(); failAppend=true; await assert.rejects(report.submitTerritoryReport(db,'m1',input(),append,now),/sheet down/)
  assert.equal(state.area.completedAt,null,'Sheet 失敗整筆回滾'); assert.equal(state.reports.length,0)

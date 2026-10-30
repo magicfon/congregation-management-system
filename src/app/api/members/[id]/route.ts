@@ -57,6 +57,7 @@ export async function PUT(
     if (body.showInDispatch !== undefined && typeof body.showInDispatch !== 'boolean') {
       return NextResponse.json({ error: '派發按鈕設定必須為布林值' }, { status: 400 })
     }
+    if (body.selfManagedReports !== undefined && typeof body.selfManagedReports !== 'boolean') return NextResponse.json({ error: '自主管理地圖設定格式錯誤' }, { status: 400 })
     if (body.active !== undefined && typeof body.active !== 'boolean') return NextResponse.json({ error: '帳號狀態格式錯誤' }, { status: 400 })
     if (body.role !== undefined && (!['admin', 'publisher'].includes(body.role) || typeof body.expectedRole !== 'string')) return NextResponse.json({ error: '權限設定格式錯誤' }, { status: 400 })
     const { name, email, phone, active } = body
@@ -84,6 +85,7 @@ export async function PUT(
           name: name.trim(), email: email?.trim() || existing.email, phone: phone?.trim() || null,
           active: nextActive, role: nextRole,
           ...(body.gender !== undefined ? { gender: body.gender } : {}),
+          ...(body.selfManagedReports !== undefined ? { selfManagedReports: body.selfManagedReports } : {}),
         },
       })
       return NextResponse.json(member)
