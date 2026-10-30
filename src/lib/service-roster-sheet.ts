@@ -11,14 +11,17 @@ const roleColumns: ServiceRole[] = ['host', 'backup', 'attendant', 'watchtower',
 const expectedHeaders = ['招待當值', '替補招待', '會堂招待員', '守望台朗讀', '麥克風傳遞員A', '麥克風傳遞員B', '講台', '影像控制', '音響控制', '周中聚會主席', '周中聚會朗讀']
 const value = (cell?: Cell): string | number | boolean => cell?.effectiveValue?.numberValue ?? cell?.effectiveValue?.stringValue ?? cell?.effectiveValue?.boolValue ?? ''
 const text = (cell?: Cell) => String(value(cell)).trim()
-function date(cell?: Cell) {
+// 「-」是 Sheet 上尚未排人的佔位符，視同空白。
+const placeholder = (s: string) => /^[-－—–]$/.test(s)
+const person = (cell?: Cell) => placeholder(text(cell)) ? '' : text(cell)
+function date(cell: Cell | undefined, where: string) {
   const v = value(cell)
   if (typeof v === 'number' && Number.isInteger(v) && v > 30000 && v < 100000) return taipeiDate(new Date(Date.UTC(1899, 11, 30, 4) + v * 86400000))
   if (typeof v === 'string' && /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(v)) {
     const [y, m, d] = v.split(/[-/]/).map(Number)
     return taipeiDate(new Date(Date.UTC(y, m - 1, d, 4)))
   }
-  throw new SyncError('Google 日期必須包含年份或使用真正的日期儲存格')
+  throw new SyncError(`${where} 日期必須包含年份或使用真正的日期儲存格`)
 }
 export function parseSheets(sheets: Grid[]): SheetSource {
   const rows: RemoteWeek[] = []
@@ -28,21 +31,23 @@ export function parseSheets(sheets: Grid[]): SheetSource {
     const data = sheet.data?.[0]?.rowData ?? [], header = data[0]?.values ?? []
     if (text(header[0]) !== '週別' || text(header[1]) !== '日期' || expectedHeaders.some((label, i) => text(header[i + 4]).replace(/\s/g, '').replace(/週/g, '周') !== label.replace(/週/g, '周'))) throw new SyncError(`${title} 欄位標題不符，已停止同步`)
     if ((text(header[15]) && text(header[15]) !== '備註') || (text(header[16]) && text(header[16]) !== '停排')) throw new SyncError(`${title} 的 P/Q 欄已有其他用途，請先保留空白供備註與停排使用`)
-    const seen = new Set<string>()
+    const seen = new Map<string, number>()
     for (let i = 1; i < data.length; i++) {
       const cells = data[i].values ?? []
       if (!cells.some(cell => text(cell))) continue
       if (!/^\d+$/.test(text(cells[0]))) throw new SyncError(`${title} 第 ${i + 1} 列週別無效`)
-      const startDate = date(cells[1]), endDate = date(cells[3])
-      if (!validMonday(startDate) || addDays(startDate, 6) !== endDate || seen.has(startDate)) throw new SyncError(`${title} 日期無效或週次重複`)
-      seen.add(startDate)
+      const startDate = date(cells[1], `${title} 第 ${i + 1} 列 B 欄`), endDate = date(cells[3], `${title} 第 ${i + 1} 列 D 欄`)
+      if (!validMonday(startDate)) throw new SyncError(`${title} 第 ${i + 1} 列開始日 ${startDate} 不是星期一`)
+      if (addDays(startDate, 6) !== endDate) throw new SyncError(`${title} 第 ${i + 1} 列結束日 ${endDate} 應為 ${addDays(startDate, 6)}`)
+      if (seen.has(startDate)) throw new SyncError(`${title} 第 ${i + 1} 列與第 ${seen.get(startDate)} 列週次重複（${startDate}）`)
+      seen.set(startDate, i + 1)
       const legacy = cells.slice(4, 15).map(text).filter(s => /【停排】|大會|停會|没有.*聚會|沒有.*聚會|無.*聚會/.test(s))
       const status = text(cells[16]).toLowerCase()
       if (!['', 'true', 'false', '是', '否', '1', '0'].includes(status)) throw new SyncError(`${title} ${startDate} 停排欄請填 TRUE 或 FALSE`)
       const stopped = status ? ['true', '是', '1'].includes(status) : legacy.length > 0
       const note = text(cells[15]) || (stopped ? legacy.map(s => s.replace(/^【停排】/, '')).join('；') : '')
       if (note.length > 300 || (stopped && !note)) throw new SyncError(`${title} ${startDate} 請填有效停排原因或備註（最多 300 字）`)
-      const names = Object.fromEntries(roleColumns.flatMap((role, j) => stopped || !text(cells[j + 4]) ? [] : [[role, text(cells[j + 4])]]))
+      const names = Object.fromEntries(roleColumns.flatMap((role, j) => stopped || !person(cells[j + 4]) ? [] : [[role, person(cells[j + 4])]]))
       rows.push({ sheet: title, row: i + 1, week: normalized({ startDate, endDate, stopped, note, names }) })
     }
   }
@@ -85,7 +90,7 @@ export function prepareWrites(source: SheetSource, targets: SyncWeek[]) {
             continue
           }
         }
-        if (String(value(cell)) === String(values[column])) continue
+        if (String(value(cell)) === String(values[column]) || (values[column] === '' && placeholder(text(cell)))) continue
         data.push({ range: `'${title}'!${String.fromCharCode(65 + column)}${row}`, values: [[values[column]]] })
       }
       pushed++
