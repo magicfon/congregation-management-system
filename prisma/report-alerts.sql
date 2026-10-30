@@ -2,7 +2,7 @@ ALTER TABLE "areas" ADD COLUMN IF NOT EXISTS "returnUndo" JSONB;
 CREATE TABLE IF NOT EXISTS "report_alerts" (
   "id" TEXT PRIMARY KEY,
   "areaId" TEXT NOT NULL REFERENCES "areas"("id") ON DELETE CASCADE,
-  "kind" TEXT NOT NULL CHECK ("kind" IN ('not_holder', 'held_after_report', 'return_basis_removed', 'sheet_holder_mismatch')),
+  "kind" TEXT NOT NULL CHECK ("kind" IN ('not_holder', 'not_holder_returned', 'held_after_report', 'return_basis_removed', 'sheet_holder_mismatch')),
   "status" TEXT NOT NULL DEFAULT 'pending' CHECK ("status" IN ('pending', 'resolved')),
   "cycleKey" TEXT NOT NULL,
   "reportId" TEXT,

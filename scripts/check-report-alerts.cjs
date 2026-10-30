@@ -80,5 +80,10 @@ function mockDb(areas, existing=[]) {
   // 說明文字
   assert.match(alerts.describeAlert({kind:'not_holder',details:{holder:'李二',dispatched:'2026-10-10',reports:[{name:'王一',endDate:'2026-10-22'}]}},'','').text,/王一 回報了 李二 領取中的地圖/)
   assert.match(alerts.describeAlert({kind:'return_basis_removed',details:undo},'','').text,/2026-10-22 結束的回報交回/)
+  assert.match(alerts.describeAlert({kind:'not_holder_returned',details:{holder:'李二',reports:[{name:'王一',endDate:'2026-10-21'}],holderReturned:{name:'李二',endDate:'2026-10-22'}}},'','').text,/李二 已於 2026-10-22 自行回報並交回；先前 王一 回報/)
+  assert.equal(alerts.ALERT_KINDS.not_holder_returned.actions.map(a=>a.action).join(),'keep')
+  // 本人已交回的這則不會被同步自動結案
+  db = mockDb([{...held,completedAt:now}],[{id:'k',areaId:'a1',kind:'not_holder_returned',cycleKey:tp('2026-10-10').toISOString(),status:'pending'}])
+  r = await alerts.syncReportAlerts(db,[],now); assert.equal(r.autoResolved,0)
   console.log('report alert checks passed')
 })().catch(e=>{console.error(e);process.exit(1)})

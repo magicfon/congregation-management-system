@@ -239,7 +239,7 @@ model DoNotVisitReport {
 model ReportAlert {
   id String @id @default(cuid())
   areaId String
-  kind String // not_holder | held_after_report | return_basis_removed | sheet_holder_mismatch
+  kind String // not_holder | not_holder_returned | held_after_report | return_basis_removed | sheet_holder_mismatch
   status String @default("pending") // pending | resolved
   cycleKey String
   reportId String?

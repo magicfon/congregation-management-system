@@ -167,8 +167,9 @@ export async function submitTerritoryReport(db: PrismaClient, accountId: string 
       if (verdict.action === 'return' || proxy) {
         const updated = await tx.area.updateMany({ where: { id: area.id, assignedMemberId: area.assignedMemberId, dispatchedAt: area.dispatchedAt, completedAt: area.completedAt }, data: { completedAt: now, lastActivityAt: now, returnUndo: returnUndoState(area, input.endDate, now), ...reported } })
         if (updated.count !== 1) throw new TerritoryReportError(`${sheetNo} 號地圖狀態剛被更新，請重新載入後再送出`, 409)
-        // 持有人自己回報，別人先前的待確認就不必再處理
-        if (pending) await tx.reportAlert.update({ where: { id: pending.id }, data: { status: 'resolved', resolvedAt: now, resolvedBy: actor.name, resolution: proxy ? 'admin_reported' : 'holder_reported', updatedAt: now } })
+        // 持有人自己交回：別人先前的回報留給管理員知道，不必再處理地圖；管理員代為回報則直接結案
+        if (pending && proxy) await tx.reportAlert.update({ where: { id: pending.id }, data: { status: 'resolved', resolvedAt: now, resolvedBy: actor.name, resolution: 'admin_reported', updatedAt: now } })
+        else if (pending) await tx.reportAlert.update({ where: { id: pending.id }, data: { kind: 'not_holder_returned', details: { ...(pending.details as object), holderReturned: { name: actor.name, endDate: input.endDate, at: now.toISOString() } }, updatedAt: now } })
       } else if ('lastReportedCompletedAt' in reported) {
         await tx.area.update({ where: { id: area.id }, data: reported })
       }

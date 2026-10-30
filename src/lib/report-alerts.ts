@@ -6,6 +6,7 @@ import { AlertReport, dispatchKey, reportedButHeld, returnUndoState, TerritoryRe
 // 回報待確認（ADR-0100）
 export const ALERT_KINDS = {
   not_holder: { badge: '回報他人地圖', actions: [{ action: 'return', label: '交回' }, { action: 'keep', label: '知道了' }] },
+  not_holder_returned: { badge: '回報他人地圖（本人已交回）', actions: [{ action: 'keep', label: '知道了' }] },
   held_after_report: { badge: '回報了卻未交回', actions: [{ action: 'return', label: '交回' }, { action: 'keep', label: '維持使用中' }] },
   return_basis_removed: { badge: '交回依據已刪除', actions: [{ action: 'restore', label: '恢復使用中' }, { action: 'keep', label: '維持交回' }] },
   sheet_holder_mismatch: { badge: 'Sheet 持有人不同', actions: [{ action: 'keep', label: '以系統為準' }, { action: 'use_sheet', label: '以 Sheet 為準' }] },
@@ -134,6 +135,12 @@ export function describeAlert(alert: { kind: string; details: Prisma.JsonValue }
       const names = [...new Set(reports.map(r => r.name))].join('、')
       const end = reports.map(r => r.endDate).sort().pop() || ''
       return { holder: String(d.holder || holder), reporter: names, dispatched: String(d.dispatched || dispatched), endDate: end, text: `${names} 回報了 ${d.holder || holder} 領取中的地圖（結束日 ${end}），地圖還沒交回。確定是對方傳道完了就交回；回報錯號碼就按知道了。` }
+    }
+    case 'not_holder_returned': {
+      const reports = (d.reports as AlertReport[] | undefined) || []
+      const names = [...new Set(reports.map(r => r.name))].join('、')
+      const back = (d.holderReturned || {}) as { name?: string; endDate?: string }
+      return { holder: String(d.holder || holder), reporter: names, dispatched: String(d.dispatched || dispatched), endDate: String(back.endDate || ''), text: `${back.name || d.holder} 已於 ${back.endDate} 自行回報並交回；先前 ${names} 回報了這張地圖，可能是回報錯號碼。地圖不必再處理。` }
     }
     case 'held_after_report':
       return { holder, reporter: '', dispatched: String(d.dispatched || dispatched), endDate: String(d.reported || ''), text: `Sheet 上有 ${d.reported} 結束的完成回報，晚於這次領取日，但地圖仍由 ${holder} 使用中。` }

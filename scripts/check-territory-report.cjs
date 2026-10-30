@@ -83,7 +83,7 @@ const ok={confirmed:true}, asBoss={admin:true,confirmed:true}
  assert.equal(r[0].action,'merge'); assert.equal(state.alerts.length,1); assert.equal(state.alerts[0].details.reports.length,2); assert.equal(state.area.completedAt,null)
  // 持有人自己回報：交回，待確認自動結案
  r=await report.submitTerritoryReport(db,'m2',input({endDate:'2026-10-22',note:'本人'}),append,now)
- assert.equal(r[0].action,'return'); assert.equal(state.alerts[0].status,'resolved'); assert.equal(state.alerts[0].resolution,'holder_reported')
+ assert.equal(r[0].action,'return'); assert.equal(state.alerts[0].status,'pending','留給管理員知道'); assert.equal(state.alerts[0].kind,'not_holder_returned'); assert.equal(state.alerts[0].details.holderReturned.name,'李二'); assert.equal(state.alerts[0].details.reports.length,2)
 
  // 管理員代持有人回報並交回：Sheet 與紀錄記在持有人名下
  reset({assignedMemberId:'m2'}); await assert.rejects(report.submitTerritoryReport(db,'m9',input(),append,now,{admin:true}),/需要確認/)
