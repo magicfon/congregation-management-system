@@ -1,6 +1,6 @@
 'use client'
 
-import CurrentUser, { type CurrentUserState } from './CurrentUser'
+import CurrentUser, { LineAvatar, type CurrentUserState } from './CurrentUser'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -161,7 +161,7 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, cu
 
       <div className={`shrink-0 border-t border-white/5 p-3 ${collapsed ? 'md:px-1' : ''}`}>
         <div className={collapsed ? 'md:hidden' : ''}><CurrentUser state={currentUser} onRetry={onRetryUser} /></div>
-        {collapsed && <button type="button" onClick={onToggleCollapse} aria-label="展開側欄查看登入資訊" title="查看登入者與權限" className="hidden md:block w-full rounded-lg p-2 text-blue-300 hover:bg-mc-accent">◉</button>}
+        {collapsed && <button type="button" onClick={onToggleCollapse} aria-label="展開側欄查看登入資訊" title="查看登入者與權限" className="hidden md:flex w-full justify-center rounded-lg p-2 text-blue-300 hover:bg-mc-accent"><LineAvatar src={currentUser.status === 'ready' ? currentUser.image : null} fallback="◉" /></button>}
       </div>
       {/* Desktop collapse toggle */}
       <div className="hidden md:block px-2 py-2 border-t border-white/5">

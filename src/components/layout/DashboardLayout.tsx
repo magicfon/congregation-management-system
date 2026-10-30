@@ -24,7 +24,7 @@ function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
       if (res.status === 401) { setCurrentUser({ status: 'signed-out' }); return }
       if (!res.ok) throw new Error('Unable to load current user')
       const user = await res.json()
-      if (!controller.signal.aborted) setCurrentUser({ status: 'ready', name: user.name, role: user.role })
+      if (!controller.signal.aborted) setCurrentUser({ status: 'ready', name: user.name, role: user.role, image: user.image || null })
     } catch {
       if (!controller.signal.aborted) setCurrentUser({ status: 'error' })
     }

@@ -13,11 +13,11 @@ export async function pairLineMember(db: PrismaClient, sourceId: string, targetI
     }
     if (!target?.active) throw new LinePairingError('目標成員不存在或已停用')
     if (target.lineuid) throw new LinePairingError('目標成員已綁定 LINE，請勿覆蓋')
-    await tx.member.update({ where: { id: sourceId }, data: { lineuid: null, lineDisplayName: null } })
+    await tx.member.update({ where: { id: sourceId }, data: { lineuid: null, lineDisplayName: null, linePictureUrl: null } })
     await tx.member.update({
       where: { id: targetId },
       data: {
-        lineuid: source.lineuid, lineDisplayName: source.lineDisplayName,
+        lineuid: source.lineuid, lineDisplayName: source.lineDisplayName, linePictureUrl: source.linePictureUrl,
         lineNotificationsEnabled: source.lineNotificationsEnabled !== false && target.lineNotificationsEnabled !== false,
       },
     })

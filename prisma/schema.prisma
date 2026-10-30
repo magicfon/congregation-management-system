@@ -105,6 +105,7 @@ model Member {
   showInDispatch Boolean @default(true)
   lineuid   String?  @unique
   lineDisplayName String?
+  linePictureUrl String?
   lineNotificationsEnabled Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
