@@ -25,7 +25,8 @@ function date(cell: Cell | undefined, where: string) {
 }
 export function parseSheets(sheets: Grid[]): SheetSource {
   const rows: RemoteWeek[] = []
-  for (const title of ['Schedule', 'History']) {
+  // 只同步 Schedule；History 是 Sheet 上的存檔，同步不讀不寫（ADR-0103）。
+  for (const title of ['Schedule']) {
     const sheet = sheets.find(s => s.properties.title === title)
     if (!sheet) throw new SyncError(`找不到 ${title} 工作表`)
     const data = sheet.data?.[0]?.rowData ?? [], header = data[0]?.values ?? []
@@ -55,7 +56,7 @@ export function parseSheets(sheets: Grid[]): SheetSource {
 }
 export async function readRosterSheet(): Promise<SheetSource> {
   const fields = 'sheets(properties(sheetId,title,gridProperties),merges,data(rowData(values(userEnteredValue,effectiveValue))))'
-  const result = await spreadsheetRequest(SERVICE_SHEET_ID, `?ranges=Schedule!A:Q&ranges=History!A:Q&includeGridData=true&fields=${encodeURIComponent(fields)}`)
+  const result = await spreadsheetRequest(SERVICE_SHEET_ID, `?ranges=Schedule!A:Q&includeGridData=true&fields=${encodeURIComponent(fields)}`)
   return parseSheets(result.sheets)
 }
 const serial = (day: string) => Math.round((new Date(`${day}T04:00:00Z`).getTime() - Date.UTC(1899, 11, 30, 4)) / 86400000)
@@ -63,13 +64,13 @@ export function prepareWrites(source: SheetSource, targets: SyncWeek[]) {
   const data: { range: string; values: (string | number)[][] }[] = []
   const expand: unknown[] = []
   let pushed = 0
-  for (const sheet of source.sheets) {
+  for (const sheet of source.sheets.filter(s => s.properties.title === 'Schedule')) {
     const title = sheet.properties.title
     const rows = sheet.data?.[0]?.rowData ?? []
     let appendRow = rows.reduce((next, row, index) => row.values?.some(cell => text(cell) || cell.userEnteredValue?.formulaValue) ? index + 2 : next, 2)
     const updates = targets.flatMap(target => {
       const remote = source.rows.find(row => row.sheet === title && row.week.startDate === target.startDate)
-      // History covers every week; Schedule keeps its existing window plus newly created future weeks.
+      // Schedule keeps its existing window plus newly created future weeks.
       if (!remote && title === 'Schedule' && target.endDate < taipeiDate(new Date())) return []
       if (remote && sameWeek(remote.week, target)) return []
       return [{ target, row: remote?.row ?? appendRow++, fresh: !remote }]
