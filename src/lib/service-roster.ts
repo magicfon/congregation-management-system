@@ -61,7 +61,9 @@ export function validateAssignments(value: unknown, previous: Assignments, peopl
     if (!assignment || typeof assignment !== 'object' || typeof assignment.personId !== 'string') throw new RosterError('人選格式錯誤')
     if (previous[role]?.personId === assignment.personId) { result[role] = previous[role]; continue }
     const person = people.find(p => p.id === assignment.personId)
-    if (!person?.enabled || !qualifies(person, role, people)) throw new RosterError(`${serviceRoles.find(r => r.id === role)!.label}人選尚未具備資格`)
+    const label = serviceRoles.find(r => r.id === role)!.label
+    if (person && !person.enabled) throw new RosterError(`${label}人選${person.name}已停用（取消可安排或成員已停用）`)
+    if (!person || !qualifies(person, role, people)) throw new RosterError(`${label}人選尚未具備資格`)
     result[role] = { personId: person.id, name: person.name }
   }
   const old = new Set(assignmentConflicts(previous))

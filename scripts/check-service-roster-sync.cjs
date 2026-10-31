@@ -97,6 +97,7 @@ const db={...tx,$transaction:async fn=>{const saved=persisted,old=structuredClon
  assert.equal(coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],roles:[]}]).host.name,'甲','Hospitality roles need no qualification');
  assert.equal(coordinator.importedAssignments({...base,names:{micA:'甲'}},{},[{...people[0],roles:[]},{...people[1],roles:[]}]).micA.name,'甲','Roles nobody is qualified for are open');
  assert.equal(coordinator.importedAssignments({...base,names:{chair:'甲'}},{},[{...people[0],roles:[]},{...people[1],roles:['chair']}]).chair.name,'甲','Midweek chair needs no qualification');
+ assert.throws(()=>roles.validateAssignments({chair:{personId:'p1',name:'甲'}},{},[{...people[0],enabled:false}]),/甲已停用/);
  assert.equal(requests,0);
  console.log('Roster sync: three-way conflicts, stale resolution, column mapping, formulas, merges, qualification, retry, concurrency and idempotence passed');
 })().catch(e=>{console.error(e);process.exitCode=1});
