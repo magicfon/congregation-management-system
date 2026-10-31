@@ -98,7 +98,7 @@ export default function ServiceRoster({ management = false }: { management?: boo
   }
   const warnings = canManage && week ? [
     ...assignmentConflicts(editing ? draft : week.assignments),
-    ...Object.entries(editing ? draft : week.assignments).filter(([role, value]) => { const p = data?.people?.find(p => p.id === value!.personId); return !p?.enabled || !qualifies(p, role as ServiceRole) }).map(([role, value]) => `${value!.name}的${serviceRoles.find(r => r.id === role)!.label}資格待確認`),
+    ...Object.entries(editing ? draft : week.assignments).filter(([role, value]) => { const p = data?.people?.find(p => p.id === value!.personId); return !p?.enabled || !qualifies(p, role as ServiceRole, data?.people ?? []) }).map(([role, value]) => `${value!.name}的${serviceRoles.find(r => r.id === role)!.label}資格待確認`),
   ] : []
 
   const hasSyncIssues = Boolean(data?.sync?.errors.length || data?.sync?.conflicts.length)
@@ -137,7 +137,7 @@ export default function ServiceRoster({ management = false }: { management?: boo
           <fieldset disabled={busy} className="grid items-start gap-3 md:grid-cols-2">
             {groups.map(group => <section key={group} data-roster-group={group} className="roster-group overflow-hidden rounded-xl border bg-mc-card"><h3 className="roster-group-title px-4 py-3 text-lg font-semibold">{group}</h3><dl className={editing ? 'space-y-2 p-3' : 'grid grid-cols-1 gap-x-4 gap-y-4 p-4 min-[380px]:grid-cols-2'}>{serviceRoles.filter(r => r.group === group).map(role => {
               const assigned = (editing ? draft : week.assignments)[role.id]
-              const eligible = data.people?.filter(p => p.enabled && qualifies(p, role.id)) ?? []
+              const eligible = data.people?.filter(p => p.enabled && qualifies(p, role.id, data.people ?? [])) ?? []
               return <div key={role.id} className={editing ? 'grid min-h-12 grid-cols-1 items-center gap-2 sm:grid-cols-[10rem_minmax(0,1fr)]' : 'min-w-0 py-1'}><dt className={editing ? 'roster-duty-title flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-lg font-bold leading-7' : 'roster-duty-title mb-2 flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-xl font-bold leading-7'}><ServiceDutyIcon role={role.id} /><span>{role.label}</span></dt><dd>{editing ? <select className={control} aria-label={role.label} value={assigned?.personId ?? ''} onChange={event => { const person = data.people?.find(p => p.id === event.target.value); setDraft(current => { const next = { ...current }; if (person) next[role.id] = { personId: person.id, name: person.name }; else delete next[role.id]; return next }); setDirty(true) }}><option value="">待安排</option>{assigned && !eligible.some(p => p.id === assigned.personId) && <option value={assigned.personId}>{assigned.name}（原安排）</option>}{eligible.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <RosterName assignment={assigned} ownPersonId={ownPersonId} />}</dd></div>
             })}</dl></section>)}
           </fieldset>
@@ -194,7 +194,7 @@ function PersonEditor({ people, members, busy, save }: { people: ServicePersonDa
         <dd className="flex flex-wrap gap-2">{holders.length ? holders.map(p => <span key={p.id} className={`flex min-h-11 items-stretch overflow-hidden rounded-lg border ${p.id === id && advanced ? 'border-blue-300 bg-mc-accent' : 'border-white/15'} ${status(p) ? 'text-mc-text/60' : ''}`}>
           <button type="button" title="點選以進階設定" onClick={() => { setId(p.id); setAdvanced(true); requestAnimationFrame(() => form.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })) }} className="px-3 text-base hover:bg-mc-accent">{p.name}{!p.enabled && <span className="ml-1 text-xs">停用</span>}</button>
           <button type="button" disabled={busy} aria-label={`移除${p.name}的${role.label}資格`} onClick={() => remove(p, role.id)} className="border-l border-white/10 px-2.5 text-base text-mc-text/60 hover:bg-mc-accent hover:text-red-300 disabled:opacity-40">×</button>
-        </span>) : <span className="py-2 text-sm text-mc-text/60">尚無人具備此資格</span>}<AddHolder role={role.id} people={people} members={members} busy={busy} save={save} /></dd>
+        </span>) : <span className="py-2 text-sm text-mc-text/60">未設定資格，人人可排</span>}<AddHolder role={role.id} people={people} members={members} busy={busy} save={save} /></dd>
       </div>
     })}</dl>
     <details open={advanced} onToggle={event => setAdvanced(event.currentTarget.open)} className="mt-4 rounded-lg border border-white/10 p-3"><summary className="min-h-11 cursor-pointer py-2 text-base">進階設定：連結成員、停用</summary>
