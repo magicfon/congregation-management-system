@@ -8,7 +8,7 @@ import RosterName from './RosterName'
 import ServiceRosterGrid from './ServiceRosterGrid'
 import useRosterIdentity from './useRosterIdentity'
 import type { SyncStatus, SyncWeek } from '@/lib/service-roster-sync-plan'
-import { serviceRoles, assignmentConflicts, addDays, dateDay, weekLabel, type ServicePersonData, type ServiceRole, type ServiceWeekData, type Assignments } from '@/lib/service-roster'
+import { serviceRoles, qualifiedRoles, qualifies, assignmentConflicts, addDays, dateDay, weekLabel, type ServicePersonData, type ServiceRole, type ServiceWeekData, type Assignments } from '@/lib/service-roster'
 type Member = { id: string; name: string; gender?: string }
 type Snapshot = { initialized: boolean; revision: number; weeks: ServiceWeekData[]; people?: ServicePersonData[]; members?: Member[]; sync?: SyncStatus }
 const button = 'min-h-12 rounded-lg border border-white/10 px-3 text-base hover:bg-mc-accent disabled:opacity-40'
@@ -98,7 +98,7 @@ export default function ServiceRoster({ management = false }: { management?: boo
   }
   const warnings = canManage && week ? [
     ...assignmentConflicts(editing ? draft : week.assignments),
-    ...Object.entries(editing ? draft : week.assignments).filter(([role, value]) => { const p = data?.people?.find(p => p.id === value!.personId); return !p?.enabled || !p.roles.includes(role as ServiceRole) }).map(([role, value]) => `${value!.name}的${serviceRoles.find(r => r.id === role)!.label}資格待確認`),
+    ...Object.entries(editing ? draft : week.assignments).filter(([role, value]) => { const p = data?.people?.find(p => p.id === value!.personId); return !p?.enabled || !qualifies(p, role as ServiceRole) }).map(([role, value]) => `${value!.name}的${serviceRoles.find(r => r.id === role)!.label}資格待確認`),
   ] : []
 
   const hasSyncIssues = Boolean(data?.sync?.errors.length || data?.sync?.conflicts.length)
@@ -137,7 +137,7 @@ export default function ServiceRoster({ management = false }: { management?: boo
           <fieldset disabled={busy} className="grid items-start gap-3 md:grid-cols-2">
             {groups.map(group => <section key={group} data-roster-group={group} className="roster-group overflow-hidden rounded-xl border bg-mc-card"><h3 className="roster-group-title px-4 py-3 text-lg font-semibold">{group}</h3><dl className={editing ? 'space-y-2 p-3' : 'grid grid-cols-1 gap-x-4 gap-y-4 p-4 min-[380px]:grid-cols-2'}>{serviceRoles.filter(r => r.group === group).map(role => {
               const assigned = (editing ? draft : week.assignments)[role.id]
-              const eligible = data.people?.filter(p => p.enabled && p.roles.includes(role.id)) ?? []
+              const eligible = data.people?.filter(p => p.enabled && qualifies(p, role.id)) ?? []
               return <div key={role.id} className={editing ? 'grid min-h-12 grid-cols-1 items-center gap-2 sm:grid-cols-[10rem_minmax(0,1fr)]' : 'min-w-0 py-1'}><dt className={editing ? 'roster-duty-title flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-lg font-bold leading-7' : 'roster-duty-title mb-2 flex w-fit max-w-full items-start gap-1.5 rounded px-1 py-1 text-xl font-bold leading-7'}><ServiceDutyIcon role={role.id} /><span>{role.label}</span></dt><dd>{editing ? <select className={control} aria-label={role.label} value={assigned?.personId ?? ''} onChange={event => { const person = data.people?.find(p => p.id === event.target.value); setDraft(current => { const next = { ...current }; if (person) next[role.id] = { personId: person.id, name: person.name }; else delete next[role.id]; return next }); setDirty(true) }}><option value="">待安排</option>{assigned && !eligible.some(p => p.id === assigned.personId) && <option value={assigned.personId}>{assigned.name}（原安排）</option>}{eligible.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : <RosterName assignment={assigned} ownPersonId={ownPersonId} />}</dd></div>
             })}</dl></section>)}
           </fieldset>
@@ -186,7 +186,7 @@ function PersonEditor({ people, members, busy, save }: { people: ServicePersonDa
   const status = (p: ServicePersonData) => p.enabled ? 0 : 1
   const rows = [...people].sort((a, b) => status(a) - status(b) || a.name.localeCompare(b.name, 'zh-TW'))
   return <details className="rounded-xl border border-white/10 bg-mc-card p-4"><summary className="cursor-pointer text-base font-semibold">人員資格</summary>
-    <dl className="mt-4 divide-y divide-white/10 rounded-lg border border-white/10">{serviceRoles.map(role => {
+    <dl className="mt-4 divide-y divide-white/10 rounded-lg border border-white/10">{qualifiedRoles.map(role => {
       const holders = rows.filter(p => p.roles.includes(role.id))
       const ready = holders.filter(p => !status(p)).length
       return <div key={role.id} className="grid gap-2 px-3 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
@@ -202,7 +202,7 @@ function PersonEditor({ people, members, busy, save }: { people: ServicePersonDa
     <label className="block text-base">人員<select className={`${control} mt-2`} value={id} onChange={event => setId(event.target.value)}><option value="new">新增成員</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}{!p.enabled ? '（停用）' : ''}</option>)}</select></label>
     <label className="block text-base">連結成員<select required={id === 'new' || Boolean(people.find(p => p.id === id)?.memberId)} className={`${control} mt-2`} value={memberId} onChange={event => setMemberId(event.target.value)}><option value="">{id !== 'new' && !people.find(p => p.id === id)?.memberId ? '不連結（照名單姓名）' : '選擇啟用成員'}</option>{members.filter(m => m.gender === 'brother' || m.id === memberId).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
     {memberId && <label className="flex min-h-12 items-center gap-2 text-base"><input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} />可安排</label>}
-    <div className="grid grid-cols-2 gap-2">{serviceRoles.map(role => <label key={role.id} className="flex min-h-12 items-center gap-2 text-base"><input type="checkbox" checked={roles.includes(role.id)} onChange={event => setRoles(current => event.target.checked ? [...current, role.id] : current.filter(r => r !== role.id))} />{role.label}</label>)}</div>
+    <div className="grid grid-cols-2 gap-2">{qualifiedRoles.map(role => <label key={role.id} className="flex min-h-12 items-center gap-2 text-base"><input type="checkbox" checked={roles.includes(role.id)} onChange={event => setRoles(current => event.target.checked ? [...current, role.id] : current.filter(r => r !== role.id))} />{role.label}</label>)}</div>
     <button className={button}>儲存資格</button>
   </fieldset></form></details></details>
 }

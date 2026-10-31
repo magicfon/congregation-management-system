@@ -93,6 +93,7 @@ const db={...tx,$transaction:async fn=>{const saved=persisted,old=structuredClon
  assert.throws(()=>coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],roles:[]}]),/資格/);
  assert.equal(coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],memberId:null,enabled:true}]).host.name,'甲');
  assert.equal(roles.effectiveEnabled({enabled:false,memberId:null},[]),true,'Unlinked qualified people stay schedulable (ADR-0081)');
+ assert.equal(coordinator.importedAssignments({...base,names:{watchtower:'甲'}},{},[{...people[0],roles:[]}]).watchtower.name,'甲','Watchtower reading needs no qualification');
  assert.equal(requests,0);
  console.log('Roster sync: three-way conflicts, stale resolution, column mapping, formulas, merges, qualification, retry, concurrency and idempotence passed');
 })().catch(e=>{console.error(e);process.exitCode=1});
