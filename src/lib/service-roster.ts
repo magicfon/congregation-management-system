@@ -11,6 +11,10 @@ export type Assignments = Partial<Record<ServiceRole, Assignment>>
 export type ServiceWeekData = { startDate: string; endDate: string; stopped: boolean; note: string; assignments: Assignments }
 export type ServicePersonData = { id: string; name: string; memberId: string | null; enabled: boolean; roles: ServiceRole[] }
 export const autoRoles: ServiceRole[] = ['micA', 'micB', 'stage', 'video', 'audio']
+// 守望台朗讀人人都能排，不用設定資格（ADR-0104）。
+export const openRoles: ServiceRole[] = ['watchtower']
+export const qualifiedRoles = serviceRoles.filter(role => !openRoles.includes(role.id))
+export function qualifies(person: Pick<ServicePersonData, 'roles'>, role: ServiceRole) { return openRoles.includes(role) || person.roles.includes(role) }
 export function roleCategory(role: ServiceRole) { return role === 'micA' || role === 'micB' ? 'mic' : role }
 export function dateDay(date: Date) { return date.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) }
 export function addDays(day: string, days: number) { const date = new Date(`${day}T04:00:00Z`); date.setUTCDate(date.getUTCDate() + days); return dateDay(date) }
@@ -56,7 +60,7 @@ export function validateAssignments(value: unknown, previous: Assignments, peopl
     if (!assignment || typeof assignment !== 'object' || typeof assignment.personId !== 'string') throw new RosterError('人選格式錯誤')
     if (previous[role]?.personId === assignment.personId) { result[role] = previous[role]; continue }
     const person = people.find(p => p.id === assignment.personId)
-    if (!person?.enabled || !person.roles.includes(role)) throw new RosterError(`${serviceRoles.find(r => r.id === role)!.label}人選尚未具備資格`)
+    if (!person?.enabled || !qualifies(person, role)) throw new RosterError(`${serviceRoles.find(r => r.id === role)!.label}人選尚未具備資格`)
     result[role] = { personId: person.id, name: person.name }
   }
   const old = new Set(assignmentConflicts(previous))
