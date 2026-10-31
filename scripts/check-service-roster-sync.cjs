@@ -90,10 +90,11 @@ const db={...tx,$transaction:async fn=>{const saved=persisted,old=structuredClon
  result=await coordinator.syncServiceRoster(db);assert.equal(result.conflicts.length,0,'Past weeks outside Schedule are archived, not removed');
  locked=false;const count=writesCount;result=await coordinator.syncServiceRoster(db);assert.equal(writesCount,count);assert.match(result.errors[0],/另一個同步/);
  assert.throws(()=>coordinator.importedAssignments({...base,names:{host:'未知'}},{},people),/資格/);
- assert.throws(()=>coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],roles:[]}]),/資格/);
+ assert.throws(()=>coordinator.importedAssignments({...base,names:{micA:'甲'}},{},[{...people[0],roles:[]}]),/資格/);
  assert.equal(coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],memberId:null,enabled:true}]).host.name,'甲');
  assert.equal(roles.effectiveEnabled({enabled:false,memberId:null},[]),true,'Unlinked qualified people stay schedulable (ADR-0081)');
  assert.equal(coordinator.importedAssignments({...base,names:{watchtower:'甲'}},{},[{...people[0],roles:[]}]).watchtower.name,'甲','Watchtower reading needs no qualification');
+ assert.equal(coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],roles:[]}]).host.name,'甲','Hospitality roles need no qualification');
  assert.equal(requests,0);
  console.log('Roster sync: three-way conflicts, stale resolution, column mapping, formulas, merges, qualification, retry, concurrency and idempotence passed');
 })().catch(e=>{console.error(e);process.exitCode=1});
