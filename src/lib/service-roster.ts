@@ -42,6 +42,10 @@ export function conflictRoles(assignments: Assignments) {
   return new Set(conflictPairs(assignments).flatMap(([a, b]) => [a, b]))
 }
 
+// 沒連成員的人只要有資格就能排（ADR-0081）；連了成員的看可安排與成員是否仍啟用。
+export function effectiveEnabled(p: { enabled: boolean; memberId: string | null }, members: { id: string }[]) {
+  return p.memberId ? p.enabled && members.some(m => m.id === p.memberId) : true
+}
 export function validateAssignments(value: unknown, previous: Assignments, people: ServicePersonData[]): Assignments {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new RosterError('安排格式錯誤')
   const result: Assignments = {}

@@ -58,6 +58,8 @@ const dashed=grid('Schedule');dashed.data[0].rowData[1].values[5]=cell('-');
 const dashedSource=sheet.parseSheets([dashed,grid('History')]);
 assert.equal(dashedSource.rows[0].week.names.backup,undefined);
 assert.ok(!sheet.prepareWrites(dashedSource,[{...base,names:{...base.names,audio:'新音響'}}]).data.some(d=>d.range==="'Schedule'!F2"));
+const noted=grid('Schedule');noted.data[0].rowData[1].values[14]=cell('（沒有朗讀）');
+assert.equal(sheet.parseSheets([noted]).rows[0].week.names.reader,undefined);
 const badEnd=grid('Schedule');badEnd.data[0].rowData[1].values[3]=cell(serial+7);
 assert.throws(()=>sheet.parseSheets([badEnd]),/Schedule 第 2 列結束日 2027-01-11 應為 2027-01-10/);
 let local=[{...base,assignments:{host:{personId:'p1',name:'甲'},audio:{personId:'p2',name:'音響人員'},video:{personId:'p3',name:'影像人員'}}}], incoming=[remote(),remote(base,'History')], persisted, revision=1, locked=true, writesCount=0, failWrite=false;
@@ -89,6 +91,8 @@ const db={...tx,$transaction:async fn=>{const saved=persisted,old=structuredClon
  locked=false;const count=writesCount;result=await coordinator.syncServiceRoster(db);assert.equal(writesCount,count);assert.match(result.errors[0],/另一個同步/);
  assert.throws(()=>coordinator.importedAssignments({...base,names:{host:'未知'}},{},people),/資格/);
  assert.throws(()=>coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],roles:[]}]),/資格/);
+ assert.equal(coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],memberId:null,enabled:true}]).host.name,'甲');
+ assert.equal(roles.effectiveEnabled({enabled:false,memberId:null},[]),true,'Unlinked qualified people stay schedulable (ADR-0081)');
  assert.equal(requests,0);
  console.log('Roster sync: three-way conflicts, stale resolution, column mapping, formulas, merges, qualification, retry, concurrency and idempotence passed');
 })().catch(e=>{console.error(e);process.exitCode=1});
