@@ -11,8 +11,8 @@ const roleColumns: ServiceRole[] = ['host', 'backup', 'attendant', 'watchtower',
 const expectedHeaders = ['招待當值', '替補招待', '會堂招待員', '守望台朗讀', '麥克風傳遞員A', '麥克風傳遞員B', '講台', '影像控制', '音響控制', '周中聚會主席', '周中聚會朗讀']
 const value = (cell?: Cell): string | number | boolean => cell?.effectiveValue?.numberValue ?? cell?.effectiveValue?.stringValue ?? cell?.effectiveValue?.boolValue ?? ''
 const text = (cell?: Cell) => String(value(cell)).trim()
-// 「-」是 Sheet 上尚未排人的佔位符，視同空白。
-const placeholder = (s: string) => /^[-－—–]$/.test(s)
+// 「-」與「（沒有朗讀）」這類括號說明是 Sheet 上的佔位文字，不是人名，視同空白。
+const placeholder = (s: string) => /^[-－—–]$|^[（(].*[)）]$/.test(s)
 const person = (cell?: Cell) => placeholder(text(cell)) ? '' : text(cell)
 function date(cell: Cell | undefined, where: string) {
   const v = value(cell)

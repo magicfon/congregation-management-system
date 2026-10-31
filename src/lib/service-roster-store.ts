@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { readServiceSource } from './service-roster-import'
-import { addDays, validMonday, serviceRoles, RosterError, validateAssignments, fillServiceVacancies, type Assignments, type ServicePersonData, type ServiceWeekData } from './service-roster'
+import { addDays, effectiveEnabled, validMonday, serviceRoles, RosterError, validateAssignments, fillServiceVacancies, type Assignments, type ServicePersonData, type ServiceWeekData } from './service-roster'
 const json = (value: unknown) => value as Prisma.InputJsonValue
 export class RosterConflict extends RosterError {}
 
@@ -37,10 +37,6 @@ export async function rosterSnapshot(db: PrismaClient, privateData = false) {
   }, { isolationLevel: 'RepeatableRead' })
 }
 
-// 沒連成員的人只要有資格就能排（ADR-0081）；連了成員的看可安排與成員是否仍啟用。
-function effectiveEnabled(p: { enabled: boolean; memberId: string | null }, members: { id: string }[]) {
-  return p.memberId ? p.enabled && members.some(m => m.id === p.memberId) : true
-}
 async function effectivePeople(tx: Prisma.TransactionClient): Promise<ServicePersonData[]> {
   const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true } })
   return (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: effectiveEnabled(p, members), roles: p.roles as ServicePersonData['roles'] }))
