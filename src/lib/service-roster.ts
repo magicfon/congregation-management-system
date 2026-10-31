@@ -11,8 +11,8 @@ export type Assignments = Partial<Record<ServiceRole, Assignment>>
 export type ServiceWeekData = { startDate: string; endDate: string; stopped: boolean; note: string; assignments: Assignments }
 export type ServicePersonData = { id: string; name: string; memberId: string | null; enabled: boolean; roles: ServiceRole[] }
 export const autoRoles: ServiceRole[] = ['micA', 'micB', 'stage', 'video', 'audio']
-// 守望台朗讀人人都能排，不用設定資格（ADR-0104）。
-export const openRoles: ServiceRole[] = ['watchtower']
+// 招待三項與守望台朗讀人人都能排，不用設定資格（ADR-0104）。
+export const openRoles: ServiceRole[] = ['host', 'backup', 'attendant', 'watchtower']
 export const qualifiedRoles = serviceRoles.filter(role => !openRoles.includes(role.id))
 export function qualifies(person: Pick<ServicePersonData, 'roles'>, role: ServiceRole) { return openRoles.includes(role) || person.roles.includes(role) }
 export function roleCategory(role: ServiceRole) { return role === 'micA' || role === 'micB' ? 'mic' : role }
