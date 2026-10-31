@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, ExternalLink, Plus, X } from 'lucide-react'
 
 type Area = { sheetNo: number; label: string; holder: string | null; dispatched: string | null }
-type Options = { guest: boolean; admin: boolean; name: string; today: string; timeslots: string[]; maxAreas: number; held: Area[]; areas: Area[] }
+type Options = { restricted?: string; guest: boolean; admin: boolean; name: string; today: string; timeslots: string[]; maxAreas: number; held: Area[]; areas: Area[] }
 type Verdict = { sheetNo: number; action: 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self'; reason: string }
 const OTHER = 'other'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 bg-mc-accent px-3 text-base'
@@ -123,7 +123,8 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
     <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">區域回報{options?.name && <span className="ml-2 text-sm font-normal text-mc-text/60">{options.name}</span>}</h2>{formLink}</div>
     {!options && !error && <p role="status" className="text-sm text-mc-text/50">正在讀取區域…</p>}
     {options?.guest && <p className="text-sm text-mc-text/60"><a href="/login?callbackUrl=%2Fbulletin%2Fterritory-report" className="text-blue-300 underline-offset-2 hover:underline">登入</a>後姓名與領取中的地圖會自動帶入。</p>}
-    {options && <>
+    {options?.restricted && <p role="status" className="rounded-lg bg-white/5 p-4 text-sm text-mc-text/80">{options.restricted}</p>}
+    {options && !options.restricted && <>
       {options.guest && <div><label htmlFor="report-name" className={label}>姓名</label><input id="report-name" required maxLength={30} autoComplete="name" value={guestName} onChange={e => setGuestName(e.target.value)} className={control} /></div>}
       <div>
         <label htmlFor="report-area" className={label}>區域</label>

@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../lib/auth'
 import { allocationLabel, isAreaDispatched } from '../../../lib/allocation'
 import { appendValues, batchUpdate, readSnapshot, taipeiDate, updateSnapshot, DEFAULT_SHEET_ID } from '../../../lib/google-sheets'
-import { parseReportInput, submitTerritoryReport, TerritoryReportError, MAX_REPORT_AREAS, REPORT_SHEET_RANGE, REPORT_TIMESLOTS } from '../../../lib/territory-report'
+import { brothersOnlyBlocked, BROTHERS_ONLY_MESSAGE, parseReportInput, submitTerritoryReport, TerritoryReportError, MAX_REPORT_AREAS, REPORT_SHEET_RANGE, REPORT_TIMESLOTS } from '../../../lib/territory-report'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -26,6 +26,7 @@ export async function GET() {
       const active = isAreaDispatched(area)
       return { sheetNo: area.sheetNo!, label: allocationLabel(area), holderId: active ? area.assignedMemberId : null, holder: active ? area.assignedMember?.name || area.assignedTo || '未記錄' : null, dispatched: active ? taipeiDate(area.dispatchedAt) : null }
     })
+    if (await brothersOnlyBlocked(prisma, user?.id ?? null, Boolean(user?.admin))) return respond({ restricted: BROTHERS_ONLY_MESSAGE, guest: false, admin: false, name: user?.name || '', today: taipeiDate(new Date()), timeslots: [], maxAreas: 0, held: [], areas: [] })
     return respond({
       guest: !user,
       admin: Boolean(user?.admin),
