@@ -33,13 +33,12 @@ export async function rosterSnapshot(db: PrismaClient, privateData = false) {
     if (!privateData) return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks }
     const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true, gender: true }, orderBy: { name: 'asc' } })
     const people = await tx.servicePerson.findMany({ orderBy: { name: 'asc' } })
-    return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks, members, people: people.map(p => ({ ...p, enabled: effectiveEnabled(p, members) })) }
+    return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks, members, people: people.map(p => ({ ...p, enabled: effectiveEnabled() })) }
   }, { isolationLevel: 'RepeatableRead' })
 }
 
 async function effectivePeople(tx: Prisma.TransactionClient): Promise<ServicePersonData[]> {
-  const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true } })
-  return (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: effectiveEnabled(p, members), roles: p.roles as ServicePersonData['roles'] }))
+  return (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: effectiveEnabled(), roles: p.roles as ServicePersonData['roles'] }))
 }
 export async function editServiceRoster(db: PrismaClient, body: Record<string, unknown>) {
   if (!Number.isInteger(body.revision)) throw new RosterError('請重新載入最新安排')

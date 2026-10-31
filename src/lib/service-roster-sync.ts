@@ -36,8 +36,7 @@ export async function syncServiceRoster(db: PrismaClient, resolution?: Resolutio
       try {
         const source = await readRosterSheet()
         const local = await tx.serviceWeek.findMany() as unknown as ServiceWeekData[]
-        const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true } })
-        const people = (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: effectiveEnabled(p, members), roles: p.roles as ServicePersonData['roles'] }))
+        const people = (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: effectiveEnabled(), roles: p.roles as ServicePersonData['roles'] }))
         // Only Schedule is synced: weeks that left its window are archived, not treated as removed.
         const today = taipeiDate(new Date())
         const dates = [...new Set([...local.filter(w => w.endDate >= today).map(w => w.startDate), ...source.rows.map(r => r.week.startDate)])].sort()

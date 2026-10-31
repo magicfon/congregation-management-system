@@ -47,10 +47,8 @@ export function conflictRoles(assignments: Assignments) {
   return new Set(conflictPairs(assignments).flatMap(([a, b]) => [a, b]))
 }
 
-// 沒連成員的人只要有資格就能排（ADR-0081）；連了成員的看可安排與成員是否仍啟用。
-export function effectiveEnabled(p: { enabled: boolean; memberId: string | null }, members: { id: string }[]) {
-  return p.memberId ? p.enabled && members.some(m => m.id === p.memberId) : true
-}
+// 只看資格，沒有「不可安排」：名單上的人一律可排（ADR-0105）。
+export function effectiveEnabled() { return true }
 export function validateAssignments(value: unknown, previous: Assignments, people: ServicePersonData[]): Assignments {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new RosterError('安排格式錯誤')
   const result: Assignments = {}
@@ -62,7 +60,6 @@ export function validateAssignments(value: unknown, previous: Assignments, peopl
     if (previous[role]?.personId === assignment.personId) { result[role] = previous[role]; continue }
     const person = people.find(p => p.id === assignment.personId)
     const label = serviceRoles.find(r => r.id === role)!.label
-    if (person && !person.enabled) throw new RosterError(`${label}人選${person.name}已停用（取消可安排或成員已停用）`)
     if (!person || !qualifies(person, role, people)) throw new RosterError(`${label}人選尚未具備資格`)
     result[role] = { personId: person.id, name: person.name }
   }
