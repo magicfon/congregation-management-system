@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { readServiceSource } from './service-roster-import'
-import { addDays, validMonday, serviceRoles, RosterError, validateAssignments, fillServiceVacancies, type Assignments, type ServicePersonData, type ServiceWeekData } from './service-roster'
+import { addDays, effectiveEnabled, validMonday, serviceRoles, RosterError, validateAssignments, fillServiceVacancies, type Assignments, type ServicePersonData, type ServiceWeekData } from './service-roster'
 const json = (value: unknown) => value as Prisma.InputJsonValue
 export class RosterConflict extends RosterError {}
 
@@ -33,17 +33,12 @@ export async function rosterSnapshot(db: PrismaClient, privateData = false) {
     if (!privateData) return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks }
     const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true, gender: true }, orderBy: { name: 'asc' } })
     const people = await tx.servicePerson.findMany({ orderBy: { name: 'asc' } })
-    return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks, members, people: people.map(p => ({ ...p, enabled: effectiveEnabled(p, members) })) }
+    return { initialized: Boolean(state), revision: state?.revision ?? 0, weeks, members, people: people.map(p => ({ ...p, enabled: effectiveEnabled() })) }
   }, { isolationLevel: 'RepeatableRead' })
 }
 
-// 沒連成員的人只要有資格就能排（ADR-0081）；連了成員的看可安排與成員是否仍啟用。
-function effectiveEnabled(p: { enabled: boolean; memberId: string | null }, members: { id: string }[]) {
-  return p.memberId ? p.enabled && members.some(m => m.id === p.memberId) : true
-}
 async function effectivePeople(tx: Prisma.TransactionClient): Promise<ServicePersonData[]> {
-  const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true } })
-  return (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: effectiveEnabled(p, members), roles: p.roles as ServicePersonData['roles'] }))
+  return (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: effectiveEnabled(), roles: p.roles as ServicePersonData['roles'] }))
 }
 export async function editServiceRoster(db: PrismaClient, body: Record<string, unknown>) {
   if (!Number.isInteger(body.revision)) throw new RosterError('請重新載入最新安排')

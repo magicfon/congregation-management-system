@@ -131,6 +131,16 @@ export async function resolveReportActor(db: Tx | PrismaClient, accountId: strin
   return { memberId: member?.id ?? null, name: accountId ? member!.name : name, admin: Boolean(accountId) && admin, selfManaged: Boolean(member?.selfManagedReports) }
 }
 
+export const BROTHERS_ONLY_MESSAGE = '區域回報是弟兄傳道使用；姊妹若有領取個人區域，領取後即可在這裡回報。'
+/** 已登入的姊妹沒有領取中的個人區域就不能回報（ADR-0106）；管理員不受限，未登入無法判斷性別。 */
+export async function brothersOnlyBlocked(db: Tx | PrismaClient, accountId: string | null, admin: boolean) {
+  if (!accountId || admin) return false
+  const member = await db.member.findUnique({ where: { id: accountId }, select: { gender: true } })
+  if (member?.gender !== 'sister') return false
+  const personal = await db.area.findMany({ where: { assignedMemberId: accountId, personalTerritory: true }, select: { assignedMemberId: true, dispatchedAt: true, completedAt: true } })
+  return !personal.some(isAreaDispatched)
+}
+
 /** 送出前的確認畫面用：逐區判斷，不寫入。 */
 export async function checkTerritoryReport(db: PrismaClient, actor: ReportActor, sheetNos: number[], endDate: string) {
   const areas = await db.area.findMany({ where: { sheetNo: { in: sheetNos } } })
@@ -149,6 +159,7 @@ export async function checkTerritoryReport(db: PrismaClient, actor: ReportActor,
 export async function submitTerritoryReport(db: PrismaClient, accountId: string | null, input: TerritoryReportInput, appendRows: (rows: (string | number)[][]) => Promise<void>, now = new Date(), options: { admin?: boolean; confirmed?: boolean } = {}) {
   return db.$transaction(async tx => {
     const actor = await resolveReportActor(tx, accountId, Boolean(options.admin), input.name)
+    if (await brothersOnlyBlocked(tx, accountId, Boolean(options.admin))) throw new TerritoryReportError(BROTHERS_ONLY_MESSAGE, 403)
     const results: { sheetNo: number; action: ReportAction }[] = []
     const rows: (string | number)[][] = []
     for (const sheetNo of input.sheetNos) {

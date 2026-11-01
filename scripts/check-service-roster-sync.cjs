@@ -33,7 +33,7 @@ const source=sheet.parseSheets([grid('Schedule'),grid('History')]);
 const fullSheets = [grid('Schedule'), grid('History')];
 fullSheets.forEach((s, i) => { s.properties.sheetId = i; s.properties.gridProperties.rowCount = 2; });
 const expansion = sheet.prepareWrites(sheet.parseSheets(fullSheets), [{...base, startDate:'2027-01-11', endDate:'2027-01-17'}]);
-assert.equal(expansion.expand.length, 2);
+assert.equal(expansion.expand.length, 1);
 assert.equal(expansion.expand[0].updateSheetProperties.properties.gridProperties.rowCount, 3);
 assert.equal(source.rows[0].week.names.audio,'音響人員');assert.equal(source.rows[0].week.names.video,'影像人員');
 assert.equal(source.rows[0].week.startDate,day);
@@ -49,9 +49,22 @@ const stopped=grid('Schedule');stopped.data[0].rowData[1].values.splice(4,11,...
 assert.equal(sheet.parseSheets([stopped,grid('History')]).rows[0].week.stopped,true);
 const badHeader=grid('Schedule');badHeader.data[0].rowData[0].values[12]=cell('未知欄');
 assert.throws(()=>sheet.parseSheets([badHeader,grid('History')]),/標題/);
+const dupSchedule=grid('Schedule');dupSchedule.data[0].rowData.push(dupSchedule.data[0].rowData[1]);
+assert.throws(()=>sheet.parseSheets([dupSchedule]),/Schedule 第 3 列與第 2 列週次重複/);
+const dupHistory=grid('History');dupHistory.data[0].rowData.push(dupHistory.data[0].rowData[1]);
+assert.equal(sheet.parseSheets([grid('Schedule'),dupHistory]).rows.length,1,'History is archive only');
+assert.ok(!sheet.prepareWrites(sheet.parseSheets([grid('Schedule'),grid('History')]),[{...base,names:{...base.names,audio:'新音響'}}]).data.some(d=>d.range.includes('History')));
+const dashed=grid('Schedule');dashed.data[0].rowData[1].values[5]=cell('-');
+const dashedSource=sheet.parseSheets([dashed,grid('History')]);
+assert.equal(dashedSource.rows[0].week.names.backup,undefined);
+assert.ok(!sheet.prepareWrites(dashedSource,[{...base,names:{...base.names,audio:'新音響'}}]).data.some(d=>d.range==="'Schedule'!F2"));
+const noted=grid('Schedule');noted.data[0].rowData[1].values[14]=cell('（沒有朗讀）');
+assert.equal(sheet.parseSheets([noted]).rows[0].week.names.reader,undefined);
+const badEnd=grid('Schedule');badEnd.data[0].rowData[1].values[3]=cell(serial+7);
+assert.throws(()=>sheet.parseSheets([badEnd]),/Schedule 第 2 列結束日 2027-01-11 應為 2027-01-10/);
 let local=[{...base,assignments:{host:{personId:'p1',name:'甲'},audio:{personId:'p2',name:'音響人員'},video:{personId:'p3',name:'影像人員'}}}], incoming=[remote(),remote(base,'History')], persisted, revision=1, locked=true, writesCount=0, failWrite=false;
 const people=[['p1','甲'],['p2','音響人員'],['p3','影像人員']].map(([id,name])=>({id,name,memberId:id,enabled:true,roles:roles.serviceRoles.map(r=>r.id)}));
-const coordinator=load('src/lib/service-roster-sync.ts', {'./service-roster':roles,'./service-roster-sync-plan':plan,'./service-roster-sheet':{
+const coordinator=load('src/lib/service-roster-sync.ts', {'./google-sheets':{taipeiDate},'./service-roster':roles,'./service-roster-sync-plan':plan,'./service-roster-sheet':{
  readRosterSheet:async()=>({rows:incoming}),writeRosterSheet:async(_,targets)=>{if(failWrite)throw new Error('Google offline');let changed=0;for(const target of targets){for(const row of incoming){if(row.week.startDate===target.startDate&&!plan.sameWeek(row.week,target)){row.week=target;changed++;}}}writesCount+=changed;return changed;}
 }});
 const tx={
@@ -72,9 +85,19 @@ const db={...tx,$transaction:async fn=>{const saved=persisted,old=structuredClon
  result=await coordinator.syncServiceRoster(db,{date:day,id:result.conflicts[0].id,choice:'local',revision});assert.equal(result.errors.length,0);assert.equal(result.conflicts.length,0);assert.equal(result.pushed,2);
  const baseline=persisted;local[0].note='待推送';failWrite=true;
  result=await coordinator.syncServiceRoster(db);assert.equal(result.errors.length,1);assert.equal(persisted,baseline,'Failed write must not advance baseline');failWrite=false;
+ const past={startDate:'2026-08-17',endDate:'2026-08-23',stopped:false,note:'',names:{host:'甲'}};
+ local.push({...past,assignments:{host:{personId:'p1',name:'甲'}}});const saved=JSON.parse(persisted);saved.baseline[past.startDate]=past;persisted=JSON.stringify(saved);
+ result=await coordinator.syncServiceRoster(db);assert.equal(result.conflicts.length,0,'Past weeks outside Schedule are archived, not removed');
  locked=false;const count=writesCount;result=await coordinator.syncServiceRoster(db);assert.equal(writesCount,count);assert.match(result.errors[0],/另一個同步/);
  assert.throws(()=>coordinator.importedAssignments({...base,names:{host:'未知'}},{},people),/資格/);
- assert.throws(()=>coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],roles:[]}]),/資格/);
+ assert.throws(()=>coordinator.importedAssignments({...base,names:{micA:'甲'}},{},[{...people[0],roles:[]},{...people[1],roles:['micA']}]),/資格/);
+ assert.equal(coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],memberId:null,enabled:true}]).host.name,'甲');
+ assert.equal(roles.effectiveEnabled({enabled:false,memberId:null},[]),true,'Unlinked qualified people stay schedulable (ADR-0081)');
+ assert.equal(coordinator.importedAssignments({...base,names:{watchtower:'甲'}},{},[{...people[0],roles:[]}]).watchtower.name,'甲','Watchtower reading needs no qualification');
+ assert.equal(coordinator.importedAssignments({...base,names:{host:'甲'}},{},[{...people[0],roles:[]}]).host.name,'甲','Hospitality roles need no qualification');
+ assert.equal(coordinator.importedAssignments({...base,names:{micA:'甲'}},{},[{...people[0],roles:[]},{...people[1],roles:[]}]).micA.name,'甲','Roles nobody is qualified for are open');
+ assert.equal(coordinator.importedAssignments({...base,names:{chair:'甲'}},{},[{...people[0],roles:[]},{...people[1],roles:['chair']}]).chair.name,'甲','Midweek chair needs no qualification');
+ assert.equal(roles.effectiveEnabled(),true,'No "not schedulable" state: everyone on the list can be scheduled (ADR-0105)');
  assert.equal(requests,0);
  console.log('Roster sync: three-way conflicts, stale resolution, column mapping, formulas, merges, qualification, retry, concurrency and idempotence passed');
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,6 +1,7 @@
 import type { PrismaClient, Prisma } from '@prisma/client'
-import { serviceRoles, validateAssignments, type Assignments, type ServicePersonData, type ServiceWeekData } from './service-roster'
+import { effectiveEnabled, serviceRoles, validateAssignments, type Assignments, type ServicePersonData, type ServiceWeekData } from './service-roster'
 import { readRosterSheet, writeRosterSheet } from './service-roster-sheet'
+import { taipeiDate } from './google-sheets'
 import { emptySyncState, fromLocal, planWeek, sameWeek, SyncError, type SyncState, type SyncStatus, type SyncWeek, type Resolution } from './service-roster-sync-plan'
 const key = 'service_roster_sheet_sync_v1'
 function decode(value?: string): SyncState { return value ? JSON.parse(value) : emptySyncState() }
@@ -35,9 +36,10 @@ export async function syncServiceRoster(db: PrismaClient, resolution?: Resolutio
       try {
         const source = await readRosterSheet()
         const local = await tx.serviceWeek.findMany() as unknown as ServiceWeekData[]
-        const members = await tx.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true } })
-        const people = (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: p.enabled && members.some(m => m.id === p.memberId), roles: p.roles as ServicePersonData['roles'] }))
-        const dates = [...new Set([...local.map(w => w.startDate), ...source.rows.map(r => r.week.startDate), ...Object.keys(state.baseline)])].sort()
+        const people = (await tx.servicePerson.findMany()).map(p => ({ ...p, enabled: effectiveEnabled(), roles: p.roles as ServicePersonData['roles'] }))
+        // Only Schedule is synced: weeks that left its window are archived, not treated as removed.
+        const today = taipeiDate(new Date())
+        const dates = [...new Set([...local.filter(w => w.endDate >= today).map(w => w.startDate), ...source.rows.map(r => r.week.startDate)])].sort()
         if (resolution && !dates.includes(resolution.date)) throw new SyncError('找不到衝突週次，請重新同步')
         const targets: SyncWeek[] = [], pulls: { target: SyncWeek; assignments: Assignments }[] = []
         for (const date of dates) {

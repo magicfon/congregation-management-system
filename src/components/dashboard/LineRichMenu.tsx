@@ -3,9 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 
 type Status = { enabled: boolean; installed: boolean; currentId: string | null; linked?: { brother: number; admin: number } }
 const previews = [
-  { kind: 'sister', label: '姊妹（預設）', width: 1000 },
-  { kind: 'brother', label: '弟兄', width: 999 },
-  { kind: 'admin', label: '管理者', width: 999 },
+  { key: 'sister', label: '姊妹（預設，沒有標籤）', width: 1000, height: 674 },
+  { key: 'brother-general', label: '弟兄／管理者：一般頁', width: 1332, height: 900 },
+  { key: 'brother-manage', label: '弟兄：管理頁', width: 1332, height: 900 },
+  { key: 'admin-manage', label: '管理者：管理頁', width: 1332, height: 900 },
 ]
 export default function LineRichMenu() {
   const [status, setStatus] = useState<Status | null>(null)
@@ -25,7 +26,7 @@ export default function LineRichMenu() {
   useEffect(() => { void load() }, [])
   async function publish() {
     if (!status?.enabled || lock.current) return
-    if (!window.confirm(status.currentId && !status.installed ? 'LINE 目前已有預設選單。要改用下方三種選單嗎？姊妹版會成為預設選單，弟兄與管理者另外綁定；原選單會保留。' : '發布下方三種選單？姊妹版會成為預設選單，弟兄與管理者另外綁定。')) return
+    if (!window.confirm(status.currentId && !status.installed ? 'LINE 目前已有預設選單。要改用下方選單嗎？姊妹版會成為預設選單，弟兄與管理者另外綁定有「一般｜管理」標籤的選單；原選單會保留。' : '發布下方選單？姊妹版會成為預設選單，弟兄與管理者另外綁定有「一般｜管理」標籤的選單。')) return
     lock.current = true; setBusy(true); setError(''); setMessage('')
     try {
       const res = await fetch('/api/line-bot/rich-menu', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expectedCurrentId: status.currentId }) })
@@ -37,11 +38,11 @@ export default function LineRichMenu() {
   }
   return <details className="mt-4 border-t border-white/10 pt-3">
     <summary className="cursor-pointer text-sm">底部圖文選單 · {status?.installed ? '已發布' : status ? '待發布' : '尚未確認'}</summary>
-    <p className="mt-3 text-xs leading-6 text-mc-text/60">依成員管理的權限與性別顯示：管理者、弟兄各有專用選單，其他人（含未設性別、未連結）看姊妹版。改權限、改性別、連結 LINE、停用或刪除成員時自動換選單。</p>
+    <p className="mt-3 text-xs leading-6 text-mc-text/60">一般頁所有人相同。弟兄與管理者多一個「管理」標籤，內容依權限不同；其他人（含未設性別、未連結）只有一般頁。改權限、改性別、連結 LINE、停用或刪除成員時自動換選單。</p>
     {/* Fixed PNGs are also the exact images uploaded to LINE. */}
-    <div className="mt-3 grid gap-3">{previews.map(preview => <figure key={preview.kind} className="max-w-sm">
+    <div className="mt-3 grid gap-3">{previews.map(preview => <figure key={preview.key} className="max-w-sm">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/line/rich-menu-${preview.kind}.png`} alt={`${preview.label}圖文選單`} width={preview.width} height={674} className="w-full rounded-xl border border-white/10" />
+      <img src={`/line/rich-menu-${preview.key}.png`} alt={`${preview.label}圖文選單`} width={preview.width} height={preview.height} className="w-full rounded-xl border border-white/10" />
       <figcaption className="mt-1 text-xs text-mc-text/60">{preview.label}</figcaption>
     </figure>)}</div>
     <div className="mt-3 flex flex-wrap gap-2">

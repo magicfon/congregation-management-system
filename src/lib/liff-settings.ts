@@ -4,12 +4,16 @@ export function configuredLiffId(): string | null {
   return id && channel && /^\d+-[A-Za-z0-9]+$/.test(id) && id.split('-')[0] === channel ? id : null
 }
 
+// LINE 選單開啟的頁面（ADR-0107）；其餘未知的 view 一律回看板。
+const viewPages: Record<string, string> = {
+  bulletin: '/bulletin', assignments: '/dashboard/assignments/service', territory: '/area-status',
+  report: '/bulletin/territory-report', schedules: '/schedules', requests: '/map-requests',
+  roster: '/service-roster/manage', midweek: '/midweek/manage', announcements: '/bulletin/announcements#manage-announcements', members: '/members',
+}
+
 export function liffDestination(view: string | null): string {
-  if (view === 'bulletin') return '/bulletin'
-  if (view === 'assignments') return '/dashboard/assignments/service'
-  if (view === 'territory') return '/area-status'
-  if (view === 'report') return '/bulletin/territory-report'
-  return ['maps', 'week', 'handoffs', 'manage'].includes(view || '') ? `/dashboard?view=${view}` : '/dashboard'
+  if (view && Object.prototype.hasOwnProperty.call(viewPages, view)) return viewPages[view]
+  return ['maps', 'week', 'handoffs'].includes(view || '') ? `/dashboard?view=${view}` : '/dashboard'
 }
 
 // Next.js has already decoded query values once. Only recover the view selector;

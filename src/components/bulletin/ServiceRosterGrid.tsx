@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import ServiceDutyIcon from './ServiceDutyIcon'
-import { serviceRoles, autoRoles, conflictRoles, fillServiceVacancies, type Assignments, type ServicePersonData, type ServiceRole, type ServiceWeekData } from '@/lib/service-roster'
+import { serviceRoles, autoRoles, qualifies, conflictRoles, fillServiceVacancies, type Assignments, type ServicePersonData, type ServiceRole, type ServiceWeekData } from '@/lib/service-roster'
 
 // 管理頁一覽表：每列一週、每欄一職務，格內直接選人，多週一起儲存（ADR-0079）。
 export default function ServiceRosterGrid({ weeks, people, revision, today, busy, save, openWeek, onDirtyChange }: {
@@ -84,7 +84,7 @@ export default function ServiceRosterGrid({ weeks, people, revision, today, busy
             </th>
             {week.stopped ? <td colSpan={serviceRoles.length} className="border-b border-white/10 bg-mc-card px-3 py-2 text-base text-mc-text/70">停排{week.note ? `：${week.note}` : ''}</td> : serviceRoles.map(role => {
               const assigned = assignments[role.id]
-              const eligible = people.filter(p => p.enabled && p.roles.includes(role.id))
+              const eligible = people.filter(p => p.enabled && qualifies(p, role.id, people))
               const edited = (assigned?.personId ?? '') !== (week.assignments[role.id]?.personId ?? '')
               const warn = conflicts.has(role.id) || Boolean(assigned && !eligible.some(p => p.id === assigned.personId))
               return <td key={role.id} className="border-b border-r border-white/10 bg-mc-card p-1 last:border-r-0">
