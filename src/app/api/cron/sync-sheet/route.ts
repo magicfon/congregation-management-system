@@ -8,6 +8,7 @@ import {
   readSnapshot,
   updateSnapshot,
   pushAreaCDBatch,
+  batchUpdate,
   DEFAULT_SHEET_ID,
 } from '../../../../lib/google-sheets'
 import { randomUUID } from 'crypto'
@@ -32,6 +33,7 @@ export const maxDuration = 60
  * 3. 推送補救：DB isDispatched 但 Sheet C/D 落後 → 推回 Sheet
  * 4. J 欄拒絕拜訪雙向同步（快照比對，兩邊都改則合併）
  * 5. 回報待確認偵測（ADR-0100）：回報了卻未交回、交回依據已刪除、C 欄衝突
+ * D 欄若是公式（如 =TODAY()）不當分發日期匯入，並改回固定日期（ADR-0107）
  *
  * Auth：Vercel Cron 自帶 Authorization: Bearer $CRON_SECRET
  */
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
     if ('response' in auth) return auth.response
   }
 
-  const result = { reportAlerts: { created: 0, autoResolved: 0 }, doNotVisit: { imported: 0, pushed: 0, conflicts: 0 }, completionDatesUpdated: 0, imported: 0, sheetEdits: 0, conflicts: 0, pushedBack: 0, errors: [] as string[] }
+  const result = { reportAlerts: { created: 0, autoResolved: 0 }, doNotVisit: { imported: 0, pushed: 0, conflicts: 0 }, completionDatesUpdated: 0, formulaDatesFixed: 0, imported: 0, sheetEdits: 0, conflicts: 0, pushedBack: 0, errors: [] as string[] }
   const serviceRosterSync = syncServiceRoster(prisma)
 
   try {
@@ -134,6 +136,9 @@ export async function POST(request: NextRequest) {
 
     // ============ 2+3. 快照比對 + 推送補救 ============
     const statusRows = await readValues(DEFAULT_SHEET_ID, '區域狀態!A2:E214')
+    // D 欄公式（如 =TODAY()）每天變值，會讓分發日期天天往後跳（ADR-0107）
+    const dFormulas = await readValues(DEFAULT_SHEET_ID, '區域狀態!D2:D214', 'FORMULA')
+    const frozenDates: { sheetNo: number; date: string }[] = []
     try {
       result.completionDatesUpdated = (await syncReportCompletions(prisma, statusRows)).updated
     } catch (error) {
@@ -163,8 +168,15 @@ export async function POST(request: NextRequest) {
       const snapDate = snap?.date || ''
 
       // normalize sheet date
-      const sd = parseDate(sheetDateStr)
-      const sheetDateNorm = sd ? sd.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) : ''
+      let sd = parseDate(sheetDateStr)
+      let sheetDateNorm = sd ? sd.toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) : ''
+      if ((dFormulas[i]?.[0] ?? '').toString().trim().startsWith('=')) {
+        // 公式不是真的分發日期：持有人沒變就沿用上次同步的日期；換人才以今天的值為準。之後寫回固定值。
+        const keep = sheetMember === snapMember && snapDate ? snapDate : sheetDateNorm
+        frozenDates.push({ sheetNo, date: keep })
+        sheetDateNorm = keep
+        sd = parseDate(keep)
+      }
 
       const sheetChanged = sheetMember !== snapMember || sheetDateNorm !== snapDate
       if (!sheetChanged) continue
@@ -234,6 +246,13 @@ export async function POST(request: NextRequest) {
 
     if (pushQueue.length > 0) {
       await pushAreaCDBatch(DEFAULT_SHEET_ID, pushQueue)
+    }
+    // 衝突推送已寫入固定 C/D；其餘公式格只把 D 欄換成固定日期，不動 C 欄
+    const pushed = new Set(pushQueue.map(p => p.sheetNo))
+    const freezes = frozenDates.filter(f => !pushed.has(f.sheetNo))
+    if (freezes.length > 0) {
+      await batchUpdate(DEFAULT_SHEET_ID, freezes.map(f => ({ range: `區域狀態!D${f.sheetNo + 1}`, values: [[f.date]] })))
+      result.formulaDatesFixed = freezes.length
     }
     if (snapUpdates.length > 0) {
       await updateSnapshot(snapUpdates)
