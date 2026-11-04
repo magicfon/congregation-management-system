@@ -33,7 +33,7 @@ export const maxDuration = 60
  * 3. 推送補救：DB isDispatched 但 Sheet C/D 落後 → 推回 Sheet
  * 4. J 欄拒絕拜訪雙向同步（快照比對，兩邊都改則合併）
  * 5. 回報待確認偵測（ADR-0100）：回報了卻未交回、交回依據已刪除、C 欄衝突
- * D 欄若是公式（如 =TODAY()）不當分發日期匯入，並改回固定日期（ADR-0107）
+ * D 欄若是公式（如 =TODAY()）不當分發日期匯入，並改回固定日期（ADR-0108）
  *
  * Auth：Vercel Cron 自帶 Authorization: Bearer $CRON_SECRET
  */
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     // ============ 2+3. 快照比對 + 推送補救 ============
     const statusRows = await readValues(DEFAULT_SHEET_ID, '區域狀態!A2:E214')
-    // D 欄公式（如 =TODAY()）每天變值，會讓分發日期天天往後跳（ADR-0107）
+    // D 欄公式（如 =TODAY()）每天變值，會讓分發日期天天往後跳（ADR-0108）
     const dFormulas = await readValues(DEFAULT_SHEET_ID, '區域狀態!D2:D214', 'FORMULA')
     const frozenDates: { sheetNo: number; date: string }[] = []
     try {
