@@ -3,7 +3,7 @@ import { requireApiUser } from '@/lib/api-auth'
 import { sameOrigin } from '@/lib/bulletin-announcements'
 import { prisma } from '@/lib/db'
 import { MeetingConflict, MeetingError } from '@/lib/midweek'
-import { editMeeting, getPalette, savePalette, getRecord, getSource, meetingList } from '@/lib/midweek-store'
+import { assertEditableWeek, editMeeting, getPalette, savePalette, getRecord, getSource, meetingList } from '@/lib/midweek-store'
 import { syncMidweek, syncStatus } from '@/lib/midweek-sync'
 import { sendStudentNotices, studentNoticePlan } from '@/lib/student-notice'
 export const dynamic = 'force-dynamic'
@@ -28,8 +28,9 @@ export async function POST(request: Request) {
     if (!body || typeof body !== 'object') throw new MeetingError('操作格式錯誤')
     if (body.action === 'sync') return json({ sync: await syncMidweek(true) })
     if (body.action === 'student-notices') return json({ rows: await studentNoticePlan(prisma, String(body.id)) })
-    if (body.action === 'student-notices-send') return json(await sendStudentNotices(prisma, String(body.id)))
+    if (body.action === 'student-notices-send') { await assertEditableWeek(String(body.id)); return json(await sendStudentNotices(prisma, String(body.id))) }
     if (body.action === 'palette') return json({ palette: await savePalette(body.palette) })
+    await assertEditableWeek(String(body.id))
     return json(await editMeeting(body.id, body.action, body.revision, body.meeting, { deleteLaterVersions: body.deleteLaterVersions, editor: { id: auth.user.id!, name: auth.user.name || '管理員' } }))
   } catch (error) {
     return NextResponse.json({ error: error instanceof MeetingConflict ? '其他管理員已更新這週，請重新載入後再編輯' : error instanceof MeetingError ? error.message : '操作失敗，請稍後重試' }, { status: error instanceof MeetingConflict ? 409 : error instanceof MeetingError || error instanceof SyntaxError ? 400 : 503 })
