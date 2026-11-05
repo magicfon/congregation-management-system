@@ -253,3 +253,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 @media (prefers-reduced-motion: reduce) {
   .drawer-in, .drawer-out, .backdrop-in, .backdrop-out { animation: none; }
 }
+
+/* 地圖分配：輸入號碼跳轉後閃爍標示該區塊（ADR-0109） */
+@keyframes area-focus-pulse { 0%, 100% { stroke-width: 5px; stroke-opacity: 1; } 50% { stroke-width: 14px; stroke-opacity: .55; } }
+.area-focus-pulse { animation: area-focus-pulse 1s ease-in-out 4; }
+@media (prefers-reduced-motion: reduce) { .area-focus-pulse { animation: none; } }
