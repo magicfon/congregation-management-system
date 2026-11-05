@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { newMeeting, sectionNames, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 import StudentNotices from './StudentNotices'
+import SourceChanges from './SourceChanges'
 import { draftBaseVersionOf, draftOwnerStale, publishedVersionOf, sameContent, previewVersion, versionLabel, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
 
 export type ManagedWeek = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
@@ -25,6 +26,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
   const [selected, setSelected] = useState<number | null>(null)
   const [versionNumber, setVersionNumber] = useState(0)
   const [me, setMe] = useState('')
+  const [comparing, setComparing] = useState(false)
   const versions = record?.versions || []
   const dates = record?.versionDates || {}
   const historical = versions.find(v=>v.number===versionNumber)
@@ -129,7 +131,8 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
       </div>
       {!historical && record?.published && <StudentNotices key={`${id}:${record.publishedVersion}`} weekId={id} />}
       {editable && <>
-        {source && record && source.hash !== record.sourceHash && <p className="text-sm text-amber-300">手冊已更新，現有安排已保留。可至「這週的手冊與下架」查看來源。</p>}
+        {source && record && source.hash !== record.sourceHash && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-amber-300">手冊已更新，現有安排已保留。</p><button className={button} onClick={() => setComparing(true)}>查看手冊更動</button></div>}
+        {comparing && source && <SourceChanges snapshot={record?.sourceSnapshot} draft={meeting} source={source} onClose={() => setComparing(false)} />}
         <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
           {selected === -1 && <div className="grid gap-3 sm:grid-cols-2"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label></div>}
           {meeting.items.map((item, index) => selected === index && <div key={item.id}><div className="grid gap-3 sm:grid-cols-2">
