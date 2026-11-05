@@ -16,7 +16,7 @@ async function api(url: string, options?: RequestInit) {
   if (!response.ok) throw new Error(data.error || '讀取失敗')
   return data
 }
-// 編排頁連續多週中的一週：自己讀取、編輯、發布（ADR-0099）。
+// 編排頁連續多週中的一週：自己讀取、編輯、發布（ADR-0099）；每週一張卡片、深藍標題列（ADR-0112）。
 export default function MidweekWeek({ week, members, palette, onLoaded }: { week: ManagedWeek; members: { id: string; name: string }[]; palette: Palette; onLoaded: (id: string) => void }) {
   const id = week.id
   const [source, setSource] = useState<SourceWeek | null>(null), [record, setRecord] = useState<MeetingRecord | null>(null)
@@ -100,17 +100,17 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
     ;[items[index], items[target]] = [items[target], items[index]]; change({ items })
   }
   const status = loading ? '' : record?.published ? '已發布' : versions.length ? '已下架' : '草稿'
-  return <section aria-labelledby={`week-${id}`} className="min-w-0 space-y-4">
-    <h2 id={`week-${id}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-white/10 pb-2 text-lg font-semibold">
+  return <section aria-labelledby={`week-${id}`} className="min-w-0 space-y-4 overflow-hidden rounded-2xl border border-mc-text/20 bg-mc-card px-3 pb-4 shadow-md sm:px-5 sm:pb-5">
+    <h2 id={`week-${id}`} className="-mx-3 flex flex-wrap items-center gap-x-3 gap-y-1 bg-blue-900 px-3 py-3 text-lg font-semibold text-white sm:-mx-5 sm:px-5 sm:text-xl">
       <span>{week.date.slice(5).replace('-', '/')}　{week.reading}</span>
-      {status && <span className={`text-sm font-normal ${record?.published ? 'text-emerald-300' : 'text-mc-text/60'}`}>{status}</span>}
-      {lockedBy && <span className="text-sm font-normal text-amber-300">{lockedBy.name}編輯中</span>}
+      {status && <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${record?.published ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-200 text-amber-900'}`}>{status}</span>}
+      {lockedBy && <span className="rounded-full bg-orange-200 px-2.5 py-0.5 text-sm font-semibold text-orange-900">{lockedBy.name}編輯中</span>}
     </h2>
     {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
     {message && <p role="status" className="text-green-300">{message}</p>}
     {loading && <p role="status">載入中…</p>}
     {meeting && <>
-      <section className="space-y-3 rounded-xl border border-white/10 p-3 sm:p-4">
+      <section className="space-y-3 rounded-xl border border-mc-text/15 bg-mc-accent/40 p-3 sm:p-4">
         <h3 className="text-sm font-semibold">版次紀錄</h3>
         {baseVersion && baseVersion.number !== publishedVersion?.number && <p className="text-sm text-mc-text/60">草稿來自第{baseVersion.number}版</p>}
         {!!versions.length && <select aria-label="選擇版次" className="min-h-11 w-full min-w-0 rounded-lg border border-white/15 bg-mc-card px-3 text-sm" value={versionNumber} disabled={busy || loading} onChange={e=>{setVersionNumber(Number(e.target.value));setSelected(null)}}>
@@ -120,7 +120,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
         {editable && !!laterVersions.length && <div className="space-y-2"><button className={`${button} text-red-300`} disabled={busy || deleteNeedsPublish} onClick={() => save('delete-later')}>刪除{range(laterVersions)}</button>{deleteNeedsPublish && <p className="text-sm text-mc-text/60">公布欄還在用這些版本，請先按「改回公開第{baseVersion?.number}版」再刪除。</p>}</div>}
         {!historical && (source || record?.published) && <details className="text-sm"><summary className="cursor-pointer py-2 text-mc-text/70">這週的手冊與下架</summary><div className="flex flex-wrap items-center gap-3">{source && <><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.week} 週次手冊</a>{!lockedBy && <button className={button} disabled={busy} onClick={() => save('reset')}>從最新手冊重建草稿</button>}</>}{record?.published && <button className={button} disabled={busy} onClick={() => save('unpublish')}>下架這週</button>}</div></details>}
       </section>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-mc-card p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-mc-text/15 bg-mc-accent/40 p-3 sm:p-4">
         <div className="text-sm text-mc-text/70">{historical ? <p>查看第{historical.number}版（只能看）</p> : lockedBy ? <p className="text-amber-300">{lockedBy.name}正在編輯草稿（{new Date(lockedBy.at).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}儲存），發布或放棄前其他人只能看。{draftOwnerStale(lockedBy) ? '已超過24小時沒更新，可以接手。' : ''}</p> : <>
           <p>{record?.published ? `公開中：第${publishedVersion?.number || 1}版` : versions.length ? '已下架' : '尚未公開'}{backToBase && baseVersion && `・草稿是第${baseVersion.number}版`}{dirty ? '・有未儲存的修改' : draftChanged && versions.length ? '・有修改尚未發布' : ''}</p>
           {draftChanged && !!laterVersions.length && <p className="text-amber-300">發布會成為第{(baseVersion?.number || 0) + 1}版，並刪除舊的{range(laterVersions)}</p>}
@@ -148,7 +148,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded }: { week
       </>}
       <fieldset disabled={busy} className="min-w-0">
         {editable && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>點選節目或姓名即可編輯。</p><button className={button} onClick={() => setSelected(-1)}>節目表設定</button></div>}
-        <MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={editable ? { change, itemChange, settings: setSelected, members } : undefined} />
+        <div className="overflow-hidden rounded border border-mc-text/15"><MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={editable ? { change, itemChange, settings: setSelected, members } : undefined} /></div>
         {editable && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
       </fieldset>
     </>}
