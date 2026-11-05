@@ -29,25 +29,41 @@ export function sourceSnapshot(source: SourceWeek): SourceSnapshot {
   return { reading: source.reading, items: source.items.map(({ id, section, title, minutes }) => ({ id, section, title, minutes, counsel: 0, role: '', person: '', assistant: '', highlight: '' })) }
 }
 export type SourceDiffRow = { old?: { section: Section; title: string; minutes: number }; new?: { section: Section; title: string; minutes: number }; changed: boolean }
+// 比對時忽略格式差異：舊草稿的節目名稱外層方括號、全形／半形連字號（ADR-0111）。
+export function comparableText(text: string) {
+  return text.replace(/^\[(.*)\]$/, '$1').replace(/[－–—]/g, '-').trim()
+}
 // 以節目名稱對齊兩份節目（最長共同子序列），名稱相同但分鐘數不同也算變動。
 export function diffSources(before: { items: Pick<MeetingItem, 'section' | 'title' | 'minutes'>[] }, after: { items: Pick<MeetingItem, 'section' | 'title' | 'minutes'>[] }): SourceDiffRow[] {
   const a = before.items.map(({ section, title, minutes }) => ({ section, title, minutes })), b = after.items.map(({ section, title, minutes }) => ({ section, title, minutes }))
+  const same = (x: string, y: string) => comparableText(x) === comparableText(y)
   const length = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0))
-  for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) length[i][j] = a[i].title === b[j].title ? length[i + 1][j + 1] + 1 : Math.max(length[i + 1][j], length[i][j + 1])
+  for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) length[i][j] = same(a[i].title, b[j].title) ? length[i + 1][j + 1] + 1 : Math.max(length[i + 1][j], length[i][j + 1])
   const rows: SourceDiffRow[] = []
   let i = 0, j = 0
   while (i < a.length || j < b.length) {
-    if (i < a.length && j < b.length && a[i].title === b[j].title) { rows.push({ old: a[i], new: b[j], changed: a[i].minutes !== b[j].minutes }); i++; j++ }
+    if (i < a.length && j < b.length && same(a[i].title, b[j].title)) { rows.push({ old: a[i], new: b[j], changed: a[i].minutes !== b[j].minutes }); i++; j++ }
     else if (i < a.length && j < b.length && length[i + 1][j] === length[i][j + 1]) { rows.push({ old: a[i], new: b[j], changed: true }); i++; j++ }
     else if (j >= b.length || (i < a.length && length[i + 1][j] >= length[i][j + 1])) rows.push({ old: a[i++], changed: true })
     else rows.push({ new: b[j++], changed: true })
   }
   return rows
 }
-export function currentAndFutureWeeks<T extends { date: string }>(weeks: T[], today: string): T[] {
+// 本週一（台北日期字串），週中編排以此區分可編輯週與過去週。
+export function weekMonday(today: string) {
   const weekday = new Date(`${today}T12:00:00Z`).getUTCDay()
-  const monday = addDays(today, -((weekday + 6) % 7))
-  return weeks.filter(week => week.date >= monday).sort((a, b) => a.date.localeCompare(b.date))
+  return addDays(today, -((weekday + 6) % 7))
+}
+export function isPastWeek(date: string, today: string) { return date < weekMonday(today) }
+export function sourceChangeCount(before: { reading: string; items: Pick<MeetingItem, 'section' | 'title' | 'minutes'>[] }, after: SourceWeek) {
+  return diffSources(before, after).filter(row => row.changed).length + (comparableText(before.reading) === comparableText(after.reading) ? 0 : 1)
+}
+export function currentAndFutureWeeks<T extends { date: string }>(weeks: T[], today: string): T[] {
+  return weeks.filter(week => !isPastWeek(week.date, today)).sort((a, b) => a.date.localeCompare(b.date))
+}
+// 過去週次：最近的在前，只供閱覽（ADR-0112）。
+export function pastWeeks<T extends { date: string }>(weeks: T[], today: string): T[] {
+  return weeks.filter(week => isPastWeek(week.date, today)).sort((a, b) => b.date.localeCompare(a.date))
 }
 export function nextMidweekCheck(state: { month: string; completedAt: string | null; remaining: number; errors: unknown[] } | null, now = new Date()): Date {
   const local = new Date(now.getTime() + 8 * 3600000)
