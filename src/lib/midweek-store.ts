@@ -1,5 +1,5 @@
 import { prisma } from './db'
-import { MeetingConflict, MeetingError, newMeeting, validateMeeting, type MeetingRecord, type SourceWeek } from './midweek'
+import { MeetingConflict, MeetingError, newMeeting, sourceSnapshot, validateMeeting, type MeetingRecord, type SourceWeek } from './midweek'
 import { draftBaseVersionOf, draftOwnerStale, localDate, previewVersion, publishedVersionOf, sameContent, validatePalette, versionsOf } from './midweek-versions'
 
 const PALETTE_KEY = 'midweek:palette'
@@ -63,6 +63,8 @@ export async function editMeeting(id: string, action: string, revision: number, 
   if (action === 'discard') restored = discardTo ? structuredClone(discardTo.meeting) : newMeeting(source)
   const draft = restored ?? (action === 'reset' ? newMeeting(source) : ['unpublish', 'delete-later', 'version-date', 'take-over'].includes(action) ? old.draft : validateMeeting(value))
   const next: MeetingRecord = { ...old, versions, revision: revision + 1, draft, sourceHash: action === 'reset' || !oldRow ? source.hash : old.sourceHash }
+  // 草稿建立或重建時記下手冊原稿；舊資料若手冊還沒變，也順便補存（ADR-0111）。
+  if (next.sourceHash === source.hash && (action === 'reset' || !oldRow || !old.sourceSnapshot)) next.sourceSnapshot = sourceSnapshot(source)
   if (action === 'restore') next.draftBaseVersion = (value as { number: number }).number
   if (action === 'discard') next.draftBaseVersion = discardTo?.number
   if (['save', 'restore', 'reset', 'take-over'].includes(action)) {

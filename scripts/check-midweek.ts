@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseWeek, discoverIssues, discoverYears, officialUrl } from '../src/lib/midweek-import'
-import { currentAndFutureWeeks, newMeeting, nextMidweekCheck, timeline, validateMeeting } from '../src/lib/midweek'
+import { currentAndFutureWeeks, diffSources, newMeeting, nextMidweekCheck, timeline, validateMeeting } from '../src/lib/midweek'
 const root = process.argv[2] || 'scripts/fixtures/midweek'
 const completed = { month: '2026-10', completedAt: '2026-10-11T13:49:47Z', remaining: 0, errors: [] }
 assert.equal(nextMidweekCheck(completed, new Date('2026-10-13T10:00:00Z')).toISOString(), '2026-10-31T19:00:00.000Z')
@@ -47,3 +47,9 @@ for (const [name, count] of [['sidebar', 13], ['new-song', 13], ['2027', 13], ['
   if (name === 'new-song') assert.equal(parsed.items.at(-1)?.title, '唱2024年區域大會的新歌')
 }
 console.log('週中節目：新舊手冊、日期、轉場計時、輸入驗證與來源保護檢查通過')
+{
+  const it = (title: string, minutes = 5) => ({ section: 'living' as const, title, minutes })
+  const rows = diffSources({ items: [it('A'), it('B'), it('C'), it('D')] }, { items: [it('A'), it('新增'), it('B', 7), it('D2'), it('C')] })
+  assert.deepEqual(rows.map(r => [r.old?.title ?? null, r.new?.title ?? null, r.changed]), [['A', 'A', false], [null, '新增', true], ['B', 'B', true], [null, 'D2', true], ['C', 'C', false], ['D', null, true]], '多一項、少一項與分鐘變動都要標出')
+  assert.deepEqual(diffSources({ items: [it('A'), it('B'), it('C')] }, { items: [it('A'), it('X'), it('C')] }).map(r => [r.old?.title, r.new?.title, r.changed]), [['A', 'A', false], ['B', 'X', true], ['C', 'C', false]], '改名的節目左右並排')
+}

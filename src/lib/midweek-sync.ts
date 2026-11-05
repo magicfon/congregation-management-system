@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto'
 import { prisma } from './db'
 import { discoverIssues, discoverWeeks, discoverYears, fetchOfficial, INDEX_URL, parseWeek } from './midweek-import'
-import { SOURCE_PREFIX } from './midweek-store'
+import { RECORD_PREFIX, SOURCE_PREFIX } from './midweek-store'
+import { sourceSnapshot, type MeetingRecord, type SourceWeek } from './midweek'
 
 type Task = { kind: 'index' | 'year' | 'issue' | 'week'; url: string; attempts: number }
 type Failure = Task & { error: string }
@@ -12,6 +13,19 @@ export async function syncStatus() {
   const row = await prisma.setting.findUnique({ where: { key: stateKey } })
   const s: SyncState | null = row ? JSON.parse(row.value) : null
   return s ? { month: s.month, completedAt: s.completedAt, remaining: s.queue.length, done: s.done, imported: s.imported, errors: s.errors.map(e => ({ url: e.url, error: e.error })) } : null
+}
+// 手冊內容變了：覆蓋前先把舊手冊存進還沒有原稿的草稿，供左右比對（ADR-0111）。
+export async function keepOldSource(source: SourceWeek) {
+  const oldSource = await prisma.setting.findUnique({ where: { key: SOURCE_PREFIX + source.id } })
+  if (!oldSource) return
+  const before = JSON.parse(oldSource.value) as SourceWeek
+  if (before.hash === source.hash) return
+  const key = RECORD_PREFIX + source.id
+  const row = await prisma.setting.findUnique({ where: { key } })
+  if (!row) return
+  const record = JSON.parse(row.value) as MeetingRecord
+  if (record.sourceSnapshot || record.sourceHash !== before.hash) return
+  await prisma.setting.updateMany({ where: { key, value: row.value }, data: { value: JSON.stringify({ ...record, sourceSnapshot: sourceSnapshot(before) }) } })
 }
 // Daily cron continues a bounded batch; only one full source scan is started per Taipei calendar month.
 export async function syncMidweek(force = false, budgetMs = 40000) {
@@ -47,6 +61,7 @@ export async function syncMidweek(force = false, budgetMs = 40000) {
         const html = await fetchOfficial(task.url)
         if (task.kind === 'week') {
           const source = parseWeek(html, task.url)
+          await keepOldSource(source)
           await prisma.setting.upsert({ where: { key: SOURCE_PREFIX + source.id }, create: { key: SOURCE_PREFIX + source.id, value: JSON.stringify(source) }, update: { value: JSON.stringify(source) } })
           return [] as Task[]
         }
