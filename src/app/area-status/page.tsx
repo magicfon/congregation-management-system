@@ -122,8 +122,6 @@ export default function AreaStatusPage() {
     return () => controller.abort()
   }, [historyKey, revision])
   const currentHistory = history?.key === historyKey ? history : null
-  const known = data?.regions.filter(r => r.days !== null && !(grayDispatched && r.isDispatched)) || []
-  const synchronized = data?.syncedAt ? new Date(data.syncedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false }) : '尚未同步'
   return <DashboardLayout><div className="h-[calc(100dvh-3.5rem)] max-w-[1920px] mx-auto p-2 md:p-3 flex flex-col gap-2 overflow-hidden text-mc-text">
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-2">
       <h1 className="text-lg font-semibold">地圖分配</h1>
@@ -185,14 +183,6 @@ export default function AreaStatusPage() {
             })}</div>
           </> : <div className="py-6 text-center"><p className="text-2xl text-mc-text/30">◎</p><h2 className="mt-2 font-semibold">點選地圖，查看區域</h2><p className="mt-2 text-sm text-mc-text/50">查看多久未完成回報，<br />將想領取的地圖加入下方清單。</p></div>}
         </section>
-        {data && <details className="rounded-xl border border-white/10 bg-mc-card p-3 text-xs text-mc-text/60"><summary className="cursor-pointer">圖例與資料資訊</summary><div className="mt-2 space-y-2">
-          <p>{known.length} 塊可上色 · {data.regions.length - known.length} 塊灰色。灰色代表使用中（勾選時）、無紀錄、待配對或資料不完整。</p>
-          <p>計算截至 {data.today}（台北）<br />回報日期同步：{synchronized}</p>
-          {!data.syncedAt && <p className="text-yellow-300">完成回報日期尚未同步，目前以灰色顯示。</p>}
-          <p>{data.boundary.source === 'cloud' ? `雲端分區草稿 v${data.boundary.version}` : '原始分區候選（尚無雲端草稿）'}；分區仍在人工核對中。</p>
-          <p>「領取後多久」請至使用中地圖查看。</p>
-          {!!data.unlocatedNumbers.length && <p>尚未定位：{data.unlocatedNumbers.join('、')} 號</p>}
-        </div></details>}
         </div>
         </section>
         {isAdmin && <section className={`min-h-0 flex flex-col border-t border-white/10 ${settingsOpen ? 'flex-1' : 'shrink-0'}`}>
