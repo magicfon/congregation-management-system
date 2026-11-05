@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { newMeeting, sectionNames, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
+import { newMeeting, sectionNames, sourceChangeCount, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 import StudentNotices from './StudentNotices'
 import SourceChanges from './SourceChanges'
@@ -135,7 +135,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
       </div>
       {!readOnly && !historical && record?.published && <StudentNotices key={`${id}:${record.publishedVersion}`} weekId={id} />}
       {editable && <>
-        {source && record && source.hash !== record.sourceHash && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-amber-300">手冊已更新，現有安排已保留。</p><button className={button} onClick={() => setComparing(true)}>查看手冊更動</button></div>}
+        {source && record && source.hash !== record.sourceHash && sourceChangeCount(record.sourceSnapshot || meeting, source) > 0 && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-amber-300">手冊已更新，現有安排已保留。</p><button className={button} onClick={() => setComparing(true)}>查看手冊更動</button></div>}
         {comparing && source && <SourceChanges snapshot={record?.sourceSnapshot} draft={meeting} source={source} onClose={() => setComparing(false)} />}
         <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
           {selected === -1 && <div className="grid gap-3 sm:grid-cols-2"><label>聚會日期<input type="date" className={field} value={meeting.date} onChange={e => change({ date: e.target.value })} /></label><label>開始時間<input type="time" className={field} value={meeting.start} onChange={e => change({ start: e.target.value })} /></label><label>更新標示<input placeholder="例如：10/9 更新" className={field} value={meeting.note} onChange={e => change({ note: e.target.value })} /></label></div>}
