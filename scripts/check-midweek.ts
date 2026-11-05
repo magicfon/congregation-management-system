@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseWeek, discoverIssues, discoverYears, officialUrl } from '../src/lib/midweek-import'
-import { currentAndFutureWeeks, diffSources, newMeeting, nextMidweekCheck, timeline, validateMeeting } from '../src/lib/midweek'
+import { currentAndFutureWeeks, diffSources, isPastWeek, pastWeeks, newMeeting, nextMidweekCheck, timeline, validateMeeting } from '../src/lib/midweek'
 const root = process.argv[2] || 'scripts/fixtures/midweek'
 const completed = { month: '2026-10', completedAt: '2026-10-11T13:49:47Z', remaining: 0, errors: [] }
 assert.equal(nextMidweekCheck(completed, new Date('2026-10-13T10:00:00Z')).toISOString(), '2026-10-31T19:00:00.000Z')
@@ -14,6 +14,9 @@ assert.deepEqual(currentAndFutureWeeks(choices, '2027-01-03').map(w => w.date), 
 assert.deepEqual(currentAndFutureWeeks(choices, '2027-01-04').map(w => w.date), ['2027-01-08'])
 assert.equal(choices[0].date, '2027-01-08', '週次篩選不改動原始清單')
 assert.deepEqual(currentAndFutureWeeks([], '2027-01-04'), [])
+assert.deepEqual(pastWeeks(choices, '2027-01-04').map(w => w.date), ['2027-01-03', '2026-12-28', '2026-12-27'], '過去週次最近的在前')
+assert.equal(isPastWeek('2027-01-04', '2027-01-10'), false, '本週一不算過去')
+assert.equal(isPastWeek('2027-01-03', '2027-01-04'), true)
 const url = 'https://www.jw.org/cmn-hant/多媒體圖書館/耶和華見證人聚會手冊/聚會手冊2026年9-10月/傳道與生活聚會節目表2026年10月5-11日/'
 const html = readFileSync(`${root}/midweek-week.html`, 'utf8')
 const source = parseWeek(html, url)

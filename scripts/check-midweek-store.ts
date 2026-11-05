@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { prisma } from '../src/lib/db'
 import { parseWeek } from '../src/lib/midweek-import'
 import { MeetingConflict, MeetingError, newMeeting } from '../src/lib/midweek'
-import { editMeeting, getRecord, meetingList, RECORD_PREFIX, SOURCE_PREFIX } from '../src/lib/midweek-store'
+import { assertEditableWeek, editMeeting, getRecord, meetingList, RECORD_PREFIX, SOURCE_PREFIX } from '../src/lib/midweek-store'
 import { keepOldSource } from '../src/lib/midweek-sync'
 import { draftBaseVersionOf, publishedVersionOf } from '../src/lib/midweek-versions'
 import { GET as publicMeeting } from '../src/app/api/midweek/route'
@@ -22,6 +22,8 @@ async function main() {
   rows.set(SOURCE_PREFIX + source.id, { key: SOURCE_PREFIX + source.id, value: JSON.stringify(source) })
   const draft = newMeeting(source); draft.chair = '測試主席'
   await editMeeting(source.id, 'save', 0, draft)
+  await assertEditableWeek(source.id, draft.date)
+  await assert.rejects(assertEditableWeek(source.id, '2099-01-01'), /過去週次只能閱覽/)
   assert.equal((await meetingList(false)).length, 0, '草稿不可公開')
   await editMeeting(source.id, 'publish', 1, draft)
   draft.chair = '修改草稿'

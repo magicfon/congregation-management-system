@@ -44,10 +44,18 @@ export function diffSources(before: { items: Pick<MeetingItem, 'section' | 'titl
   }
   return rows
 }
-export function currentAndFutureWeeks<T extends { date: string }>(weeks: T[], today: string): T[] {
+// 本週一（台北日期字串），週中編排以此區分可編輯週與過去週。
+export function weekMonday(today: string) {
   const weekday = new Date(`${today}T12:00:00Z`).getUTCDay()
-  const monday = addDays(today, -((weekday + 6) % 7))
-  return weeks.filter(week => week.date >= monday).sort((a, b) => a.date.localeCompare(b.date))
+  return addDays(today, -((weekday + 6) % 7))
+}
+export function isPastWeek(date: string, today: string) { return date < weekMonday(today) }
+export function currentAndFutureWeeks<T extends { date: string }>(weeks: T[], today: string): T[] {
+  return weeks.filter(week => !isPastWeek(week.date, today)).sort((a, b) => a.date.localeCompare(b.date))
+}
+// 過去週次：最近的在前，只供閱覽（ADR-0112）。
+export function pastWeeks<T extends { date: string }>(weeks: T[], today: string): T[] {
+  return weeks.filter(week => isPastWeek(week.date, today)).sort((a, b) => b.date.localeCompare(a.date))
 }
 export function nextMidweekCheck(state: { month: string; completedAt: string | null; remaining: number; errors: unknown[] } | null, now = new Date()): Date {
   const local = new Date(now.getTime() + 8 * 3600000)

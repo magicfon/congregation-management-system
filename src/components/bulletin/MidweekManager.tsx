@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { currentAndFutureWeeks, nextMidweekCheck } from '@/lib/midweek'
+import { currentAndFutureWeeks, nextMidweekCheck, pastWeeks } from '@/lib/midweek'
 import type { Palette } from '@/lib/midweek-versions'
 import MidweekWeek, { type ManagedWeek } from './MidweekWeek'
 
@@ -15,8 +15,10 @@ async function api(url: string, options?: RequestInit) {
   return data
 }
 // 週中編排頁：本週起連續列出各週，捲到底才載入下一週；寬螢幕兩週左右並排（ADR-0099）。
+// 過去週次另用選單挑一週唯讀閱覽（ADR-0112）。
 export default function MidweekManager() {
   const [weeks, setWeeks] = useState<ManagedWeek[]>([])
+  const [past, setPast] = useState<ManagedWeek[]>([]), [pastId, setPastId] = useState('')
   const [members, setMembers] = useState<{ id: string; name: string }[]>([])
   const [sync, setSync] = useState<Sync | null>(null), [syncing, setSyncing] = useState(false)
   const [loading, setLoading] = useState(true), [error, setError] = useState('')
@@ -37,7 +39,7 @@ export default function MidweekManager() {
     const data = await api(endpoint)
     if (!alive.current) return
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
-    setWeeks(currentAndFutureWeeks(data.weeks, today)); setMembers(data.members); setSync(data.sync)
+    setWeeks(currentAndFutureWeeks(data.weeks, today)); setPast(pastWeeks(data.weeks, today)); setMembers(data.members); setSync(data.sync)
   }
   useEffect(() => {
     alive.current = true
@@ -60,6 +62,8 @@ export default function MidweekManager() {
     const columns = grid.current ? getComputedStyle(grid.current).gridTemplateColumns.split(' ').length : 1
     if (allLoaded && count < weeks.length && ((atEnd && inView) || count % columns)) setCount(current => current + 1)
   }, [atEnd, allLoaded, count, weeks.length])
+  const pastWeek = past.find(week => week.id === pastId)
+  const onPastLoaded = useCallback(() => {}, [])
   const onLoaded = useCallback((id: string) => setLoaded(current => current.includes(id) ? current : [...current, id]), [])
   async function runSync() {
     setSyncing(true); setError('')
@@ -75,7 +79,11 @@ export default function MidweekManager() {
   }
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm text-mc-text/70">本週起依序列出，往下捲動載入下一週。</p>
+      <p className="text-sm text-mc-text/70">{pastWeek ? '過去週次只能閱覽，不能編輯。' : '本週起依序列出，往下捲動載入下一週。'}</p>
+      {!!past.length && <select aria-label="查看過去週次" className="min-h-11 min-w-0 rounded-lg border border-white/15 bg-mc-card px-3 text-sm" value={pastId} onChange={e => setPastId(e.target.value)}>
+        <option value="">本週起（可編輯）</option>
+        {past.map(week => <option key={week.id} value={week.id}>{week.date.replaceAll('-', '/')}　{week.reading}（唯讀）</option>)}
+      </select>}
       <Link className="shrink-0 px-2 py-3 text-sm text-mc-text/70 hover:text-mc-text" href="/bulletin/midweek-meeting">查看公開頁 ↗</Link>
     </div>
     {!loading && <details className="rounded-xl border border-white/10 px-4">
@@ -89,11 +97,14 @@ export default function MidweekManager() {
     </details>}
     {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
     {loading && <p role="status">載入中…</p>}
+    {pastWeek && <MidweekWeek key={`past-${pastWeek.id}`} week={pastWeek} members={members} palette={palette} onLoaded={onPastLoaded} readOnly />}
+    {!pastWeek && <>
     {!loading && !weeks.length && !error && <p className="py-8 text-mc-text/60">目前沒有本週或未來的節目，請展開「更多管理」匯入手冊。</p>}
     <div ref={grid} className="grid items-start gap-x-6 gap-y-10 [grid-template-columns:repeat(auto-fill,minmax(min(100%,34rem),1fr))]">
       {shownWeeks.map(week => <MidweekWeek key={week.id} week={week} members={members} palette={palette} onLoaded={onLoaded} />)}
     </div>
     <div ref={sentinel} aria-hidden="true" className="h-px" />
     {!loading && count >= weeks.length && weeks.length > 1 && <p className="py-4 text-center text-sm text-mc-text/50">已列出全部 {weeks.length} 週</p>}
+    </>}
   </div>
 }

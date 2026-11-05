@@ -1,5 +1,5 @@
 import { prisma } from './db'
-import { MeetingConflict, MeetingError, newMeeting, sourceSnapshot, validateMeeting, type MeetingRecord, type SourceWeek } from './midweek'
+import { isPastWeek, MeetingConflict, MeetingError, newMeeting, sourceSnapshot, validateMeeting, type MeetingRecord, type SourceWeek } from './midweek'
 import { draftBaseVersionOf, draftOwnerStale, localDate, previewVersion, publishedVersionOf, sameContent, validatePalette, versionsOf } from './midweek-versions'
 
 const PALETTE_KEY = 'midweek:palette'
@@ -35,6 +35,13 @@ export async function meetingList(management: boolean) {
     const s = JSON.parse(row.value) as SourceWeek, r = byId.get(s.id)
     return { id: s.id, week: s.week, date: r?.draft.date || newMeeting(s).date, reading: s.reading, label: s.label, revision: r?.revision || 0, publishedAt: r?.publishedAt, changedSource: Boolean(r && r.sourceHash !== s.hash) }
   }).sort((a, b) => b.week.localeCompare(a.week))
+}
+// 過去週次只能閱覽：編輯、發布、下架與發送通知單都擋下（ADR-0112）。
+export async function assertEditableWeek(id: string, today = localDate()) {
+  if (!/^[a-f0-9]{24}$/.test(id)) throw new MeetingError('操作格式錯誤')
+  const row = await prisma.setting.findUnique({ where: { key: RECORD_PREFIX + id } })
+  const date = row ? (JSON.parse(row.value) as MeetingRecord).draft.date : newMeeting(await getSource(id)).date
+  if (isPastWeek(date, today)) throw new MeetingError('過去週次只能閱覽，不能編輯')
 }
 export type Editor = { id: string; name: string }
 export async function editMeeting(id: string, action: string, revision: number, value?: unknown, options: { deleteLaterVersions?: unknown; editor?: Editor } = {}) {
