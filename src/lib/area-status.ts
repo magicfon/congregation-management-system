@@ -36,4 +36,6 @@ export type AreaStatusData = {
   regions: HeatRegion[]; unlocatedNumbers: number[]
   // 全會眾地圖號碼 → 所屬分區，供輸入號碼跳轉（ADR-0096）
   numberMaps: Record<number, string>
+  // 有小地圖圖檔（/maps/areas/{號碼}.jpg）的號碼，供地圖資訊下載圖檔
+  imageNumbers: number[]
 }

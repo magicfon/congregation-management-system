@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, type LucideIcon } from 'lucide-react'
+import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, Download, type LucideIcon } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import DispatchSubmitBar from '../../components/map/DispatchSubmitBar'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
@@ -105,7 +105,8 @@ export default function AreaStatusPage() {
     setJumpMessage('')
     setPendingNumber(number)
     if (target !== mapId) setMapId(target)
-  }  useEffect(() => { if (detailPanel.current) detailPanel.current.scrollTop = 0 }, [selectedId])
+  }
+  useEffect(() => { if (detailPanel.current) detailPanel.current.scrollTop = 0 }, [selectedId])
   const maxDays = data?.scaleMaxDays ?? null
   const selected = data?.regions.find(r => r.candidateId === selectedId)
   const historyKey = selected?.reports.map(r => r.number).join(',') || ''
@@ -147,7 +148,7 @@ export default function AreaStatusPage() {
       <div className="min-h-0 min-w-0 relative">
         {loading && <div role="status" className="h-full rounded-xl bg-mc-card flex items-center justify-center text-sm text-mc-text/60">正在載入分區…</div>}
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
-        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={showRegion} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} focus={focus} />}
+        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setFocus(null); showRegion(id) }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} focus={focus} />}
       </div>
       <aside aria-label="區塊明細與領圖操作" className="min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card">
         {isAdmin && <div className="shrink-0 border-b border-white/10 p-2">
@@ -176,6 +177,7 @@ export default function AreaStatusPage() {
                 {r.isDispatched && <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm"><dt className="flex items-center gap-1.5 text-mc-text/50"><UserRound size={14} aria-hidden="true" />持有人</dt><dd>{r.assignedTo || '未記錄'}</dd><dt className="flex items-center gap-1.5 text-mc-text/50"><CalendarDays size={14} aria-hidden="true" />領取日</dt><dd>{r.dispatchedDate || '未記錄'}</dd></dl>}
                 {isAdmin && r.isDispatched && r.undoDispatchedAt !== null && <button type="button" disabled={actionBusy} onClick={() => void undoDispatch(r)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 disabled:opacity-40"><Undo2 size={15} aria-hidden="true" />派錯了？撤銷派發</button>}
                 <DoNotVisitNotice text={r.doNotVisit} />
+                {data?.imageNumbers?.includes(r.number) && <a href={`/maps/areas/${r.number}.jpg`} download={`${DISTRICT_NAMES[mapId]}-${r.number}號.jpg`} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-mc-text/80 hover:bg-white/5"><Download size={15} aria-hidden="true" />下載{selected.numbers.length > 1 ? ` ${r.number} 號` : ''}圖檔</a>}
                 <div><p className="text-xs text-mc-text/60">距上次完成回報</p><p className="mt-1"><strong className="text-3xl font-semibold tabular-nums">{data?.syncedAt && r.days !== null ? r.days : '—'}</strong><span className="ml-1 text-sm text-mc-text/60">天</span></p><p className="mt-1 flex items-center gap-1.5 text-xs text-mc-text/50"><CalendarDays size={13} aria-hidden="true" />{!data?.syncedAt ? '回報日期尚未同步' : `上次完成：${r.lastCompletedDate || '無紀錄'}`}</p></div>
                 <RecentReports entries={currentHistory?.entries?.[r.number]} failed={currentHistory?.failed === true} />
                 {!unavailable && <button disabled={actionBusy || (!dispatchMode && queue.length >= 5 && !queued)} aria-pressed={queued} onClick={() => { if (r.areaId) setQueue(old => old.some(i => i.id === r.areaId) ? old.filter(i => i.id !== r.areaId) : !dispatchMode && old.length >= 5 ? old : [...old, { id: r.areaId!, label: `${DISTRICT_NAMES[mapId]} ${r.number} 號` }]) }} className={`w-full rounded-lg px-3 py-2.5 text-sm disabled:opacity-40 ${queued ? 'bg-blue-400/10 text-blue-300' : 'bg-mc-highlight text-white'}`}>{queued ? '✓ 已加入 · 點此移除' : dispatchMode ? '＋ 加入分發清單' : queue.length >= 5 ? '已選滿 5 張' : '＋ 加入申請'}</button>}
