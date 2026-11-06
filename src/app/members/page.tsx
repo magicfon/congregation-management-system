@@ -305,7 +305,7 @@ export default function MembersPage() {
                       {isAdmin && <MemberLineDetails member={m} />}
                       <div className="mt-2">{dispatchButton(m)}</div>
                       <div className="text-xs text-mc-text/40 mt-1">
-                        {m._count.schedules} 排班 · {m._count.reports} 回報
+                        {m._count.reports} 回報
                       </div>
                     </div>
                   </div>
@@ -365,7 +365,7 @@ export default function MembersPage() {
                       {isAdmin && <td className="px-5 py-4 max-w-64"><MemberLineDetails member={m} /></td>}
                       <td className="px-5 py-4 hidden lg:table-cell">
                         <span className="text-xs text-mc-text/50">
-                          {m._count.schedules} 排班 · {m._count.reports} 回報
+                          {m._count.reports} 回報
                         </span>
                       </td>
                       <td className="px-5 py-4 text-right">
