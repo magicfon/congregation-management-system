@@ -7,6 +7,7 @@ import { undoableDispatch, undoKey } from '../../../../lib/batch-dispatch'
 import { regionHeat, maximumReportDays } from '../../../../lib/area-status'
 import { taipeiDate } from '../../../../lib/google-sheets'
 import { COMPLETION_SYNC_KEY } from '../../../../lib/report-completion-sync'
+import images from '../../../../../public/maps/areas/index.json'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -35,7 +36,7 @@ export async function GET(_request: Request, { params }: { params: { mapId: stri
     return NextResponse.json({
       mapId, today, scaleMaxDays, syncedAt: sync?.value || null, sourceImage: original.sourceImage, imageSize: original.imageSize,
       boundary: { source: draft ? 'cloud' : 'original', version: draft?.version ?? null, updatedAt: draft?.updatedAt ?? null },
-      regions, numberMaps: Object.fromEntries(areas.flatMap(a => a.sheetNo !== null && a.mapId ? [[a.sheetNo, a.mapId]] : [])), unlocatedNumbers: areas.filter(a => a.mapId === mapId).flatMap(a => a.sheetNo !== null && !located.has(a.sheetNo) ? [a.sheetNo] : []).sort((a, b) => a - b),
+      regions, numberMaps: Object.fromEntries(areas.flatMap(a => a.sheetNo !== null && a.mapId ? [[a.sheetNo, a.mapId]] : [])), imageNumbers: Object.keys(images).map(Number), unlocatedNumbers: areas.filter(a => a.mapId === mapId).flatMap(a => a.sheetNo !== null && !located.has(a.sheetNo) ? [a.sheetNo] : []).sort((a, b) => a - b),
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch {
     return NextResponse.json({ error: '無法載入地圖分配，請稍後重試。分區草稿或回報資料尚未取得。' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })

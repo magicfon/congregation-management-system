@@ -47,7 +47,7 @@ function reset(){current=null;remote=new Set();images=new Set();uploadFails=fals
 const uid=c=>'U'+c.repeat(32);
 const member=(c,role,gender,extra={})=>({lineuid:uid(c),role,gender,active:true,deletedAt:null,...extra});
 (async()=>{
- const counts={sister:4,'brother-general':6,'brother-manage':6,'admin-general':6,'admin-manage':10};
+ const counts={sister:8,'brother-general':10,'brother-manage':7,'admin-general':10,'admin-manage':10};
  for(const [key,count] of Object.entries(counts)){
   const def=menu.menuDefinitions[key],meta=await sharp(`public/line/rich-menu-${key}.png`).metadata();
   assert.equal(meta.width,def.size.width);assert.equal(meta.height,def.size.height);assert(fs.statSync(`public/line/rich-menu-${key}.png`).size<1000000);
@@ -55,13 +55,13 @@ const member=(c,role,gender,extra={})=>({lineuid:uid(c),role,gender,active:true,
   const area=def.areas.reduce((s,a)=>s+a.bounds.width*a.bounds.height,0);assert.equal(area,def.size.width*def.size.height,`${key} areas cover the image exactly`);
   assert(def.areas.every(a=>a.bounds.x+a.bounds.width<=def.size.width&&a.bounds.y+a.bounds.height<=def.size.height));
  }
- assert.equal(menu.menuDefinitions.sister.areas[2].action.text,'我的委派');
+ assert.equal(menu.menuDefinitions.sister.areas[7].action.text,'我的委派');
  const tabs=key=>menu.menuDefinitions[key].areas.filter(a=>a.action.type==='richmenuswitch').map(a=>a.action.richMenuAliasId);
  same(tabs('sister'),[]);for(const role of ['brother','admin'])for(const tab of ['general','manage'])same(tabs(`${role}-${tab}`),[menu.aliasId(`${role}-general`),menu.aliasId(`${role}-manage`)]);
  assert(menu.menuDefinitions['brother-manage'].areas.every(a=>a.action.type!=='richmenuswitch'||a.action.data));
  const uris=key=>menu.menuDefinitions[key].areas.filter(a=>a.action.type==='uri').map(a=>a.action.uri.slice(client.botSite.length));
- for(const key of ['sister','brother-general','admin-general'])same(uris(key),['/bulletin','/dashboard','/area-status']);
- same(uris('brother-manage'),['/bulletin/territory-report','/dashboard?view=handoffs','/schedules','/map-requests']);
+ for(const key of ['sister','brother-general','admin-general'])same(uris(key),['/bulletin/public-talks','/bulletin/midweek-meeting','/bulletin/announcements','/bulletin/ministry-groups','/bulletin/meeting-points','/bulletin/service-roster','/dashboard']);
+ same(uris('brother-manage'),['/bulletin/territory-report','/dashboard?view=handoffs','/area-status','/schedules','/map-requests']);
  same(uris('admin-manage'),['/bulletin/territory-report','/dashboard?view=handoffs','/area-status','/map-requests','/service-roster/manage','/midweek/manage','/bulletin/announcements#manage-announcements','/members']);
  const liffMenu=load('src/lib/line-rich-menu.ts',{'./line-bot-client':client,'./liff-settings':{...settings,configuredLiffId:()=> '123-test'}});assert(Object.values(liffMenu.menuDefinitions).every(d=>d.areas.filter(a=>a.action.type==='uri').every(a=>new URL(a.action.uri).origin==='https://liff.line.me')));
  assert.equal(menu.memberMenuKind(member('1','admin','sister')),'admin');assert.equal(menu.memberMenuKind(member('1','publisher','brother')),'brother');assert.equal(menu.memberMenuKind(member('1','elder','brother')),'brother');

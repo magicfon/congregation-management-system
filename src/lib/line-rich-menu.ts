@@ -5,7 +5,7 @@ import path from 'path'
 import { botSite, lineBotReady } from './line-bot-client'
 import { configuredLiffId, liffDestination } from './liff-settings'
 
-// 雙頁標籤選單（ADR-0107）：一般頁所有人相同。姊妹版沒有標籤列，是官方帳號預設選單；
+// 雙頁標籤選單（ADR-0115）：一般頁所有人相同，公佈欄各項直接上選單。姊妹版沒有標籤列，是官方帳號預設選單；
 // 弟兄與管理者另外綁到個人，上方「一般｜管理」標籤在 LINE 內用 alias 切換，管理頁內容不同。
 export type MenuKind = 'sister' | 'brother' | 'admin'
 export type MenuKey = 'sister' | 'brother-general' | 'brother-manage' | 'admin-general' | 'admin-manage'
@@ -21,16 +21,17 @@ const api = 'https://api.line.me/v2/bot'
 const dataApi = 'https://api-data.line.me/v2/bot'
 const uri = (view: string) => ({ type: 'uri' as const, uri: menuUrl(view) })
 const tiles: Record<string, { type: 'uri'; uri: string } | { type: 'message'; text: string }> = {
-  bulletin: uri('bulletin'), dashboard: uri('dashboard'), assignments: { type: 'message', text: '我的委派' }, territory: uri('territory'),
+  publicTalks: uri('public-talks'), midweekMeeting: uri('midweek-meeting'), announcementsView: uri('announcements'), groups: uri('ministry-groups'),
+  meetingPoints: uri('meeting-points'), serviceRoster: uri('service-roster'), dashboard: uri('dashboard'), assignments: { type: 'message', text: '我的委派' }, territory: uri('territory'),
   report: uri('report'), handoffs: uri('handoffs'), schedules: uri('schedules'), myRequests: uri('requests'),
-  allocation: uri('territory'), requests: uri('requests'), roster: uri('roster'), midweek: uri('midweek'), announcements: uri('announcements'), members: uri('members'),
+  allocation: uri('territory'), requests: uri('requests'), roster: uri('roster'), midweek: uri('midweek'), announcements: uri('manage-announcements'), members: uri('members'),
 }
 // Same rows and sizes as scripts/create-line-menu.cjs, which draws the images.
-const general = [['bulletin', 'dashboard'], ['assignments', 'territory']]
+const general = [['publicTalks', 'midweekMeeting', 'announcementsView', 'groups'], ['meetingPoints', 'serviceRoster', 'dashboard', 'assignments']]
 const layouts: Record<MenuKey, { width: number; height: number; label: string; tab: 'general' | 'manage' | null; rows: string[][] }> = {
-  sister: { width: 1000, height: 674, label: '一般', tab: null, rows: general },
+  sister: { width: 1332, height: 674, label: '一般', tab: null, rows: general },
   'brother-general': { width: 1332, height: 900, label: '弟兄一般', tab: 'general', rows: general },
-  'brother-manage': { width: 1332, height: 900, label: '弟兄管理', tab: 'manage', rows: [['report', 'handoffs'], ['schedules', 'myRequests']] },
+  'brother-manage': { width: 1332, height: 900, label: '弟兄管理', tab: 'manage', rows: [['report', 'handoffs', 'territory'], ['schedules', 'myRequests']] },
   'admin-general': { width: 1332, height: 900, label: '管理者一般', tab: 'general', rows: general },
   'admin-manage': { width: 1332, height: 900, label: '管理者管理', tab: 'manage', rows: [['report', 'handoffs', 'allocation', 'requests'], ['roster', 'midweek', 'announcements', 'members']] },
 }

@@ -1,9 +1,14 @@
-// Deterministic vector layout for the LINE menus (ADR-0107).
+// Deterministic vector layout for the LINE menus (ADR-0115).
 // Renders with Microsoft JhengHei when installed, otherwise Noto Sans CJK TC.
 const fs=require('node:fs'),path=require('node:path'),sharp=require('sharp');
 const font='Microsoft JhengHei, Noto Sans CJK TC, sans-serif';
 const tiles={
- bulletin:{title:'公佈欄',subtitle:'聚會與會眾資訊',color:'#c6acf7',icon:'<rect x="-39" y="-46" width="78" height="92" rx="10"/><path d="M-20-25H20M-20-5H20M-20 15H4"/>'},
+ publicTalks:{title:'公眾演講',subtitle:'演講秩序表',color:'#c6acf7',icon:'<rect x="-14" y="-46" width="28" height="48" rx="14"/><path d="M-30-6C-30 14-16 26 0 26S30 14 30-6M0 26V44M-20 44H20"/>'},
+ midweekMeeting:{title:'週中聚會',subtitle:'傳道與生活節目表',color:'#f0a37a',icon:'<path d="M0-30C-14-42-32-44-44-40V36C-32 32-14 34 0 46C14 34 32 32 44 36V-40C32-44 14-42 0-30Z"/><path d="M0-30V46"/>'},
+ announcementsView:{title:'會眾公告',subtitle:'消息與通知',color:'#7fd0f0',icon:'<path d="M-40-12V12H-20L20 38V-38L-20-12Z"/><path d="M32-14C38-8 38 8 32 14"/>'},
+ groups:{title:'傳道組別',subtitle:'小組安排',color:'#71d5ba',icon:'<circle cx="-22" cy="-14" r="13"/><circle cx="22" cy="-14" r="13"/><path d="M-46 36C-46 14-36 6-22 6S2 14 2 36M-2 36C-2 14 8 6 22 6S46 14 46 36"/>'},
+ meetingPoints:{title:'集合地點',subtitle:'出發前查看',color:'#e9a6d0',icon:'<path d="M0 44C-20 22-32 6-32-10A32 32 0 0 1 32-10C32 6 20 22 0 44Z"/><circle cy="-10" r="11"/>'},
+ serviceRoster:{title:'服務安排',subtitle:'輪值安排表',color:'#f3c779',icon:'<rect x="-42" y="-44" width="84" height="88" rx="10"/><path d="M-42-20H42M-14-20V44M14-20V44M-42 12H42"/>'},
  dashboard:{title:'我的看板',subtitle:'個人進度與待辦',color:'#92b9ff',icon:'<rect x="-44" y="-38" width="88" height="76" rx="10"/><path d="M-44-10H44M-12-10V38M4 8H28M4 24H20"/>'},
  assignments:{title:'我的委派',subtitle:'本人的服務安排',color:'#f3c779',icon:'<rect x="-44" y="-35" width="88" height="80" rx="12"/><path d="M-24-47V-22M24-47V-22M-44-8H44M-20 17-7 30 22 6"/>'},
  territory:{title:'傳道地圖',subtitle:'查看與申請地圖',color:'#71d5ba',icon:'<path d="M-44-34-15-44 15-34 44-44V34L15 44-15 34-44 44Z"/><path d="M-15-44V34M15-34V44"/>'},
@@ -19,11 +24,11 @@ const tiles={
  members:{title:'成員管理',subtitle:'權限與連結',color:'#b9c4d4',icon:'<circle cx="-14" cy="-16" r="16"/><path d="M-44 40C-44 16-30 6-14 6S16 16 16 40"/><circle cx="24" cy="-10" r="12"/><path d="M22 10C34 10 44 18 44 36"/>'},
 };
 // Same pages as src/lib/line-rich-menu.ts. tab: null = no tab bar (default menu for sisters).
-const general=[['bulletin','dashboard'],['assignments','territory']];
+const general=[['publicTalks','midweekMeeting','announcementsView','groups'],['meetingPoints','serviceRoster','dashboard','assignments']];
 const menus={
- sister:{width:1000,height:674,tab:null,rows:general},
+ sister:{width:1332,height:674,tab:null,rows:general},
  'brother-general':{width:1332,height:900,tab:'general',rows:general},
- 'brother-manage':{width:1332,height:900,tab:'manage',rows:[['report','handoffs'],['schedules','myRequests']]},
+ 'brother-manage':{width:1332,height:900,tab:'manage',rows:[['report','handoffs','territory'],['schedules','myRequests']]},
  'admin-general':{width:1332,height:900,tab:'general',rows:general},
  'admin-manage':{width:1332,height:900,tab:'manage',rows:[['report','handoffs','allocation','requests'],['roster','midweek','announcements','members']]},
 };

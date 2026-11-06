@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseWeek, discoverIssues, discoverYears, officialUrl } from '../src/lib/midweek-import'
-import { currentAndFutureWeeks, newMeeting, nextMidweekCheck, timeline, validateMeeting } from '../src/lib/midweek'
+import { comparableText, currentAndFutureWeeks, diffSources, isPastWeek, pastWeeks, newMeeting, nextMidweekCheck, timeline, validateMeeting } from '../src/lib/midweek'
 const root = process.argv[2] || 'scripts/fixtures/midweek'
 const completed = { month: '2026-10', completedAt: '2026-10-11T13:49:47Z', remaining: 0, errors: [] }
 assert.equal(nextMidweekCheck(completed, new Date('2026-10-13T10:00:00Z')).toISOString(), '2026-10-31T19:00:00.000Z')
@@ -14,6 +14,9 @@ assert.deepEqual(currentAndFutureWeeks(choices, '2027-01-03').map(w => w.date), 
 assert.deepEqual(currentAndFutureWeeks(choices, '2027-01-04').map(w => w.date), ['2027-01-08'])
 assert.equal(choices[0].date, '2027-01-08', '週次篩選不改動原始清單')
 assert.deepEqual(currentAndFutureWeeks([], '2027-01-04'), [])
+assert.deepEqual(pastWeeks(choices, '2027-01-04').map(w => w.date), ['2027-01-03', '2026-12-28', '2026-12-27'], '過去週次最近的在前')
+assert.equal(isPastWeek('2027-01-04', '2027-01-10'), false, '本週一不算過去')
+assert.equal(isPastWeek('2027-01-03', '2027-01-04'), true)
 const url = 'https://www.jw.org/cmn-hant/多媒體圖書館/耶和華見證人聚會手冊/聚會手冊2026年9-10月/傳道與生活聚會節目表2026年10月5-11日/'
 const html = readFileSync(`${root}/midweek-week.html`, 'utf8')
 const source = parseWeek(html, url)
@@ -47,3 +50,13 @@ for (const [name, count] of [['sidebar', 13], ['new-song', 13], ['2027', 13], ['
   if (name === 'new-song') assert.equal(parsed.items.at(-1)?.title, '唱2024年區域大會的新歌')
 }
 console.log('週中節目：新舊手冊、日期、轉場計時、輸入驗證與來源保護檢查通過')
+{
+  const it = (title: string, minutes = 5) => ({ section: 'living' as const, title, minutes })
+  const rows = diffSources({ items: [it('A'), it('B'), it('C'), it('D')] }, { items: [it('A'), it('新增'), it('B', 7), it('D2'), it('C')] })
+  assert.deepEqual(rows.map(r => [r.old?.title ?? null, r.new?.title ?? null, r.changed]), [['A', 'A', false], [null, '新增', true], ['B', 'B', true], [null, 'D2', true], ['C', 'C', false], ['D', null, true]], '多一項、少一項與分鐘變動都要標出')
+  assert.deepEqual(diffSources({ items: [it('A'), it('B'), it('C')] }, { items: [it('A'), it('X'), it('C')] }).map(r => [r.old?.title, r.new?.title, r.changed]), [['A', 'A', false], ['B', 'X', true], ['C', 'C', false]], '改名的節目左右並排')
+}
+assert.equal(comparableText('[初次交談]'), '初次交談', '舊草稿外層方括號不算差異')
+assert.equal(comparableText('唱詩第[103]首'), '唱詩第[103]首', '詩歌編號的方括號保留')
+assert.equal(comparableText('耶利米書42－44章'), comparableText('耶利米書42-44章'), '全形半形連字號視為相同')
+assert.ok(diffSources({ items: [{ section: 'living', title: '[本地需要]', minutes: 15 }] }, { items: [{ section: 'living', title: '本地需要', minutes: 15 }] }).every(r => !r.changed))

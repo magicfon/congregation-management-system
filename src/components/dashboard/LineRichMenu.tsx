@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 
 type Status = { enabled: boolean; installed: boolean; currentId: string | null; linked?: { brother: number; admin: number } }
 const previews = [
-  { key: 'sister', label: '姊妹（預設，沒有標籤）', width: 1000, height: 674 },
+  { key: 'sister', label: '姊妹（預設，沒有標籤）', width: 1332, height: 674 },
   { key: 'brother-general', label: '弟兄／管理者：一般頁', width: 1332, height: 900 },
   { key: 'brother-manage', label: '弟兄：管理頁', width: 1332, height: 900 },
   { key: 'admin-manage', label: '管理者：管理頁', width: 1332, height: 900 },

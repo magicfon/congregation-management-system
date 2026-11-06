@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, type LucideIcon } from 'lucide-react'
+import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, Download, type LucideIcon } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import DispatchSubmitBar from '../../components/map/DispatchSubmitBar'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
@@ -10,6 +10,7 @@ import AreaStatusMap from '../../components/map/AreaStatusMap'
 import DoNotVisitNotice from '../../components/map/DoNotVisitNotice'
 import { DISTRICT_NAMES } from '../../lib/allocation'
 import { type AreaStatusData, type HeatReport } from '../../lib/area-status'
+import { type AreaReportEntry } from '../../lib/area-report-history'
 
 const LAST_MAP_KEY = 'area-status:last-map'
 
@@ -65,6 +66,7 @@ export default function AreaStatusPage() {
   const [signedOut, setSignedOut] = useState(false)
   const [loading, setLoading] = useState(true)
   const [revision, setRevision] = useState(0)
+  const [history, setHistory] = useState<{ key: string; entries: Record<number, AreaReportEntry[]> | null; failed: boolean } | null>(null)
   useEffect(() => {
     if (!mapRestored) return
     const controller = new AbortController()
@@ -90,10 +92,12 @@ export default function AreaStatusPage() {
   useEffect(() => {
     if (pendingNumber === null || !data || loading || data.mapId !== mapId) return
     const region = data.regions.find(r => r.numbers.includes(pendingNumber))
-    if (region) { setSelectedId(region.candidateId); setFocus(old => ({ id: region.candidateId, seq: (old?.seq ?? 0) + 1 })); setInfoOpen(true); setUndoMessage('') }
+    if (region) { showRegion(region.candidateId); setFocus(old => ({ id: region.candidateId, seq: (old?.seq ?? 0) + 1 })) }
     else setJumpMessage(`${DISTRICT_NAMES[mapId]} ${pendingNumber} 號尚未定位在地圖上`)
     setPendingNumber(null)
   }, [pendingNumber, data, loading, mapId])
+  // 點選區域：展開地圖資訊，收合設定與派發／申請清單，讓明細有空間顯示
+  function showRegion(id: string) { setSelectedId(id); setInfoOpen(true); setSettingsOpen(false); setQueueOpen(false); setUndoMessage('') }
   function jumpToNumber() {
     const number = Number(jumpText.trim())
     const target = Number.isInteger(number) ? data?.numberMaps?.[number] : undefined
@@ -101,11 +105,23 @@ export default function AreaStatusPage() {
     setJumpMessage('')
     setPendingNumber(number)
     if (target !== mapId) setMapId(target)
-  }  useEffect(() => { if (detailPanel.current) detailPanel.current.scrollTop = 0 }, [selectedId])
+  }
+  useEffect(() => { if (detailPanel.current) detailPanel.current.scrollTop = 0 }, [selectedId])
   const maxDays = data?.scaleMaxDays ?? null
   const selected = data?.regions.find(r => r.candidateId === selectedId)
-  const known = data?.regions.filter(r => r.days !== null && !(grayDispatched && r.isDispatched)) || []
-  const synchronized = data?.syncedAt ? new Date(data.syncedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false }) : '尚未同步'
+  const historyKey = selected?.reports.map(r => r.number).join(',') || ''
+  // 最近三次回報從 Sheet 讀，點選區塊時另外載入（ADR-0107）
+  useEffect(() => {
+    if (!historyKey) return
+    const controller = new AbortController()
+    setHistory({ key: historyKey, entries: null, failed: false })
+    void fetch('/api/area-status/history?nos=' + historyKey, { cache: 'no-store', signal: controller.signal })
+      .then(async response => { if (!response.ok) throw new Error(); return (await response.json()).history as Record<number, AreaReportEntry[]> })
+      .then(entries => setHistory({ key: historyKey, entries, failed: false }))
+      .catch(() => { if (!controller.signal.aborted) setHistory({ key: historyKey, entries: null, failed: true }) })
+    return () => controller.abort()
+  }, [historyKey, revision])
+  const currentHistory = history?.key === historyKey ? history : null
   return <DashboardLayout><div className="h-[calc(100dvh-3.5rem)] max-w-[1920px] mx-auto p-2 md:p-3 flex flex-col gap-2 overflow-hidden text-mc-text">
     <header className="shrink-0 flex flex-wrap items-center justify-between gap-2">
       <h1 className="text-lg font-semibold">地圖分配</h1>
@@ -130,7 +146,7 @@ export default function AreaStatusPage() {
       <div className="min-h-0 min-w-0 relative">
         {loading && <div role="status" className="h-full rounded-xl bg-mc-card flex items-center justify-center text-sm text-mc-text/60">正在載入分區…</div>}
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
-        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setSelectedId(id); setInfoOpen(true); setUndoMessage('') }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} focus={focus} />}
+        {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setFocus(null); showRegion(id) }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} focus={focus} />}
       </div>
       <aside aria-label="區塊明細與領圖操作" className="min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card">
         {isAdmin && <div className="shrink-0 border-b border-white/10 p-2">
@@ -159,20 +175,14 @@ export default function AreaStatusPage() {
                 {r.isDispatched && <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm"><dt className="flex items-center gap-1.5 text-mc-text/50"><UserRound size={14} aria-hidden="true" />持有人</dt><dd>{r.assignedTo || '未記錄'}</dd><dt className="flex items-center gap-1.5 text-mc-text/50"><CalendarDays size={14} aria-hidden="true" />領取日</dt><dd>{r.dispatchedDate || '未記錄'}</dd></dl>}
                 {isAdmin && r.isDispatched && r.undoDispatchedAt !== null && <button type="button" disabled={actionBusy} onClick={() => void undoDispatch(r)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 disabled:opacity-40"><Undo2 size={15} aria-hidden="true" />派錯了？撤銷派發</button>}
                 <DoNotVisitNotice text={r.doNotVisit} />
+                {data?.imageNumbers?.includes(r.number) && <a href={`/maps/areas/${r.number}.jpg`} download={`${DISTRICT_NAMES[mapId]}-${r.number}號.jpg`} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-mc-text/80 hover:bg-white/5"><Download size={15} aria-hidden="true" />下載{selected.numbers.length > 1 ? ` ${r.number} 號` : ''}圖檔</a>}
                 <div><p className="text-xs text-mc-text/60">距上次完成回報</p><p className="mt-1"><strong className="text-3xl font-semibold tabular-nums">{data?.syncedAt && r.days !== null ? r.days : '—'}</strong><span className="ml-1 text-sm text-mc-text/60">天</span></p><p className="mt-1 flex items-center gap-1.5 text-xs text-mc-text/50"><CalendarDays size={13} aria-hidden="true" />{!data?.syncedAt ? '回報日期尚未同步' : `上次完成：${r.lastCompletedDate || '無紀錄'}`}</p></div>
+                <RecentReports entries={currentHistory?.entries?.[r.number]} failed={currentHistory?.failed === true} />
                 {!unavailable && <button disabled={actionBusy || (!dispatchMode && queue.length >= 5 && !queued)} aria-pressed={queued} onClick={() => { if (r.areaId) setQueue(old => old.some(i => i.id === r.areaId) ? old.filter(i => i.id !== r.areaId) : !dispatchMode && old.length >= 5 ? old : [...old, { id: r.areaId!, label: `${DISTRICT_NAMES[mapId]} ${r.number} 號` }]) }} className={`w-full rounded-lg px-3 py-2.5 text-sm disabled:opacity-40 ${queued ? 'bg-blue-400/10 text-blue-300' : 'bg-mc-highlight text-white'}`}>{queued ? '✓ 已加入 · 點此移除' : dispatchMode ? '＋ 加入分發清單' : queue.length >= 5 ? '已選滿 5 張' : '＋ 加入申請'}</button>}
               </article>
             })}</div>
           </> : <div className="py-6 text-center"><p className="text-2xl text-mc-text/30">◎</p><h2 className="mt-2 font-semibold">點選地圖，查看區域</h2><p className="mt-2 text-sm text-mc-text/50">查看多久未完成回報，<br />將想領取的地圖加入下方清單。</p></div>}
         </section>
-        {data && <details className="rounded-xl border border-white/10 bg-mc-card p-3 text-xs text-mc-text/60"><summary className="cursor-pointer">圖例與資料資訊</summary><div className="mt-2 space-y-2">
-          <p>{known.length} 塊可上色 · {data.regions.length - known.length} 塊灰色。灰色代表使用中（勾選時）、無紀錄、待配對或資料不完整。</p>
-          <p>計算截至 {data.today}（台北）<br />回報日期同步：{synchronized}</p>
-          {!data.syncedAt && <p className="text-yellow-300">完成回報日期尚未同步，目前以灰色顯示。</p>}
-          <p>{data.boundary.source === 'cloud' ? `雲端分區草稿 v${data.boundary.version}` : '原始分區候選（尚無雲端草稿）'}；分區仍在人工核對中。</p>
-          <p>「領取後多久」請至使用中地圖查看。</p>
-          {!!data.unlocatedNumbers.length && <p>尚未定位：{data.unlocatedNumbers.join('、')} 號</p>}
-        </div></details>}
         </div>
         </section>
         {isAdmin && <section className={`min-h-0 flex flex-col border-t border-white/10 ${settingsOpen ? 'flex-1' : 'shrink-0'}`}>
@@ -190,6 +200,15 @@ export default function AreaStatusPage() {
       </aside>
     </div>
   </div></DashboardLayout>
+}
+
+function RecentReports({ entries, failed }: { entries: AreaReportEntry[] | undefined; failed: boolean }) {
+  return <div><p className="text-xs text-mc-text/60">最近回報</p>
+    {failed ? <p className="mt-1 text-xs text-mc-text/50">暫時無法讀取回報紀錄</p>
+      : !entries ? <p className="mt-1 text-xs text-mc-text/50">讀取中…</p>
+      : !entries.length ? <p className="mt-1 text-xs text-mc-text/50">沒有回報紀錄</p>
+      : <ol className="mt-1 space-y-1 text-sm">{entries.map(e => <li key={e.date + e.name} className="flex items-center justify-between gap-3"><span className="tabular-nums text-mc-text/80">{e.date}</span><span className="truncate">{e.name || '未填姓名'}</span></li>)}</ol>}
+  </div>
 }
 
 // 側欄可收合區塊的標頭：整列可點，右側「展開／收合」標籤讓使用者一眼看出能點（ADR-0083）

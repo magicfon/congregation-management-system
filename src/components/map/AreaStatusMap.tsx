@@ -56,13 +56,19 @@ export default function AreaStatusMap({ data, selectedId, onSelect, grayDispatch
       const region = data.regions.find(r => r.candidateId === id)!
       const queued = region.reports.some(r => r.areaId && queuedAreaIds.includes(r.areaId))
       markers.current.get(id)?.setOpacity(queued ? 1 : 0)
-      layer.setStyle({ fillColor: grayDispatched && region.isDispatched ? '#64748b' : region.color, color: id === selectedId ? '#ffffff' : queued ? '#60a5fa' : '#334155', weight: id === selectedId || queued ? 3 : 1, fillOpacity: id === selectedId ? .78 : .58 })
+      layer.setStyle({ fillColor: grayDispatched && region.isDispatched ? '#64748b' : region.color, color: id === selectedId ? (id === focus?.id ? '#facc15' : '#ffffff') : queued ? '#60a5fa' : '#334155', weight: id === selectedId ? (id === focus?.id ? 5 : 3) : queued ? 3 : 1, fillOpacity: id === selectedId ? .78 : .58 })
     }
-  }, [selectedId, grayDispatched, data, queuedAreaIds, mapReady])
-  // 輸入號碼跳轉時把該區塊移到畫面中央（ADR-0096）
+  }, [selectedId, grayDispatched, data, queuedAreaIds, mapReady, focus])
+  // 輸入號碼跳轉時放大到該區塊並以黃框閃爍標示（ADR-0096、ADR-0109）
   useEffect(() => {
     const layer = focus && layers.current.get(focus.id)
-    if (layer && mapRef.current) mapRef.current.fitBounds(layer.getBounds(), { padding: [48, 48], maxZoom: -1 })
+    if (!layer || !mapRef.current) return
+    mapRef.current.flyToBounds(layer.getBounds(), { padding: [48, 48], maxZoom: -.5, duration: .6 })
+    const element = layer.getElement()
+    if (!element) return
+    element.classList.remove('area-focus-pulse'); void element.getBoundingClientRect(); element.classList.add('area-focus-pulse')
+    const timer = window.setTimeout(() => element.classList.remove('area-focus-pulse'), 4000)
+    return () => { window.clearTimeout(timer); element.classList.remove('area-focus-pulse') }
   }, [focus, mapReady])
   return <div className="relative isolate h-full min-h-0 overflow-hidden rounded-xl border border-white/10 bg-mc-accent">
     <div ref={container} style={{ background: '#162132' }} className="h-full min-h-0 w-full" aria-label="距上次完成回報熱力圖，可縮放及拖曳" />

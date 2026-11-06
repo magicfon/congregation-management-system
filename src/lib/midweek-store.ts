@@ -1,5 +1,5 @@
 import { prisma } from './db'
-import { MeetingConflict, MeetingError, newMeeting, validateMeeting, type MeetingRecord, type SourceWeek } from './midweek'
+import { isPastWeek, MeetingConflict, MeetingError, newMeeting, sourceSnapshot, validateMeeting, type MeetingRecord, type SourceWeek } from './midweek'
 import { draftBaseVersionOf, draftOwnerStale, localDate, previewVersion, publishedVersionOf, sameContent, validatePalette, versionsOf } from './midweek-versions'
 
 const PALETTE_KEY = 'midweek:palette'
@@ -36,6 +36,13 @@ export async function meetingList(management: boolean) {
     return { id: s.id, week: s.week, date: r?.draft.date || newMeeting(s).date, reading: s.reading, label: s.label, revision: r?.revision || 0, publishedAt: r?.publishedAt, changedSource: Boolean(r && r.sourceHash !== s.hash) }
   }).sort((a, b) => b.week.localeCompare(a.week))
 }
+// 過去週次只能閱覽：編輯、發布、下架與發送通知單都擋下（ADR-0112）。
+export async function assertEditableWeek(id: string, today = localDate()) {
+  if (!/^[a-f0-9]{24}$/.test(id)) throw new MeetingError('操作格式錯誤')
+  const row = await prisma.setting.findUnique({ where: { key: RECORD_PREFIX + id } })
+  const date = row ? (JSON.parse(row.value) as MeetingRecord).draft.date : newMeeting(await getSource(id)).date
+  if (isPastWeek(date, today)) throw new MeetingError('過去週次只能閱覽，不能編輯')
+}
 export type Editor = { id: string; name: string }
 export async function editMeeting(id: string, action: string, revision: number, value?: unknown, options: { deleteLaterVersions?: unknown; editor?: Editor } = {}) {
   if (!/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(revision) || revision < 0 || !['save', 'publish', 'unpublish', 'reset', 'restore', 'delete-later', 'version-date', 'discard', 'take-over'].includes(action)) throw new MeetingError('操作格式錯誤')
@@ -63,6 +70,8 @@ export async function editMeeting(id: string, action: string, revision: number, 
   if (action === 'discard') restored = discardTo ? structuredClone(discardTo.meeting) : newMeeting(source)
   const draft = restored ?? (action === 'reset' ? newMeeting(source) : ['unpublish', 'delete-later', 'version-date', 'take-over'].includes(action) ? old.draft : validateMeeting(value))
   const next: MeetingRecord = { ...old, versions, revision: revision + 1, draft, sourceHash: action === 'reset' || !oldRow ? source.hash : old.sourceHash }
+  // 草稿建立或重建時記下手冊原稿；舊資料若手冊還沒變，也順便補存（ADR-0111）。
+  if (next.sourceHash === source.hash && (action === 'reset' || !oldRow || !old.sourceSnapshot)) next.sourceSnapshot = sourceSnapshot(source)
   if (action === 'restore') next.draftBaseVersion = (value as { number: number }).number
   if (action === 'discard') next.draftBaseVersion = discardTo?.number
   if (['save', 'restore', 'reset', 'take-over'].includes(action)) {

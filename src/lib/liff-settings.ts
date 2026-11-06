@@ -4,11 +4,13 @@ export function configuredLiffId(): string | null {
   return id && channel && /^\d+-[A-Za-z0-9]+$/.test(id) && id.split('-')[0] === channel ? id : null
 }
 
-// LINE 選單開啟的頁面（ADR-0107）；其餘未知的 view 一律回看板。
+// LINE 選單開啟的頁面（ADR-0115）；其餘未知的 view 一律回看板。
 const viewPages: Record<string, string> = {
   bulletin: '/bulletin', assignments: '/dashboard/assignments/service', territory: '/area-status',
   report: '/bulletin/territory-report', schedules: '/schedules', requests: '/map-requests',
-  roster: '/service-roster/manage', midweek: '/midweek/manage', announcements: '/bulletin/announcements#manage-announcements', members: '/members',
+  roster: '/service-roster/manage', midweek: '/midweek/manage', 'manage-announcements': '/bulletin/announcements#manage-announcements', members: '/members',
+  'public-talks': '/bulletin/public-talks', 'midweek-meeting': '/bulletin/midweek-meeting', announcements: '/bulletin/announcements',
+  'ministry-groups': '/bulletin/ministry-groups', 'meeting-points': '/bulletin/meeting-points', 'service-roster': '/bulletin/service-roster',
 }
 
 export function liffDestination(view: string | null): string {

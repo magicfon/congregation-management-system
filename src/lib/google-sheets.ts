@@ -70,8 +70,9 @@ export async function spreadsheetRequest(sheetId: string, suffix: string, body?:
 }
 
 /** 讀值。range 例：'區域狀態!A1:G214' */
-export async function readValues(sheetId: string, range: string): Promise<string[][]> {
-  const data = await call('GET', `${sheetId}/values/${encodeURIComponent(range)}`)
+export async function readValues(sheetId: string, range: string, render: 'FORMATTED_VALUE' | 'FORMULA' = 'FORMATTED_VALUE'): Promise<string[][]> {
+  const query = render === 'FORMATTED_VALUE' ? '' : `?valueRenderOption=${render}`
+  const data = await call('GET', `${sheetId}/values/${encodeURIComponent(range)}${query}`)
   return data.values || []
 }
 

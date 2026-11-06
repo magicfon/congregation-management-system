@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { prisma } from '../src/lib/db'
 import { parseWeek } from '../src/lib/midweek-import'
 import { MeetingConflict, MeetingError, newMeeting } from '../src/lib/midweek'
-import { editMeeting, getRecord, meetingList, SOURCE_PREFIX } from '../src/lib/midweek-store'
+import { assertEditableWeek, editMeeting, getRecord, meetingList, RECORD_PREFIX, SOURCE_PREFIX } from '../src/lib/midweek-store'
+import { keepOldSource } from '../src/lib/midweek-sync'
 import { draftBaseVersionOf, publishedVersionOf } from '../src/lib/midweek-versions'
 import { GET as publicMeeting } from '../src/app/api/midweek/route'
 
@@ -21,6 +22,8 @@ async function main() {
   rows.set(SOURCE_PREFIX + source.id, { key: SOURCE_PREFIX + source.id, value: JSON.stringify(source) })
   const draft = newMeeting(source); draft.chair = '測試主席'
   await editMeeting(source.id, 'save', 0, draft)
+  await assertEditableWeek(source.id, draft.date)
+  await assert.rejects(assertEditableWeek(source.id, '2099-01-01'), /過去週次只能閱覽/)
   assert.equal((await meetingList(false)).length, 0, '草稿不可公開')
   await editMeeting(source.id, 'publish', 1, draft)
   draft.chair = '修改草稿'
@@ -29,11 +32,18 @@ async function main() {
   await assert.rejects(editMeeting(source.id, 'save', 2, draft), MeetingConflict)
   const results = await Promise.allSettled([editMeeting(source.id, 'save', 3, draft), editMeeting(source.id, 'save', 3, draft)])
   assert.equal(results.filter(r => r.status === 'fulfilled').length, 1, '同時保存僅一筆成功')
+  assert.equal((await getRecord(source.id))?.sourceSnapshot?.reading, source.reading, '建立草稿時保存手冊原稿')
+  const firstReading = source.reading
+  { const r = JSON.parse(rows.get(RECORD_PREFIX + source.id)!.value); delete r.sourceSnapshot; rows.set(RECORD_PREFIX + source.id, { key: RECORD_PREFIX + source.id, value: JSON.stringify(r) }) }
+  await keepOldSource({ ...source, hash: 'changed', reading: '新版經文' })
+  assert.equal((await getRecord(source.id))?.sourceSnapshot?.reading, firstReading, '同步覆蓋手冊前補存舊手冊')
+  assert.equal((await getRecord(source.id))?.sourceSnapshot?.items[0].person, '', '原稿不含人員')
   source.hash = 'changed'; source.reading = '新版經文'
   rows.set(SOURCE_PREFIX + source.id, { key: SOURCE_PREFIX + source.id, value: JSON.stringify(source) })
   assert.equal((await getRecord(source.id))?.draft.chair, '修改草稿')
   await editMeeting(source.id, 'reset', 4)
   assert.equal((await getRecord(source.id))?.draft.reading, '新版經文')
+  assert.equal((await getRecord(source.id))?.sourceSnapshot?.reading, '新版經文', '重建草稿改存最新手冊')
   assert.equal((await getRecord(source.id))?.published?.chair, '測試主席')
   await editMeeting(source.id, 'unpublish', 5)
   assert.equal((await meetingList(false)).length, 0)

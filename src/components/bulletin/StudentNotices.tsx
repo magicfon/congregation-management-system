@@ -60,7 +60,7 @@ export default function StudentNotices({ weekId }: { weekId: string }) {
     if (!canShare) { const link = document.createElement('a'); link.href = preview.url; link.download = preview.file.name; link.click(); return }
     await navigator.share({ files: [preview.file], title: '學生練習通知' }).catch(e => { if ((e as Error).name !== 'AbortError') setError('分享失敗，請稍後再試') })
   }
-  return <div className="space-y-3 rounded-xl border border-white/10 bg-mc-card p-3 sm:p-4">
+  return <div className="space-y-3 rounded-xl border border-mc-text/15 bg-mc-accent/40 p-3 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p className="text-sm text-mc-text/70">學生練習通知單（LINE）</p>
       {rows ? <button className={button} disabled={busy} onClick={() => setRows(null)}>收起</button> : <button className={button} disabled={busy} onClick={() => run('student-notices')}>{busy ? '讀取中…' : '發送學生通知單'}</button>}
