@@ -2,16 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Check, LayoutDashboard, LogIn, Menu, RotateCw, X } from 'lucide-react'
+import { Check, LayoutDashboard, LogIn, Menu, RotateCw, SquarePlus, X } from 'lucide-react'
 import { bulletinCategories } from '@/lib/bulletin'
 import BulletinIcon from '@/components/bulletin/BulletinIcon'
+import { useAddToHomeScreen } from '@/components/bulletin/AddToHomeScreen'
 
 type Account = { state: 'loading' } | { state: 'error'; retry: () => void } | { state: 'guest'; loginHref: string } | { state: 'member' }
 
-// 公布欄主選單：標頭右上 ☰，由右側滑出；含我的看板／登入與七個分類（ADR-0066～0068）。
+// 公布欄主選單：標頭右上 ☰，由右側滑出；含我的看板／登入、加到手機桌面與七個分類（ADR-0066～0068、0117）。
 export default function BulletinMenu({ current, account }: { current?: string; account: Account }) {
   const [open, setOpen] = useState(false)
   const [closing, setClosing] = useState(false)
+  const addToHome = useAddToHomeScreen()
   const trigger = useRef<HTMLButtonElement>(null)
   const close = useRef<HTMLButtonElement>(null)
   const dismiss = useRef(() => {})
@@ -46,6 +48,7 @@ export default function BulletinMenu({ current, account }: { current?: string; a
         {account.state === 'member' && <Link href="/dashboard" className={`${row} font-medium`}><LayoutDashboard aria-hidden="true" className="h-5 w-5 shrink-0 text-blue-300" />我的看板</Link>}
         {account.state === 'guest' && <Link href={account.loginHref} className={`${row} font-medium`}><LogIn aria-hidden="true" className="h-5 w-5 shrink-0 text-blue-300" />登入</Link>}
         {account.state === 'error' && <button type="button" onClick={account.retry} className={row}><RotateCw aria-hidden="true" className="h-5 w-5 shrink-0 text-blue-300" />重試登入狀態</button>}
+        {addToHome.available && <button type="button" onClick={() => { setOpen(false); void addToHome.start() }} className={row}><SquarePlus aria-hidden="true" className="h-5 w-5 shrink-0 text-blue-300" />加到手機桌面</button>}
         <p className="mb-1 mt-4 px-3 text-xs font-semibold text-mc-text/60">公布欄分類</p>
         {bulletinCategories.map(item => {
           const active = item.slug === current
@@ -57,5 +60,6 @@ export default function BulletinMenu({ current, account }: { current?: string; a
         })}
       </nav>
     </>}
+    {addToHome.dialog}
   </>
 }
