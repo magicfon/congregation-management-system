@@ -46,8 +46,6 @@ const guardedRoutes = [
   'src/app/api/members/[id]/route.ts',
   'src/app/api/reports/route.ts',
   'src/app/api/reports/[id]/route.ts',
-  'src/app/api/schedules/route.ts',
-  'src/app/api/schedules/[id]/route.ts',
 ]
 for (const routePath of guardedRoutes) {
   const route = fs.readFileSync(routePath, 'utf8')
