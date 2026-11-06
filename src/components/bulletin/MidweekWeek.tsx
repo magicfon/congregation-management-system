@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { newMeeting, sectionNames, sourceChangeCount, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
+import { newMeeting, sectionNames, sourceChangeCount, unknownNames, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 import StudentNotices from './StudentNotices'
 import SourceChanges from './SourceChanges'
@@ -82,6 +82,10 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
       if (!confirm(`刪除${range(laterVersions)}？第${baseVersion.number}版及之前的版本保留，刪除後無法復原。`)) return
       deleteLaterVersions = true
     }
+    if (action === 'publish') {
+      const unknown = unknownNames(meeting, members)
+      if (unknown.length && !confirm(`成員名單沒有：${unknown.join('、')}。\n這些人不會在「我的委派」看到這次委派，可能是打錯字。仍要發布？`)) return
+    }
     if (action === 'publish' && baseVersion && !sameContent(meeting, baseVersion.meeting)) {
       const later = versions.filter(version => version.number > baseVersion.number)
       if (later.length) {
@@ -152,6 +156,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
       </>}
       <fieldset disabled={busy} className="min-w-0">
         {editable && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>點選節目或姓名即可編輯。</p><button className={button} onClick={() => setSelected(-1)}>節目表設定</button></div>}
+        {editable && (() => { const unknown = unknownNames(meeting, members); return unknown.length > 0 && <p role="status" className="mb-3 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">成員名單沒有：{unknown.join('、')}。請確認是否打錯字；不在名單的人不會在「我的委派」看到委派。</p> })()}
         <div className="overflow-hidden rounded border border-mc-text/15"><MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={editable ? { change, itemChange, settings: setSelected, members } : undefined} /></div>
         {editable && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
       </fieldset>

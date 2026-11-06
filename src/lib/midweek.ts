@@ -75,6 +75,13 @@ export function nextMidweekCheck(state: { month: string; completedAt: string | n
   if (next <= now) next.setUTCDate(next.getUTCDate() + 1)
   return next
 }
+// 週中編排填的姓名不在成員名單（ADR-0118）：這些人不會在「我的委派」看到委派。
+export function unknownNames(meeting: Pick<Meeting, 'chair' | 'items'>, members: { name: string }[]): string[] {
+  if (!members.length) return []
+  const known = new Set(members.map(m => m.name.trim()))
+  const names = [meeting.chair, ...meeting.items.flatMap(item => [item.person, item.assistant])].map(name => name.trim()).filter(name => name && !known.has(name))
+  return Array.from(new Set(names))
+}
 export function timeline(meeting: Meeting) {
   let time = Number(meeting.start.slice(0, 2)) * 60 + Number(meeting.start.slice(3))
   return meeting.items.map(item => {
