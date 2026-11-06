@@ -5,7 +5,7 @@ const auth={requireApiUser:async()=>role==='admin'?{user:{id:'actor',role}}:{res
 const prisma={member:{findUnique:async q=>q.where.id==='actor'?{id:'actor',role:'admin',active:true,deletedAt:null}:{id:'m1',email:'test@example.com',role:'publisher',active:true},update:async q=>{written=q.data;return q.data},create:async q=>{written=q.data;return q.data}}};
 prisma.member.updateMany=async q=>{written=q.data;assert.equal(q.where.deletedAt,null);return {count:1}};
 prisma.$transaction=async fn=>fn(prisma);
-const update=load('src/app/api/members/[id]/route.ts',{'../../../../lib/member-deletion':{},'../../../../lib/db':{prisma},'../../../../lib/api-auth':auth,'../../../../lib/member-fields':fields});
+const update=load('src/app/api/members/[id]/route.ts',{'../../../../lib/member-deletion':{},'../../../../lib/line-rich-menu':{syncMemberRichMenus:async()=>{},syncMemberRichMenusById:async()=>{}},'../../../../lib/db':{prisma},'../../../../lib/api-auth':auth,'../../../../lib/member-fields':fields});
 const create=load('src/app/api/members/route.ts',{'../../../lib/allocation':{},'../../../lib/db':{prisma},'../../../lib/api-auth':auth,'../../../lib/member-fields':fields,'bcryptjs':{hash:async()=> 'test-hash'}});
 const req=body=>({json:async()=>body}),ctx={params:{id:'m1'}};
 (async()=>{

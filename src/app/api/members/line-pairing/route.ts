@@ -4,6 +4,7 @@ import { requireApiUser } from '../../../../lib/api-auth'
 import { prisma } from '../../../../lib/db'
 import { LinePairingError, pairLineMember } from '../../../../lib/line-pairing'
 import { deliverPairingNotice } from '../../../../lib/line-pairing-notification'
+import { syncMemberRichMenus } from '../../../../lib/line-rich-menu'
 
 export const maxDuration = 60
 
@@ -17,6 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     const { notificationId, ...result } = await pairLineMember(prisma, body.sourceId, body.targetId, body.expectedUid)
     const notification = await deliverPairingNotice(prisma, notificationId)
+    await syncMemberRichMenus(prisma, [body.expectedUid])
     return NextResponse.json({ ...result, notification })
   } catch (error) {
     if (error instanceof LinePairingError) return NextResponse.json({ error: error.message }, { status: 409 })

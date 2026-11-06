@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireApiUser } from '@/lib/api-auth'
+import { syncMemberRichMenusById } from '@/lib/line-rich-menu'
 
 const genders = ['brother', 'sister', 'unspecified']
 class Conflict extends Error {}
@@ -28,6 +29,7 @@ export async function PATCH(request: NextRequest) {
         if (result.count !== ids.length) throw new Conflict()
       }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    await syncMemberRichMenusById(prisma, changes.map(change => change.id))
     return NextResponse.json({ updated: changes.length })
   } catch (error) {
     if (error instanceof Error && error.message === 'FORBIDDEN') return NextResponse.json({ error: '權限不足' }, { status: 403 })

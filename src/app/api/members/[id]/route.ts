@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { memberLineFields } from '../../../../lib/member-fields'
 import { prisma } from '../../../../lib/db'
 import { deleteMember, MemberDeletionError } from '../../../../lib/member-deletion'
+import { syncMemberRichMenus, syncMemberRichMenusById } from '../../../../lib/line-rich-menu'
 import { requireApiUser } from '../../../../lib/api-auth'
 
 export async function GET(
@@ -66,7 +67,8 @@ export async function PUT(
       return NextResponse.json({ error: '姓名為必填' }, { status: 400 })
     }
 
-    return await prisma.$transaction(async tx => {
+    let syncUid: string | null = null
+    const response = await prisma.$transaction(async tx => {
       const actor = await tx.member.findUnique({ where: { id: auth.user.id! }, select: { role: true, active: true, deletedAt: true } })
       if (!actor?.active || actor.deletedAt || actor.role !== 'admin') return NextResponse.json({ error: '權限不足' }, { status: 403 })
       const existing = await tx.member.findUnique({ where: { id: params.id, deletedAt: null }, select: { id: true, email: true, active: true, role: true } })
@@ -88,8 +90,11 @@ export async function PUT(
           ...(body.selfManagedReports !== undefined ? { selfManagedReports: body.selfManagedReports } : {}),
         },
       })
+      syncUid = member.lineuid
       return NextResponse.json(member)
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    await syncMemberRichMenus(prisma, [syncUid])
+    return response
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') return NextResponse.json({ error: '資料已更新，請重新整理後再試' }, { status: 409 })
     console.error('PUT /api/members/[id] error:', error)
@@ -116,6 +121,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       data,
     })
     if (!result.count) return NextResponse.json({ error: '成員不存在' }, { status: 404 })
+    if (body.gender !== undefined) await syncMemberRichMenusById(prisma, [params.id])
     return NextResponse.json(data)
   } catch {
     return NextResponse.json({ error: '無法更新人員設定' }, { status: 500 })
@@ -130,7 +136,9 @@ export async function DELETE(
   if ('response' in auth) return auth.response
 
   try {
+    const before = await prisma.member.findUnique({ where: { id: params.id }, select: { lineuid: true } })
     await deleteMember(prisma, params.id, auth.user.id!)
+    await syncMemberRichMenus(prisma, [before?.lineuid])
 
     return NextResponse.json({ message: '成員已刪除' })
   } catch (error) {
