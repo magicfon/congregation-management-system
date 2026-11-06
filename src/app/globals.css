@@ -258,3 +258,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 @keyframes area-focus-pulse { 0%, 100% { stroke-width: 5px; stroke-opacity: 1; } 50% { stroke-width: 14px; stroke-opacity: .55; } }
 .area-focus-pulse { animation: area-focus-pulse 1s ease-in-out 4; }
 @media (prefers-reduced-motion: reduce) { .area-focus-pulse { animation: none; } }
+
+/* 週中嵌入頁不顯示捲軸，手機滑動、電腦滾輪捲動；捲軸時有時無會改變節目表寬度，造成縮放來回抖動（ADR-0114）。 */
+.bulletin-embed-no-scrollbar, .bulletin-embed-no-scrollbar * { scrollbar-width: none; }
+.bulletin-embed-no-scrollbar::-webkit-scrollbar, .bulletin-embed-no-scrollbar *::-webkit-scrollbar { display: none; }
