@@ -3,6 +3,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { sectionColors, sectionNames, timeline, type Meeting, type MeetingItem, type Highlight } from '@/lib/midweek'
 import styles from './MeetingSheet.module.css'
 import { useSheetGestures } from './useSheetGestures'
+import { useMemberNameCheck } from './useMemberNameCheck'
 import { fieldKey, versionColor, type Marks, type Palette } from '@/lib/midweek-versions'
 export const markColor = (value: Highlight) => value === 'yellow' ? '#ffff00' : value === 'green' ? '#00ff00' : undefined
 type Editor = {
@@ -16,8 +17,8 @@ function TextField({ value, label, onChange, placeholder = '' }: { value: string
 }
 function NameField({ value, label, onChange, members }: { value: string; label: string; onChange: (value: string) => void; members: { name: string }[] }) {
   const [focused, setFocused] = useState(false)
-  const unknown = !focused && !!value.trim() && members.length > 0 && !members.some(m => m.name.trim() === value.trim())
-  return <input aria-label={label} aria-invalid={unknown || undefined} title={unknown ? '成員名單沒有這個人' : undefined} data-unknown={unknown || undefined} list={focused ? 'meeting-members' : undefined} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} className={styles.nameField} value={value} placeholder="姓名" style={{ width: `${Math.max(2, Array.from(value || '姓名').length) + (focused ? 1.8 : .05)}em` }} onChange={e => onChange(e.target.value)} />
+  const check = useMemberNameCheck(members)
+  return <>{check.dialog}<input aria-label={label} list={focused ? 'meeting-members' : undefined} onFocus={() => setFocused(true)} onBlur={e => { setFocused(false); check.onBlur(e) }} className={styles.nameField} value={value} placeholder="姓名" style={{ width: `${Math.max(2, Array.from(value || '姓名').length) + (focused ? 1.8 : .05)}em` }} onChange={e => onChange(e.target.value)} /></>
 }
 export default function MeetingSheet({ meeting, editor, marks, palette = {} }: { meeting: Meeting; editor?: Editor; marks?: Marks; palette?: Palette }) {
   const background = (key: string, legacy?: Highlight) => marks ? versionColor(marks[key] || 0, palette) : markColor(legacy || '')

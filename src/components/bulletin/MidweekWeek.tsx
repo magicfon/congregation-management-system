@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { newMeeting, sectionNames, sourceChangeCount, unknownNames, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
+import { newMeeting, sectionNames, sourceChangeCount, type Meeting, type MeetingItem, type MeetingRecord, type Section, type SourceWeek } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 import StudentNotices from './StudentNotices'
+import { useMemberNameCheck } from './useMemberNameCheck'
 import SourceChanges from './SourceChanges'
 import { draftBaseVersionOf, draftOwnerStale, publishedVersionOf, sameContent, previewVersion, versionLabel, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
 
@@ -46,6 +47,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
   const range = (list: MeetingVersion[]) => list.length > 1 ? `第${list[0].number}～第${list.at(-1)!.number}版` : `第${list[0]?.number}版`
   const shown = historical || (meeting ? previewVersion(meeting, baseVersion) : undefined)
   const dialog = useRef<HTMLDialogElement>(null)
+  const nameCheck = useMemberNameCheck(members)
   useEffect(() => {
     if (selected !== null && dialog.current && !dialog.current.open) dialog.current.showModal()
     if (selected === null) dialog.current?.close()
@@ -81,10 +83,6 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
       if (deleteNeedsPublish) { setError(`請先發布第${baseVersion.number}版，再刪除後續版本`); return }
       if (!confirm(`刪除${range(laterVersions)}？第${baseVersion.number}版及之前的版本保留，刪除後無法復原。`)) return
       deleteLaterVersions = true
-    }
-    if (action === 'publish') {
-      const unknown = unknownNames(meeting, members)
-      if (unknown.length && !confirm(`成員名單沒有：${unknown.join('、')}。\n這些人不會在「我的委派」看到這次委派，可能是打錯字。仍要發布？`)) return
     }
     if (action === 'publish' && baseVersion && !sameContent(meeting, baseVersion.meeting)) {
       const later = versions.filter(version => version.number > baseVersion.number)
@@ -139,6 +137,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
       </div>
       {!readOnly && !historical && record?.published && <StudentNotices key={`${id}:${record.publishedVersion}`} weekId={id} />}
       {editable && <>
+        {nameCheck.dialog}
         {source && record && source.hash !== record.sourceHash && sourceChangeCount(record.sourceSnapshot || meeting, source) > 0 && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-amber-300">手冊已更新，現有安排已保留。</p><button className={button} onClick={() => setComparing(true)}>查看手冊更動</button></div>}
         {comparing && source && <SourceChanges snapshot={record?.sourceSnapshot} draft={meeting} source={source} onClose={() => setComparing(false)} />}
         <dialog ref={dialog} aria-label="編排設定" onCancel={() => setSelected(null)} className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-white/15 bg-mc-bg p-5 text-mc-text shadow-2xl backdrop:bg-black/60 sm:p-6"><div className="mb-5 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">{selected === -1 ? '日期與節目表設定' : '節目設定'}</h2><button className={button} onClick={() => setSelected(null)}>完成</button></div><fieldset disabled={busy} className="space-y-4 [&_label]:flex [&_label]:flex-col [&_label]:gap-2 [&_label]:text-sm [&_label]:font-medium">
@@ -147,7 +146,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
             <label className="sm:col-span-2">節目名稱<input className={field} value={item.title} onChange={e => itemChange(index, { title: e.target.value })} /></label>
             <label>分鐘<input type="number" min="0" max="180" className={field} value={item.minutes} onChange={e => itemChange(index, { minutes: Number(e.target.value) })} /></label>
             <label>講評／轉場分鐘<input type="number" min="0" max="30" className={field} value={item.counsel} onChange={e => itemChange(index, { counsel: Number(e.target.value) })} /></label>
-            <label>負責人／學生<input list="meeting-members" className={field} value={item.person} onChange={e => itemChange(index, { person: e.target.value })} /></label><label>助手<input list="meeting-members" className={field} value={item.assistant} onChange={e => itemChange(index, { assistant: e.target.value })} /></label>
+            <label>負責人／學生<input list="meeting-members" className={field} value={item.person} onBlur={nameCheck.onBlur} onChange={e => itemChange(index, { person: e.target.value })} /></label><label>助手<input list="meeting-members" className={field} value={item.assistant} onBlur={nameCheck.onBlur} onChange={e => itemChange(index, { assistant: e.target.value })} /></label>
             <label>職務標籤<input className={field} value={item.role} onChange={e => itemChange(index, { role: e.target.value })} /></label>
             <label>段落<select className={field} value={item.section} onChange={e => itemChange(index, { section: e.target.value as Section })}>{Object.entries(sectionNames).map(([key, name]) => <option key={key} value={key}>{name || '開場'}</option>)}</select></label>
             <div className="flex flex-wrap gap-2 sm:col-span-2"><button className={button} disabled={index === 0} onClick={() => { move(index, -1); setSelected(index - 1) }}>上移</button><button className={button} disabled={index === meeting.items.length - 1} onClick={() => { move(index, 1); setSelected(index + 1) }}>下移</button><button className={`${button} text-red-300`} disabled={meeting.items.length === 1} onClick={() => { change({ items: meeting.items.filter((_, i) => i !== index) }); setSelected(null) }}>刪除</button></div>
@@ -156,7 +155,6 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
       </>}
       <fieldset disabled={busy} className="min-w-0">
         {editable && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>點選節目或姓名即可編輯。</p><button className={button} onClick={() => setSelected(-1)}>節目表設定</button></div>}
-        {editable && (() => { const unknown = unknownNames(meeting, members); return unknown.length > 0 && <p role="status" className="mb-3 rounded-lg bg-red-500/10 p-3 text-sm text-red-300">成員名單沒有：{unknown.join('、')}。請確認是否打錯字；不在名單的人不會在「我的委派」看到委派。</p> })()}
         <div className="overflow-hidden rounded border border-mc-text/15"><MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={editable ? { change, itemChange, settings: setSelected, members } : undefined} /></div>
         {editable && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
       </fieldset>

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseWeek, discoverIssues, discoverYears, officialUrl } from '../src/lib/midweek-import'
-import { comparableText, currentAndFutureWeeks, diffSources, isPastWeek, pastWeeks, newMeeting, nextMidweekCheck, timeline, unknownNames, validateMeeting, type Meeting } from '../src/lib/midweek'
+import { comparableText, currentAndFutureWeeks, diffSources, isPastWeek, pastWeeks, newMeeting, nextMidweekCheck, timeline, validateMeeting } from '../src/lib/midweek'
 const root = process.argv[2] || 'scripts/fixtures/midweek'
 const completed = { month: '2026-10', completedAt: '2026-10-11T13:49:47Z', remaining: 0, errors: [] }
 assert.equal(nextMidweekCheck(completed, new Date('2026-10-13T10:00:00Z')).toISOString(), '2026-10-31T19:00:00.000Z')
@@ -60,8 +60,3 @@ assert.equal(comparableText('[初次交談]'), '初次交談', '舊草稿外層�
 assert.equal(comparableText('唱詩第[103]首'), '唱詩第[103]首', '詩歌編號的方括號保留')
 assert.equal(comparableText('耶利米書42－44章'), comparableText('耶利米書42-44章'), '全形半形連字號視為相同')
 assert.ok(diffSources({ items: [{ section: 'living', title: '[本地需要]', minutes: 15 }] }, { items: [{ section: 'living', title: '本地需要', minutes: 15 }] }).every(r => !r.changed))
-{
-  const meeting = { chair: '王大明', items: [{ person: ' 林敬 ', assistant: '陳孟廷' }, { person: '陳孟廷', assistant: '' }] } as unknown as Meeting
-  assert.deepEqual(unknownNames(meeting, [{ name: '王大明' }, { name: '林敬' }, { name: '陳孟庭' }]), ['陳孟廷'])
-  assert.deepEqual(unknownNames(meeting, []), [])
-}
