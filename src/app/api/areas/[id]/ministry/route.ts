@@ -21,7 +21,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     if (!isManager && (!participant || !isAreaDispatched(area))) return respond({ error: '未獲指派此地圖' }, 403)
     const [visits, members] = await Promise.all([
       prisma.ministryVisit.findMany({ where: { areaId: area.id, ...(isManager ? {} : { cycleKey }) }, orderBy: [{ scheduledDate: 'asc' }, { createdAt: 'asc' }] }),
-      isManager ? prisma.member.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }) : Promise.resolve([]),
+      isManager ? prisma.member.findMany({ where: { active: true, gender: 'brother' }, select: { id: true, name: true }, orderBy: { name: 'asc' } }) : Promise.resolve([]),
     ])
     const image = area.sheetNo ? (images as unknown as Record<string, { full: string; dims: number[] }>)[String(area.sheetNo)] : null
     return respond({ area: { id: area.id, label: allocationLabel(area), managerName: area.assignedMember?.name || area.assignedTo || '未記錄', active: isAreaDispatched(area), doNotVisit: area.doNotVisit, revision: area.ministryRevision, cycleKey, image: image ? { url: image.full, dims: image.dims } : null }, viewerId: auth.user.id, isManager, members, visits })
