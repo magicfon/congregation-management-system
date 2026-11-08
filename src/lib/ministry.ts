@@ -35,8 +35,10 @@ export async function changeMinistry(db: PrismaClient, areaId: string, actor: Mi
     if (command.action === 'plan' || command.action === 'reschedule') {
       if (command.action === 'reschedule' && visit!.status !== 'planned') throw new MinistryError('只能修改尚未開始的預排')
       if (!validMinistryDate(command.scheduledDate) || !command.publisherId) throw new MinistryError('請選擇日期與傳道者', 400)
-      const publisher = await tx.member.findUnique({ where: { id: command.publisherId }, select: { id: true, name: true, active: true } })
+      const publisher = await tx.member.findUnique({ where: { id: command.publisherId }, select: { id: true, name: true, active: true, gender: true } })
       if (!publisher?.active) throw new MinistryError('傳道者不存在或已停用', 400)
+      // 姊妹領的是個人區域，只需自己回報，不參與交接（ADR-0119）。
+      if (publisher.gender !== 'brother') throw new MinistryError('只能安排弟兄接手交接', 400)
       const duplicate = await tx.ministryVisit.findFirst({ where: { ...cycle, ...(command.action === 'reschedule' ? { id: { not: visit!.id } } : {}), publisherId: publisher.id, scheduledDate: command.scheduledDate, status: { in: ['planned','active'] } } })
       if (duplicate) throw new MinistryError('此日期已安排這位傳道者')
       if (command.action === 'reschedule') await tx.ministryVisit.update({ where: { id: visit!.id }, data: { publisherId: publisher.id, publisherName: publisher.name, scheduledDate: command.scheduledDate } })
@@ -65,15 +67,15 @@ export async function changeMinistry(db: PrismaClient, areaId: string, actor: Mi
     if (updated.count !== 1) throw new MinistryError('狀態同時被更新，請重新載入')
     const notificationIds: string[] = []
     const label = allocationLabel(area)
-    const notify = async (memberId: string, text: string) => {
-      const id = await queueLineNotification(tx, memberId, `${text}\n請開啟網站確認最新安排：\n${botSite}/dashboard`, now)
+    const notify = async (memberId: string, text: string, link = `開啟地圖交接頁：\n${botSite}/map/ministry/${encodeURIComponent(areaId)}`) => {
+      const id = await queueLineNotification(tx, memberId, `${text}\n${link}`, now)
       if (id) notificationIds.push(id)
     }
     if (command.action === 'plan' || command.action === 'reschedule') {
       await notify(command.publisherId!, `${command.action === 'plan' ? '新增傳道預排' : '傳道預排已更新'}：${label}\n日期：${command.scheduledDate}\n尚待地圖管理者正式交接。`)
-      if (command.action === 'reschedule' && visit!.publisherId !== command.publisherId) await notify(visit!.publisherId, `您的 ${label} 原預排已改派其他人員。`)
+      if (command.action === 'reschedule' && visit!.publisherId !== command.publisherId) await notify(visit!.publisherId, `您的 ${label} 原預排已改派其他人員。`, `請開啟網站確認最新安排：\n${botSite}/dashboard?view=handoffs`)
     } else if (command.action === 'start') await notify(visit!.publisherId, `已交接給您：${label}\n預排日期：${visit!.scheduledDate}\n可進入地圖查看交接摘要、塗畫並提交局部進度。`)
-    else if (command.action === 'cancel') await notify(visit!.publisherId, `您的傳道安排已取消：${label}\n原日期：${visit!.scheduledDate}`)
+    else if (command.action === 'cancel') await notify(visit!.publisherId, `您的傳道安排已取消：${label}\n原日期：${visit!.scheduledDate}`, `請開啟網站確認最新安排：\n${botSite}/dashboard?view=handoffs`)
     else if (command.action === 'submit') await notify(area.assignedMemberId!, `${label} 收到 ${visit!.publisherName} 的局部進度，請查看交接摘要並安排下一位。`)
     return { revision: area.ministryRevision + 1, sheetNo: area.sheetNo, notificationIds }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
