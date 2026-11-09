@@ -1,5 +1,6 @@
-export const metadata = { title: '傳道進度與交接' }
+import { redirect } from 'next/navigation'
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return children
+// 地圖交接已關閉（ADR-0120）：舊連結與 LINE 通知裡的網址導回我的看板，資料保留不刪。
+export default function Layout() {
+  redirect('/dashboard?view=maps')
 }

@@ -7,7 +7,6 @@ import type { AdminTasks } from '../../lib/admin-tasks'
 const categories = [
   { key: 'line', label: 'LINE 待確認', unit: '人' },
   { key: 'requests', label: '領圖待審', unit: '張' },
-  { key: 'handoffs', label: '待交接', unit: '張' },
   { key: 'alerts', label: '回報待確認', unit: '則' },
   { key: 'doNotVisit', label: '拒訪待審', unit: '筆' },
 ] as const
@@ -32,7 +31,7 @@ export default function AdminTaskCenter() {
       if (controller.signal.aborted) return
       setData(value)
       if (!initialized.current) {
-        setCategory(new URLSearchParams(window.location.search).get('view') === 'handoffs' ? 'handoffs' : categories.find(c => value[c.key].count > 0)?.key || 'line')
+        setCategory(categories.find(c => value[c.key].count > 0)?.key || 'line')
         initialized.current = true
       }
     } catch (e) {
@@ -76,7 +75,6 @@ export default function AdminTaskCenter() {
       await load()
     } catch (e) { setError(e instanceof Error ? e.message : '處理失敗') } finally { setReviewing('') }
   }
-  const handoffs = data?.handoffs.items.slice(0, expanded ? undefined : 5) || []
   return <section id="handoffs" aria-labelledby="admin-tasks-title" data-dashboard-section="handoffs" className="dashboard-section">
     <header className="flex items-center justify-between gap-3">
       <h2 id="admin-tasks-title" className="font-semibold">管理待辦</h2>
@@ -97,7 +95,6 @@ export default function AdminTaskCenter() {
       <div className="mt-2 max-h-96 divide-y divide-white/5 overflow-y-auto">
         {category === 'line' && data.line.items.map((item, index) => <a key={index} href="/members#pending-line" className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block break-words text-sm">{item.name}</strong><p className="mt-1 text-xs text-mc-text/50">{item.date}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">連結成員<ArrowRight size={14}/></span></a>)}
         {category === 'requests' && data.requests.items.map(item => <a key={item.id} href={`/map-requests#request-${encodeURIComponent(item.id)}`} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block break-words text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">{item.name}</span></strong><p className="mt-1 text-xs text-mc-text/50">{item.date}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">審核<ArrowRight size={14}/></span></a>)}
-        {category === 'handoffs' && handoffs.map(item => <a key={item.areaId} href={`/map/ministry/${encodeURIComponent(item.areaId)}`} className="flex min-h-14 items-center justify-between gap-3 px-1 py-3 hover:bg-white/[.03]"><div className="min-w-0"><strong className="block text-sm">{item.label}<span className="ml-2 font-normal text-mc-text/60">管理者 {item.manager}</span></strong><p className="mt-1 text-xs text-amber-200">{item.next ? `下一位 ${item.next.name} · ${item.next.date}` : '待安排'}</p></div><span className="flex shrink-0 items-center gap-1 text-xs text-blue-300">交接<ArrowRight size={14}/></span></a>)}
         {category === 'doNotVisit' && data.doNotVisit.items.map(item => <div key={item.id} className="flex min-h-14 flex-wrap items-center justify-between gap-3 px-1 py-3"><div className="min-w-0 flex-1"><strong className="block break-words text-sm">{item.address}</strong><p className="mt-1 text-xs text-mc-text/60">{item.label} · {item.name} · {item.date}</p></div><div className="flex shrink-0 gap-2"><button disabled={Boolean(reviewing)} onClick={() => void reviewDoNotVisit(item, 'approve')} className="min-h-11 rounded-lg bg-blue-400/15 px-3 text-xs text-blue-200 disabled:opacity-40">{reviewing === item.id ? '處理中…' : '核准'}</button><button disabled={Boolean(reviewing)} onClick={() => void reviewDoNotVisit(item, 'reject')} className="min-h-11 rounded-lg bg-white/5 px-3 text-xs text-mc-text/70 disabled:opacity-40">不採用</button></div></div>)}
         {category === 'alerts' && data.alerts.items.map(item => <div key={item.id} className="space-y-2 px-1 py-3">
           <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-xs text-amber-200">{item.badge}</span><strong className="text-sm">{item.label}</strong><span className="text-xs text-mc-text/50">{item.date}</span></div>
@@ -109,7 +106,6 @@ export default function AdminTaskCenter() {
       <div className="text-xs">
         {category === 'line' && data.line.count > 5 && <a href="/members#pending-line" className="inline-flex min-h-11 items-center text-blue-300">查看全部（{data.line.count}）</a>}
         {category === 'requests' && data.requests.count > 5 && <a href="/map-requests" className="inline-flex min-h-11 items-center text-blue-300">查看全部（{data.requests.count}）</a>}
-        {category === 'handoffs' && data.handoffs.count > 5 && <button onClick={() => setExpanded(v => !v)} className="min-h-11 text-blue-300">{expanded ? '收合清單' : `查看全部 ${data.handoffs.count} 張`}</button>}
       </div>
     </>}
   </section>

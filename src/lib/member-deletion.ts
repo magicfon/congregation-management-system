@@ -12,10 +12,7 @@ export async function deleteMember(db: PrismaClient, id: string, actorId: string
     if (!member || member.deletedAt) throw new MemberDeletionError('成員不存在', 404)
     const areas = await tx.area.findMany({ where: { assignedMemberId: id } })
     if (areas.some(isAreaDispatched)) throw new MemberDeletionError('請先交回或轉移持有的地圖')
-    const visit = await tx.ministryVisit.findFirst({ where: {
-      OR: [{ publisherId: id }, { managerId: id }], status: { in: ['planned', 'active'] },
-    } })
-    if (visit) throw new MemberDeletionError('請先取消或轉移未完成行程')
+    // 地圖交接已關閉（ADR-0120），沒有介面能取消傳道安排，不再以此擋刪除。
     // Preserve historical relations, but release the login identity.
     await tx.member.update({ where: { id }, data: {
       deletedAt: now, active: false, showInDispatch: false, lineuid: null, lineDisplayName: null, linePictureUrl: null,

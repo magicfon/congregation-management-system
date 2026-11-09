@@ -47,7 +47,7 @@ function reset(){current=null;remote=new Set();images=new Set();uploadFails=fals
 const uid=c=>'U'+c.repeat(32);
 const member=(c,role,gender,extra={})=>({lineuid:uid(c),role,gender,active:true,deletedAt:null,...extra});
 (async()=>{
- const counts={sister:8,'brother-general':10,'brother-manage':6,'admin-general':10,'admin-manage':10};
+ const counts={sister:8,'brother-general':10,'brother-manage':5,'admin-general':10,'admin-manage':9};
  for(const [key,count] of Object.entries(counts)){
   const def=menu.menuDefinitions[key],meta=await sharp(`public/line/rich-menu-${key}.png`).metadata();
   assert.equal(meta.width,def.size.width);assert.equal(meta.height,def.size.height);assert(fs.statSync(`public/line/rich-menu-${key}.png`).size<1000000);
@@ -61,13 +61,13 @@ const member=(c,role,gender,extra={})=>({lineuid:uid(c),role,gender,active:true,
  assert(menu.menuDefinitions['brother-manage'].areas.every(a=>a.action.type!=='richmenuswitch'||a.action.data));
  const uris=key=>menu.menuDefinitions[key].areas.filter(a=>a.action.type==='uri').map(a=>a.action.uri.slice(client.botSite.length));
  for(const key of ['sister','brother-general','admin-general'])same(uris(key),['/bulletin/public-talks','/bulletin/midweek-meeting','/bulletin/announcements','/bulletin/ministry-groups','/bulletin/meeting-points','/bulletin/service-roster','/dashboard']);
- same(uris('brother-manage'),['/bulletin/territory-report','/dashboard?view=handoffs','/area-status','/map-requests']);
- same(uris('admin-manage'),['/bulletin/territory-report','/dashboard?view=handoffs','/service-roster/manage','/midweek/manage','/area-status','/map-requests','/bulletin/announcements#manage-announcements','/members']);
+ same(uris('brother-manage'),['/bulletin/territory-report','/area-status','/map-requests']);
+ same(uris('admin-manage'),['/bulletin/territory-report','/area-status','/map-requests','/service-roster/manage','/midweek/manage','/bulletin/announcements#manage-announcements','/members']);
  const liffMenu=load('src/lib/line-rich-menu.ts',{'./line-bot-client':client,'./liff-settings':{...settings,configuredLiffId:()=> '123-test'}});assert(Object.values(liffMenu.menuDefinitions).every(d=>d.areas.filter(a=>a.action.type==='uri').every(a=>new URL(a.action.uri).origin==='https://liff.line.me')));
  assert.equal(menu.memberMenuKind(member('1','admin','sister')),'admin');assert.equal(menu.memberMenuKind(member('1','publisher','brother')),'brother');assert.equal(menu.memberMenuKind(member('1','elder','brother')),'brother');
  assert.equal(menu.memberMenuKind(member('1','publisher','unspecified')),'sister');assert.equal(menu.memberMenuKind(member('1','admin','brother',{active:false})),'sister');assert.equal(menu.memberMenuKind(member('1','admin','brother',{deletedAt:new Date()})),'sister');assert.equal(menu.memberMenuKind(null),'sister');
 
- reset();current=otherId;rows.push({key:'line_rich_menu_v4',value:otherId});assert.equal((await menu.richMenuStatus(db)).installed,false);await menu.publishRichMenu(db,otherId);assert.equal(createCount,5);assert.equal(current,ids[0]);assert(rows.some(row=>row.key==='line_rich_menu_v7_admin-manage'&&row.value===ids[4]));
+ reset();current=otherId;rows.push({key:'line_rich_menu_v4',value:otherId});assert.equal((await menu.richMenuStatus(db)).installed,false);await menu.publishRichMenu(db,otherId);assert.equal(createCount,5);assert.equal(current,ids[0]);assert(rows.some(row=>row.key==='line_rich_menu_v8_admin-manage'&&row.value===ids[4]));
  same(aliases,{[menu.aliasId('brother-general')]:ids[1],[menu.aliasId('brother-manage')]:ids[2],[menu.aliasId('admin-general')]:ids[3],[menu.aliasId('admin-manage')]:ids[4]});
  reset();members=[member('1','publisher','sister'),member('2','publisher','brother'),member('3','admin','sister'),member('4','publisher','brother',{active:false})];
  const result=await menu.publishRichMenu(db,null);same(result.linked,{brother:1,admin:1});same(bulk,[{richMenuId:ids[1],userIds:[uid('2')]},{richMenuId:ids[3],userIds:[uid('3')]}]);assert.equal(images.size,5);assert.equal((await menu.richMenuStatus(db)).installed,true);

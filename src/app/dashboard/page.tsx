@@ -9,7 +9,7 @@ import SyncCheck from '../../components/dashboard/SyncCheck'
 import PersonalAssignmentsPanel from '../../components/dashboard/PersonalAssignments'
 import type { PersonalAssignments } from '../../lib/personal-assignments'
 import { adminManagementLinks } from '@/lib/navigation'
-type Dashboard = { showTerritory: boolean; tasks: { id: string; areaId: string; label: string; date: string; status: string }[]; assignments: PersonalAssignments; handoffs: { areaId: string; label: string; publisher: string; submittedDate: string | null; next: {name: string; date: string} | null }[]; name: string; isAdmin: boolean; maps: { id: string; label: string; sheetNo: number | null; doNotVisitCount: number; dispatchedDate: string | null; heldDays: number | null; ministryPending: number; ministryActive: boolean; report: { date: string; status: string } | null }[]; pendingRequests: { id: string; label: string; date: string }[]; reviewCount: number | null }
+type Dashboard = { showTerritory: boolean; assignments: PersonalAssignments; handoffs: { areaId: string; label: string; publisher: string; submittedDate: string | null; next: {name: string; date: string} | null }[]; name: string; isAdmin: boolean; maps: { id: string; label: string; sheetNo: number | null; doNotVisitCount: number; dispatchedDate: string | null; heldDays: number | null; ministryPending: number; ministryActive: boolean; report: { date: string; status: string } | null }[]; pendingRequests: { id: string; label: string; date: string }[]; reviewCount: number | null }
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null)
   const [error, setError] = useState('')
@@ -28,8 +28,8 @@ export default function DashboardPage() {
     if (!data) return
     const view = new URLSearchParams(window.location.search).get('view')
     if (!view || !['maps', 'week', 'handoffs', 'assignments'].includes(view)) return
-    // 地圖交接按鈕：先看排給我的地圖（領圖人與被交接人可能不同，ADR-0119），再看我要交接出去的。
-    const target = view === 'handoffs' && data.tasks.length ? 'assigned-maps' : view === 'week' || (!data.showTerritory && ['maps', 'handoffs'].includes(view)) ? 'assignments' : view
+    // 地圖交接已關閉（ADR-0120），舊的 handoffs 連結改到我的地圖。
+    const target = view === 'week' || (!data.showTerritory && ['maps', 'handoffs'].includes(view)) ? 'assignments' : view === 'handoffs' ? 'maps' : view
     const frame = requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }))
     return () => cancelAnimationFrame(frame)
   }, [data])
@@ -43,31 +43,17 @@ export default function DashboardPage() {
     {!data && !error && <div role="status" className="space-y-4"><span className="text-sm text-mc-text/70">正在載入看板…</span><div aria-hidden="true" className="h-48 rounded-xl bg-mc-card motion-safe:animate-pulse" /></div>}
     {data && <>
       <PersonalAssignmentsPanel data={data.assignments} kind={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('kind') === 'program' ? 'program' : 'service'} />
-      {data.tasks.length > 0 && <section id="assigned-maps" data-dashboard-section="handoffs" className="dashboard-section scroll-mt-20">
-        <div className="flex items-baseline justify-between gap-3"><h2 className="text-lg font-semibold">排給我的地圖</h2><span className="text-sm text-amber-200">{data.tasks.length} 筆</span></div>
-        <div className="mt-3 divide-y divide-white/10">{data.tasks.map(task => <a key={task.id} href={`/map/ministry/${encodeURIComponent(task.areaId)}`} className="flex min-h-16 items-center justify-between gap-3 py-3 hover:bg-white/[.03]">
-          <div className="min-w-0"><p className="break-words font-medium">{task.label}</p><p className="mt-1 text-sm text-mc-text/70">預排 {task.date}</p></div>
-          <span className={`flex shrink-0 items-center gap-1 text-sm ${task.status === 'active' ? 'text-amber-200' : 'text-mc-text/70'}`}>{task.status === 'active' ? '已交接給我' : '等待交接'}<ArrowRight size={16} aria-hidden="true" /></span>
-        </a>)}</div>
-      </section>}
       {data.showTerritory && <>
-        {!data.isAdmin && <section id="handoffs" data-dashboard-section="handoffs" className="dashboard-section scroll-mt-20">
-          <div className="flex items-baseline justify-between gap-3"><h2 className="text-lg font-semibold">待交接</h2><span className={`text-sm ${data.handoffs.length ? 'text-amber-200' : 'text-mc-text/70'}`}>{data.handoffs.length} 張</span></div>
-          {!data.handoffs.length ? <p className="mt-3 text-sm text-mc-text/70">目前無待交接地圖</p> : <div className="mt-3 divide-y divide-white/10">{data.handoffs.map(item => <details key={item.areaId} className="group">
-            <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 py-3 [&::-webkit-details-marker]:hidden"><span className="font-medium">{item.label}</span><span className="ml-auto text-sm text-amber-200">{item.next ? '已有下一位' : '待安排'}</span><ChevronDown size={16} aria-hidden="true" className="shrink-0 text-mc-text/70 transition-transform group-open:rotate-180" /></summary>
-            <div className="space-y-2 pb-5 text-sm text-mc-text/70"><p>{item.publisher} 已提交 · {item.submittedDate || '日期未記錄'}</p><p>{item.next ? `下一位：${item.next.name} · ${item.next.date}` : '尚未安排下一位'}</p><a href={`/map/ministry/${item.areaId}`} className="inline-flex min-h-11 items-center gap-2 text-blue-200">處理交接<ArrowRight size={16} aria-hidden="true" /></a></div>
-          </details>)}</div>}
-        </section>}
         <section id="maps" data-dashboard-section="maps" className="dashboard-section scroll-mt-20">
           <header className="flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-lg font-semibold">我的地圖 <span className="ml-2 text-sm font-normal text-mc-text/70">{data.maps.length} 張</span></h2><a href="/map-requests" className="inline-flex min-h-11 items-center gap-2 text-sm text-blue-200">領圖申請{data.pendingRequests.length > 0 && <span className="text-amber-200">{data.pendingRequests.length} 待審</span>}<ArrowRight size={15} aria-hidden="true" /></a></header>
           {!data.maps.length ? <p className="py-5 text-sm text-mc-text/70">目前沒有持有地圖</p> : <div className="divide-y divide-white/10">{data.maps.map(map => <details key={map.id} className="group">
             <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 py-4 [&::-webkit-details-marker]:hidden">
-              <div className="min-w-0 flex-1"><h3 className="break-words font-medium">{map.label}</h3><p className="mt-1 text-sm text-mc-text/70">{map.ministryActive ? '傳道進行中' : map.ministryPending ? `${map.ministryPending} 筆預排` : '尚無預排'}{map.doNotVisitCount > 0 && <span className="ml-2 font-medium text-red-300">⚠ 拒訪 {map.doNotVisitCount} 筆</span>}</p></div>
+              <div className="min-w-0 flex-1"><h3 className="break-words font-medium">{map.label}</h3>{map.doNotVisitCount > 0 && <p className="mt-1 text-sm font-medium text-red-300">⚠ 拒訪 {map.doNotVisitCount} 筆</p>}</div>
               <span className="shrink-0 text-sm tabular-nums text-mc-text/70">{map.heldDays === null ? '日期待補' : `持有 ${map.heldDays} 天`}</span><ChevronDown size={16} aria-hidden="true" className="shrink-0 text-mc-text/70 transition-transform group-open:rotate-180" />
             </summary>
             <div className="space-y-4 pb-6">
               <dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt className="text-mc-text/70">領取日期</dt><dd className="mt-1">{map.dispatchedDate || '未記錄'}</dd></div><div><dt className="text-mc-text/70">本輪回報</dt><dd className="mt-1">{map.report ? `${map.report.date} 已提交` : map.dispatchedDate ? '尚未提交' : '無領取日期，無法判斷'}</dd></div></dl>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm"><a className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-blue-300/15 px-4 text-blue-200 hover:bg-blue-300/25" href={`/map/ministry/${map.id}`}>管理／傳道進度<ArrowRight size={15} aria-hidden="true" /></a>{map.sheetNo && map.sheetNo !== 2 && <a className="inline-flex min-h-11 items-center text-mc-text/80 underline underline-offset-4" href={`/maps/areas/${map.sheetNo}.jpg`} target="_blank" rel="noreferrer">查看小地圖</a>}<a className="inline-flex min-h-11 items-center text-mc-text/80 underline underline-offset-4" href={map.sheetNo ? `/bulletin/territory-report?area=${map.sheetNo}` : '/bulletin/territory-report'}>提交回報</a></div>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">{map.sheetNo && map.sheetNo !== 2 && <a className="inline-flex min-h-11 items-center text-mc-text/80 underline underline-offset-4" href={`/maps/areas/${map.sheetNo}.jpg`} target="_blank" rel="noreferrer">查看小地圖</a>}<a className="inline-flex min-h-11 items-center text-mc-text/80 underline underline-offset-4" href={map.sheetNo ? `/bulletin/territory-report?area=${map.sheetNo}` : '/bulletin/territory-report'}>提交回報</a></div>
               <p className="text-xs leading-relaxed text-mc-text/70">提交回報不代表整張完成；交回後才會移出清單。</p>
             </div>
           </details>)}</div>}
