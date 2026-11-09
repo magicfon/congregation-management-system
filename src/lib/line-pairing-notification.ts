@@ -4,7 +4,7 @@ import { queueLineNotification, drainLineNotifications } from './line-notificati
 
 export async function queuePairingNotice(tx: Prisma.TransactionClient, member: { id: string; name: string }) {
   return queueLineNotification(tx, member.id,
-    `已完成確認，您的 LINE 帳號已連結至「${member.name}」。\n可以查詢「我的地圖」「本週行程」「待交接」。\n\n請重新登入網站使用成員功能：\n${botSite}/login`, new Date())
+    `已完成確認，您的 LINE 帳號已連結至「${member.name}」。\n可以查詢「我的委派」「我的地圖」。\n\n請重新登入網站使用成員功能：\n${botSite}/login`, new Date())
 }
 
 export async function deliverPairingNotice(db: PrismaClient, id: string | null) {
