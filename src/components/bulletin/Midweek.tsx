@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
-import { addDays, type Meeting } from '@/lib/midweek'
+import { weekMonday, type Meeting } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 import styles from './Midweek.module.css'
 import type { MeetingVersion, Palette } from '@/lib/midweek-versions'
@@ -42,7 +42,7 @@ export default function Midweek({ embedded = false }: { embedded?: boolean }) {
       const choices: Week[] = [...data.weeks].sort((a: Week, b: Week) => a.date.localeCompare(b.date))
       setWeeks(choices)
       const requested = new URLSearchParams(window.location.search).get('week')
-      setId(requested && choices.some(w => w.id === requested) ? requested : choices.find(w => w.date >= addDays(today, -3))?.id || choices.at(-1)?.id || '')
+      setId(requested && choices.some(w => w.id === requested) ? requested : choices.find(w => w.date >= weekMonday(today))?.id || choices.at(-1)?.id || '')
     }).catch(e => setError(e.message)).finally(() => setLoading(false))
     if (!embedded) api('/api/me').then(data => setIsAdmin(data.role === 'admin' || data.user?.role === 'admin')).catch(() => {})
     return () => { alive.current = false }
