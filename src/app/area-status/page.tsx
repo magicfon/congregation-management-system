@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, Download, type LucideIcon } from 'lucide-react'
+import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, Download, RefreshCw, type LucideIcon } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import DispatchSubmitBar from '../../components/map/DispatchSubmitBar'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
@@ -46,6 +46,12 @@ export default function AreaStatusPage() {
     finally { setActionBusy(false) }
   }
   const detailPanel = useRef<HTMLDivElement>(null)
+  // 加入／移出派發（申請）清單；申請模式最多 5 張
+  function toggleQueued(r: HeatReport) {
+    const areaId = r.areaId
+    if (!areaId) return
+    setQueue(old => old.some(i => i.id === areaId) ? old.filter(i => i.id !== areaId) : !dispatchMode && old.length >= 5 ? old : [...old, { id: areaId, label: `${DISTRICT_NAMES[mapId]} ${r.number} 號` }])
+  }
   const [queue, setQueue] = useState<{ id: string; label: string }[]>([])
   const [grayDispatched, setGrayDispatched] = useState(true)
   const [mapId, setMapId] = useState('nanzih')
@@ -122,18 +128,35 @@ export default function AreaStatusPage() {
     return () => controller.abort()
   }, [historyKey, revision])
   const currentHistory = history?.key === historyKey ? history : null
+  // 地圖資訊底部固定的領圖操作列：可加入的地圖不必捲到明細最下面（ADR-0123）
+  const addable = selected?.reports.filter(r => r.areaId && !r.isDispatched && ((availability[r.areaId] ?? r.dispatchEnabled))) ?? []
+  const multiAdd = (selected?.numbers.length ?? 0) > 1
+  // 領圖操作列：加入按鈕＋已選張數。手機固定在畫面最下方，電腦放在地圖資訊底部（ADR-0123）
+  function actionBar(className: string) {
+    return <div className={`shrink-0 items-stretch gap-2 border-t border-white/10 bg-mc-card p-2 ${className}`}>
+          <div className="flex min-w-0 flex-1 flex-wrap gap-2">{!selected ? <p className="self-center px-1 text-sm text-mc-text/50">點地圖選擇要{dispatchMode ? '分發' : '申請'}的區域</p> : addable.length ? addable.map(r => {
+            const queued = queue.some(i => i.id === r.areaId)
+            const full = !dispatchMode && queue.length >= 5 && !queued
+            const number = multiAdd ? ` ${r.number} 號` : ''
+            return <button key={r.number} type="button" disabled={actionBusy || full} aria-pressed={queued} onClick={() => toggleQueued(r)} className={`min-h-11 flex-1 basis-28 rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-40 ${queued ? 'border border-blue-400/40 bg-blue-400/10 text-blue-300' : 'bg-mc-highlight text-white'}`}>{queued ? `✓${number} 已加入 · 移除` : full ? '已選滿 5 張' : `＋ 加入${dispatchMode ? '分發' : '申請'}${number}`}</button>
+          }) : <p className="self-center px-1 text-sm text-mc-text/50">{selected.reports.length ? '這個區塊目前不能加入' : '尚未對應地圖號碼'}</p>}</div>
+          <button type="button" onClick={() => setQueueOpen(true)} aria-controls="area-queue-content" aria-label={`${dispatchMode ? '派發清單' : '申請清單'}已選 ${queue.length} 張，點此查看`} className="flex min-h-11 shrink-0 flex-col items-center justify-center rounded-lg border border-white/10 px-2.5 py-1 hover:bg-white/5">
+            <SelectedCount count={queue.length} max={dispatchMode ? null : 5} /><span className="mt-0.5 text-[11px] text-blue-300">查看清單</span>
+          </button>
+    </div>
+  }
   return <DashboardLayout><div className="h-[calc(100dvh-3.5rem)] max-w-[1920px] mx-auto p-2 md:p-3 flex flex-col gap-2 overflow-hidden text-mc-text">
-    <header className="shrink-0 flex flex-wrap items-center justify-between gap-2">
-      <h1 className="text-lg font-semibold">地圖分配</h1>
-      <div className="flex flex-wrap items-center gap-2">
+    <header className="shrink-0 flex flex-wrap items-center justify-between gap-2 max-md:justify-start">
+      <h1 className="hidden text-lg font-semibold md:block">地圖分配</h1>
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
         <form role="search" aria-label="輸入區域號碼跳轉" onSubmit={e => { e.preventDefault(); jumpToNumber() }} className="flex items-center gap-1">
-          <input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="區域號碼" placeholder="區域號碼" value={jumpText} onChange={e => { setJumpText(e.target.value.replace(/\D/g, '')); setJumpMessage('') }} className="min-h-11 w-24 rounded-lg border border-white/10 bg-mc-card px-3 py-2 text-sm tabular-nums placeholder:text-mc-text/40" />
+          <input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="區域號碼" placeholder="號碼" value={jumpText} onChange={e => { setJumpText(e.target.value.replace(/\D/g, '')); setJumpMessage('') }} className="min-h-11 w-16 sm:w-24 rounded-lg border border-white/10 bg-mc-card px-3 py-2 text-sm tabular-nums placeholder:text-mc-text/40" />
           <button type="submit" disabled={!data || actionBusy} className="min-h-11 rounded-lg border border-white/10 px-3 py-2 text-sm disabled:opacity-40">前往</button>
         </form>
         <div role="group" aria-label="選擇大地圖" className="flex gap-1 rounded-lg border border-white/10 bg-mc-card p-1">
-          {Object.entries(DISTRICT_NAMES).map(([id, name]) => <button key={id} type="button" disabled={actionBusy} aria-pressed={mapId === id} onClick={() => setMapId(id)} className={`min-h-11 rounded-md px-3 py-1.5 text-sm transition-colors disabled:opacity-40 ${mapId === id ? 'bg-mc-highlight text-white' : 'text-mc-text/60 hover:bg-white/5'}`}>{name}</button>)}
+          {Object.entries(DISTRICT_NAMES).map(([id, name]) => <button key={id} type="button" disabled={actionBusy} aria-pressed={mapId === id} onClick={() => setMapId(id)} className={`min-h-11 rounded-md px-2.5 sm:px-3 py-1.5 text-sm transition-colors disabled:opacity-40 ${mapId === id ? 'bg-mc-highlight text-white' : 'text-mc-text/60 hover:bg-white/5'}`}>{name}</button>)}
         </div>
-        <button onClick={() => setRevision(v => v + 1)} disabled={loading || actionBusy} className="rounded-lg border border-white/10 min-h-11 px-3 py-2 text-sm disabled:opacity-40">重新整理</button>
+        <button onClick={() => setRevision(v => v + 1)} disabled={loading || actionBusy} aria-label="重新整理" className="flex min-h-11 items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm disabled:opacity-40"><RefreshCw size={15} aria-hidden="true" /><span className="hidden sm:inline">重新整理</span></button>
       </div>
     </header>
     {jumpMessage && <p role="status" className="shrink-0 text-sm text-amber-300">{jumpMessage}</p>}
@@ -142,20 +165,20 @@ export default function AreaStatusPage() {
       <label className="flex items-center gap-1.5"><input type="checkbox" checked={grayDispatched} onChange={e => setGrayDispatched(e.target.checked)} />已分發地圖顯示灰色</label>
       <span className="hidden lg:inline text-mc-text/50">距上次完成回報 · 三區共用色階</span>
     </div>
-    <div className={`flex-1 min-h-0 grid ${queueOpen ? 'grid-rows-[minmax(0,0.35fr)_minmax(0,1.65fr)]' : 'grid-rows-[minmax(0,0.9fr)_minmax(0,1.1fr)]'} md:grid-rows-1 md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] gap-2`}>
+    <div className={`flex-1 min-h-0 grid ${queueOpen ? 'grid-rows-[minmax(0,0.35fr)_minmax(0,1.65fr)]' : 'grid-rows-[minmax(0,0.8fr)_minmax(0,1.2fr)]'} md:grid-rows-1 md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] gap-2`}>
       <div className="min-h-0 min-w-0 relative">
         {loading && <div role="status" className="h-full rounded-xl bg-mc-card flex items-center justify-center text-sm text-mc-text/60">正在載入分區…</div>}
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
         {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setFocus(null); showRegion(id) }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} focus={focus} />}
       </div>
       <aside aria-label="區塊明細與領圖操作" className="min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card">
-        {isAdmin && <div className="shrink-0 border-b border-white/10 p-2">
+        {isAdmin && <div className="shrink-0 border-b border-white/10 p-1.5 md:p-2">
           <div role="group" aria-label="領圖操作模式" className="grid grid-cols-2 gap-1 rounded-lg bg-black/15 p-1">
-            {([{ mode: 'dispatch', label: '派發', Icon: Send }, { mode: 'request', label: '申請', Icon: ClipboardPlus }] as const).map(({ mode, label, Icon }) => <button key={mode} type="button" aria-pressed={adminMode === mode} disabled={actionBusy || (mode === 'request' && queue.length > 5)} onClick={() => setAdminMode(mode)} className={`flex min-h-11 items-center justify-center gap-2 rounded-md py-2 text-sm disabled:opacity-40 ${adminMode === mode ? 'bg-blue-400/15 text-blue-300' : 'text-mc-text/50 hover:bg-white/5'}`}><Icon size={15} aria-hidden="true" />{label}</button>)}
+            {([{ mode: 'dispatch', label: '派發', Icon: Send }, { mode: 'request', label: '申請', Icon: ClipboardPlus }] as const).map(({ mode, label, Icon }) => <button key={mode} type="button" aria-pressed={adminMode === mode} disabled={actionBusy || (mode === 'request' && queue.length > 5)} onClick={() => setAdminMode(mode)} className={`flex min-h-10 md:min-h-11 items-center justify-center gap-2 rounded-md py-1.5 md:py-2 text-sm disabled:opacity-40 ${adminMode === mode ? 'bg-blue-400/15 text-blue-300' : 'text-mc-text/50 hover:bg-white/5'}`}><Icon size={15} aria-hidden="true" />{label}</button>)}
           </div>
           {(!dispatchMode || queue.length > 5) && <p className="mt-1 text-center text-[11px] text-mc-text/50">{queue.length > 5 ? '選取降至 5 張以內，即可切換申請' : '為自己申請領取 · 最多 5 張'}</p>}
         </div>}
-        <section className={`min-h-0 flex flex-col ${infoOpen ? 'flex-1' : 'shrink-0'}`}>
+        <section className={`min-h-0 flex flex-col overflow-hidden ${infoOpen ? 'flex-1' : 'shrink-0'}`}>
         <PanelToggle open={infoOpen} onToggle={() => setInfoOpen(open => !open)} controls="area-info-content" Icon={MapPinned}>地圖資訊</PanelToggle>
         <div id="area-info-content" ref={detailPanel} hidden={!infoOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <section aria-live="polite" className="p-3">
@@ -167,7 +190,6 @@ export default function AreaStatusPage() {
             <div className="space-y-4">{selected.reports.map(r => {
               const enabled = (r.areaId ? availability[r.areaId] : undefined) ?? r.dispatchEnabled
               const personal = (r.areaId ? categories[r.areaId] : undefined) ?? r.personalTerritory
-              const queued = queue.some(i => i.id === r.areaId)
               const unavailable = !enabled || !r.areaId || r.isDispatched
               const status = !r.areaId ? '未配對' : r.isDispatched ? '使用中' : !enabled ? '暫停分發' : dispatchMode ? '可分發' : '可申請'
               return <article key={r.number} className="space-y-3 border-b border-white/10 pb-3 last:border-0 last:pb-0">
@@ -178,28 +200,34 @@ export default function AreaStatusPage() {
                 {data?.imageNumbers?.includes(r.number) && <a href={`/maps/areas/${r.number}.jpg`} download={`${DISTRICT_NAMES[mapId]}-${r.number}號.jpg`} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-mc-text/80 hover:bg-white/5"><Download size={15} aria-hidden="true" />下載{selected.numbers.length > 1 ? ` ${r.number} 號` : ''}圖檔</a>}
                 <div><p className="text-xs text-mc-text/60">距上次完成回報</p><p className="mt-1"><strong className="text-3xl font-semibold tabular-nums">{data?.syncedAt && r.days !== null ? r.days : '—'}</strong><span className="ml-1 text-sm text-mc-text/60">天</span></p><p className="mt-1 flex items-center gap-1.5 text-xs text-mc-text/50"><CalendarDays size={13} aria-hidden="true" />{!data?.syncedAt ? '回報日期尚未同步' : `上次完成：${r.lastCompletedDate || '無紀錄'}`}</p></div>
                 <RecentReports entries={currentHistory?.entries?.[r.number]} failed={currentHistory?.failed === true} />
-                {!unavailable && <button disabled={actionBusy || (!dispatchMode && queue.length >= 5 && !queued)} aria-pressed={queued} onClick={() => { if (r.areaId) setQueue(old => old.some(i => i.id === r.areaId) ? old.filter(i => i.id !== r.areaId) : !dispatchMode && old.length >= 5 ? old : [...old, { id: r.areaId!, label: `${DISTRICT_NAMES[mapId]} ${r.number} 號` }]) }} className={`w-full rounded-lg px-3 py-2.5 text-sm disabled:opacity-40 ${queued ? 'bg-blue-400/10 text-blue-300' : 'bg-mc-highlight text-white'}`}>{queued ? '✓ 已加入 · 點此移除' : dispatchMode ? '＋ 加入分發清單' : queue.length >= 5 ? '已選滿 5 張' : '＋ 加入申請'}</button>}
               </article>
             })}</div>
           </> : <div className="py-6 text-center"><p className="text-2xl text-mc-text/30">◎</p><h2 className="mt-2 font-semibold">點選地圖，查看區域</h2><p className="mt-2 text-sm text-mc-text/50">查看多久未完成回報，<br />將想領取的地圖加入下方清單。</p></div>}
         </section>
         </div>
+        {infoOpen && selected && actionBar('hidden md:flex')}
         </section>
-        {isAdmin && <section className={`min-h-0 flex flex-col border-t border-white/10 ${settingsOpen ? 'flex-1' : 'shrink-0'}`}>
+        {isAdmin && <section className={`min-h-0 flex flex-col overflow-hidden border-t border-white/10 ${settingsOpen ? 'flex-1' : 'shrink-0'}`}>
           <PanelToggle open={settingsOpen} onToggle={() => setSettingsOpen(open => !open)} controls="area-settings-content" Icon={Settings2}>設定</PanelToggle>
           <div id="area-settings-content" hidden={!settingsOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
             {settingsOpen && (selected?.reports.some(r => r.areaId) ? <div className="space-y-4 divide-y divide-white/10 [&>*+*]:pt-4">{selected.reports.map(r => r.areaId && <AreaProperties key={r.areaId} areaId={r.areaId} number={r.number} showNumber={selected.numbers.length > 1} onChange={updateAvailability} />)}</div> : <p className="py-4 text-center text-sm text-mc-text/50">{selected ? '此區塊尚未對應地圖號碼' : '先點選地圖，再調整分發設定'}</p>)}
           </div>
         </section>}
-        <section className={`min-h-0 flex flex-col border-t border-white/10 ${queueOpen ? `flex-[3] md:flex-1 ${infoOpen && dispatchMode ? 'lg:flex-[2]' : ''}` : 'shrink-0'}`}>
-          <PanelToggle open={queueOpen} onToggle={() => setQueueOpen(open => !open)} controls="area-queue-content" Icon={ListChecks}>{dispatchMode ? '派發清單' : '申請清單'}<span className="ml-2 font-normal text-blue-300">已選 {queue.length} 張</span></PanelToggle>
+        <section className={`min-h-0 flex flex-col overflow-hidden border-t border-white/10 ${queueOpen ? `flex-[3] md:flex-1 ${infoOpen && dispatchMode ? 'lg:flex-[2]' : ''}` : 'shrink-0'}`}>
+          <PanelToggle open={queueOpen} onToggle={() => setQueueOpen(open => !open)} controls="area-queue-content" Icon={ListChecks}>{dispatchMode ? '派發清單' : '申請清單'}<SelectedCount className="ml-2" count={queue.length} max={dispatchMode ? null : 5} /></PanelToggle>
           <div id="area-queue-content" hidden={!queueOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {dispatchMode ? <DispatchSubmitBar items={queue} onBusy={setActionBusy} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} /> : <RequestSubmitBar compact onBusy={setActionBusy} items={queue} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} />}
           </div>
         </section>
       </aside>
     </div>
+    {data && !loading && actionBar('flex md:hidden rounded-xl border')}
   </div></DashboardLayout>
+}
+
+// 已選張數徽章：有選時用實心藍底，一眼看得出選了幾張
+function SelectedCount({ count, max, className = '' }: { count: number; max: number | null; className?: string }) {
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${count ? 'bg-mc-highlight text-white' : 'bg-white/5 text-mc-text/50'} ${className}`}>已選 {count}{max ? ` / ${max}` : ''} 張</span>
 }
 
 function RecentReports({ entries, failed }: { entries: AreaReportEntry[] | undefined; failed: boolean }) {
