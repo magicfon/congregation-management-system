@@ -10,6 +10,7 @@ const PROTECTED_PAGE_PREFIXES = [
   '/map-requests',
   '/assignments',
   '/active-assignments',
+  '/territory-status',
   '/members',
   '/reports',
   '/schedules',
@@ -32,5 +33,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/midweek/:path*', '/service-roster/:path*', '/map-requests/:path*', '/area-status/:path*', '/dashboard/:path*', '/areas/:path*', '/members/:path*', '/reports/:path*', '/schedules/:path*', '/statistics/:path*', '/map/:path*', '/active-assignments/:path*', '/assignments/:path*'],
+  matcher: ['/midweek/:path*', '/service-roster/:path*', '/map-requests/:path*', '/area-status/:path*', '/dashboard/:path*', '/areas/:path*', '/members/:path*', '/reports/:path*', '/schedules/:path*', '/statistics/:path*', '/map/:path*', '/active-assignments/:path*', '/assignments/:path*', '/territory-status/:path*'],
 }
