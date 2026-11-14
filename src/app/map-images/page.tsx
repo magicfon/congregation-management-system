@@ -103,7 +103,7 @@ function DeepZoomViewer({ spec, onClose }: { spec: BigMapSpec; onClose: () => vo
         <div>
           <span className="font-semibold text-mc-text">{spec.name}</span>
           <span className="text-xs text-mc-text-secondary ml-2">
-            {spec.range} · {spec.sizeLabel} · 滾輪/雙指縮放，拖曳平移
+            {spec.range} · {spec.sizeLabel}
           </span>
         </div>
         <div className="flex items-center gap-2">
