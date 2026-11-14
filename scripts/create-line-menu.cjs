@@ -14,20 +14,20 @@ const tiles={
  territory:{title:'傳道地圖',subtitle:'查看與申請地圖',color:'#71d5ba',icon:'<path d="M-44-34-15-44 15-34 44-44V34L15 44-15 34-44 44Z"/><path d="M-15-44V34M15-34V44"/>'},
  report:{title:'區域回報',subtitle:'回報完成情況',color:'#7fd0f0',icon:'<rect x="-38" y="-46" width="76" height="92" rx="10"/><path d="M-18-46V-36H18V-46M-20 0-6 14 22-14"/>'},
  mapDownload:{title:'地圖下載',subtitle:'區域地圖圖檔',color:'#f0a37a',icon:'<path d="M0-46V14M-24-10 0 14 24-10"/><path d="M-44 18V44H44V18"/>'},
- myRequests:{title:'領圖申請',subtitle:'我的申請進度',color:'#e9a6d0',icon:'<rect x="-38" y="-46" width="76" height="92" rx="10"/><path d="M-20-22H20M-20-4H20M-20 14H2M10 30 18 38 34 22"/>'},
+ myAreas:{title:'我的區域',subtitle:'持有地圖與回報',color:'#e9a6d0',icon:'<path d="M-30 46V-44"/><path d="M-30-40H36L22-18 36 4H-30"/>'},
  roster:{title:'服務安排',subtitle:'管理排班',color:'#f3c779',icon:'<circle cx="-14" cy="-18" r="16"/><path d="M-44 40C-44 16-30 6-14 6S16 16 16 40"/><path d="M20-24H44M20-8H44M28 8H44"/>'},
  midweek:{title:'週中編排',subtitle:'編排週中聚會',color:'#f0a37a',icon:'<rect x="-40" y="-46" width="80" height="92" rx="10"/><path d="M-22-24H22M-22-6H22M-22 12H22M-22 30H4"/>'},
  announcements:{title:'管理公告',subtitle:'會眾公告',color:'#7fd0f0',icon:'<path d="M-40-12V12H-20L20 38V-38L-20-12Z"/><path d="M32-14C38-8 38 8 32 14"/>'},
  members:{title:'成員管理',subtitle:'權限與連結',color:'#b9c4d4',icon:'<circle cx="-14" cy="-16" r="16"/><path d="M-44 40C-44 16-30 6-14 6S16 16 16 40"/><circle cx="24" cy="-10" r="12"/><path d="M22 10C34 10 44 18 44 36"/>'},
 };
-// Same pages as src/lib/line-rich-menu.ts. Admin manage: left 2×2 = brother items, right 2×2 = admin items (ADR-0122). tab: null = no tab bar (default menu for sisters).
+// Same pages as src/lib/line-rich-menu.ts. Admin manage: left 2×2 = brother items, right 2×2 = admin items (ADR-0125). tab: null = no tab bar (default menu for sisters).
 const general=[['publicTalks','midweekMeeting','announcementsView','groups'],['meetingPoints','serviceRoster','dashboard','assignments']];
 const menus={
  sister:{width:1332,height:674,tab:null,rows:general},
  'brother-general':{width:1332,height:900,tab:'general',rows:general},
- 'brother-manage':{width:1332,height:900,tab:'manage',rows:[['report','mapDownload'],['territory','myRequests']]},
+ 'brother-manage':{width:1332,height:900,tab:'manage',rows:[['report','mapDownload'],['territory','myAreas']]},
  'admin-general':{width:1332,height:900,tab:'general',rows:general},
- 'admin-manage':{width:1332,height:900,tab:'manage',rows:[['report','mapDownload','roster','midweek'],['territory','myRequests','announcements','members']],divider:true},
+ 'admin-manage':{width:1332,height:900,tab:'manage',rows:[['report','mapDownload','roster','midweek'],['territory','myAreas','announcements','members']],divider:true},
 };
 const BAR=110;
 function tile(t,x,y,w,h){const cx=w/2,s=h/337;return `<g transform="translate(${x} ${y})"><rect x="12" y="12" width="${w-24}" height="${h-24}" rx="25" fill="#192638"/><circle cx="${cx}" cy="${100*s}" r="66" fill="${t.color}" opacity=".08"/><g transform="translate(${cx} ${100*s})" fill="none" stroke="${t.color}" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round">${t.icon}</g><text x="${cx}" y="${224*s}" text-anchor="middle" fill="#f2f5fa" font-family="${font}" font-weight="700" font-size="46">${t.title}</text><text x="${cx}" y="${270*s}" text-anchor="middle" fill="#a6b4c6" font-family="${font}" font-size="25">${t.subtitle}</text></g>`}

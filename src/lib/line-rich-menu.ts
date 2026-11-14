@@ -12,9 +12,9 @@ export type MenuKey = 'sister' | 'brother-general' | 'brother-manage' | 'admin-g
 export const menuKeys: MenuKey[] = ['sister', 'brother-general', 'brother-manage', 'admin-general', 'admin-manage']
 const tabbedKeys = menuKeys.filter(key => key !== 'sister') as Exclude<MenuKey, 'sister'>[]
 const liffId = configuredLiffId()
-const stateKey = (key: MenuKey) => liffId ? `line_rich_menu_v9_${key}_liff_${liffId}` : `line_rich_menu_v9_${key}`
+const stateKey = (key: MenuKey) => liffId ? `line_rich_menu_v10_${key}_liff_${liffId}` : `line_rich_menu_v10_${key}`
 // Alias ids are per channel: [a-z0-9_-], at most 32 characters.
-export const aliasId = (key: MenuKey) => `cms-v9-${key}`
+export const aliasId = (key: MenuKey) => `cms-v10-${key}`
 const menuUrl = (view: string) => liffId ? `https://liff.line.me/${liffId}/?view=${view}` : `${botSite}${liffDestination(view)}`
 const lockKey = 'line_rich_menu_publish_lock'
 const api = 'https://api.line.me/v2/bot'
@@ -23,7 +23,7 @@ const uri = (view: string) => ({ type: 'uri' as const, uri: menuUrl(view) })
 const tiles: Record<string, { type: 'uri'; uri: string } | { type: 'message'; text: string }> = {
   publicTalks: uri('public-talks'), midweekMeeting: uri('midweek-meeting'), announcementsView: uri('announcements'), groups: uri('ministry-groups'),
   meetingPoints: uri('meeting-points'), serviceRoster: uri('service-roster'), dashboard: uri('dashboard'), assignments: { type: 'message', text: '我的委派' }, territory: uri('territory'),
-  report: uri('report'), mapDownload: uri('map-images'), myRequests: uri('requests'),
+  report: uri('report'), mapDownload: uri('map-images'), myAreas: uri('maps'),
   roster: uri('roster'), midweek: uri('midweek'), announcements: uri('manage-announcements'), members: uri('members'),
 }
 // Same rows and sizes as scripts/create-line-menu.cjs, which draws the images.
@@ -31,9 +31,9 @@ const general = [['publicTalks', 'midweekMeeting', 'announcementsView', 'groups'
 const layouts: Record<MenuKey, { width: number; height: number; label: string; tab: 'general' | 'manage' | null; rows: string[][] }> = {
   sister: { width: 1332, height: 674, label: '一般', tab: null, rows: general },
   'brother-general': { width: 1332, height: 900, label: '弟兄一般', tab: 'general', rows: general },
-  'brother-manage': { width: 1332, height: 900, label: '弟兄管理', tab: 'manage', rows: [['report', 'mapDownload'], ['territory', 'myRequests']] },
+  'brother-manage': { width: 1332, height: 900, label: '弟兄管理', tab: 'manage', rows: [['report', 'mapDownload'], ['territory', 'myAreas']] },
   'admin-general': { width: 1332, height: 900, label: '管理者一般', tab: 'general', rows: general },
-  'admin-manage': { width: 1332, height: 900, label: '管理者管理', tab: 'manage', rows: [['report', 'mapDownload', 'roster', 'midweek'], ['territory', 'myRequests', 'announcements', 'members']] },
+  'admin-manage': { width: 1332, height: 900, label: '管理者管理', tab: 'manage', rows: [['report', 'mapDownload', 'roster', 'midweek'], ['territory', 'myAreas', 'announcements', 'members']] },
 }
 const BAR = 110
 function definition(key: MenuKey) {
@@ -46,7 +46,7 @@ function definition(key: MenuKey) {
   })) : []
   return {
     size: { width, height }, selected: true,
-    name: `楠梓會眾${label}選單 v9`, chatBarText: '開啟功能選單',
+    name: `楠梓會眾${label}選單 v10`, chatBarText: '開啟功能選單',
     areas: [...tabAreas, ...rows.flatMap((keys, row) => {
       const cell = Math.floor(width / keys.length), y = top + row * rowH
       return keys.map((name, i) => ({
