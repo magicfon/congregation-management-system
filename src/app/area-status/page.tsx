@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, Download, RefreshCw, type LucideIcon } from 'lucide-react'
+import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPinned, ListChecks, Settings2, Download, RefreshCw, ClipboardCheck, type LucideIcon } from 'lucide-react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import DispatchSubmitBar from '../../components/map/DispatchSubmitBar'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
@@ -157,6 +157,7 @@ export default function AreaStatusPage() {
           {Object.entries(DISTRICT_NAMES).map(([id, name]) => <button key={id} type="button" disabled={actionBusy} aria-pressed={mapId === id} onClick={() => setMapId(id)} className={`min-h-11 rounded-md px-2.5 sm:px-3 py-1.5 text-sm transition-colors disabled:opacity-40 ${mapId === id ? 'bg-mc-highlight text-white' : 'text-mc-text/60 hover:bg-white/5'}`}>{name}</button>)}
         </div>
         <button onClick={() => setRevision(v => v + 1)} disabled={loading || actionBusy} aria-label="重新整理" className="flex min-h-11 items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm disabled:opacity-40"><RefreshCw size={15} aria-hidden="true" /><span className="hidden sm:inline">重新整理</span></button>
+        <a href="/map-requests" className="hidden min-h-11 md:flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-sm text-blue-200 hover:bg-white/5"><ClipboardCheck size={15} aria-hidden="true" />領圖申請</a>
       </div>
     </header>
     {jumpMessage && <p role="status" className="shrink-0 text-sm text-amber-300">{jumpMessage}</p>}
@@ -202,7 +203,7 @@ export default function AreaStatusPage() {
                 <RecentReports entries={currentHistory?.entries?.[r.number]} failed={currentHistory?.failed === true} />
               </article>
             })}</div>
-          </> : <div className="py-6 text-center"><p className="text-2xl text-mc-text/30">◎</p><h2 className="mt-2 font-semibold">點選地圖，查看區域</h2><p className="mt-2 text-sm text-mc-text/50">查看多久未完成回報，<br />將想領取的地圖加入下方清單。</p></div>}
+          </> : <div className="py-6 text-center"><p className="text-2xl text-mc-text/30">◎</p><h2 className="mt-2 font-semibold">點選地圖，查看區域</h2><p className="mt-2 text-sm text-mc-text/50">查看多久未完成回報，<br />將想領取的地圖加入下方清單。</p><a href="/map-requests" className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-sm text-blue-300 underline underline-offset-4 md:hidden"><ClipboardCheck size={15} aria-hidden="true" />查看領圖申請</a></div>}
         </section>
         </div>
         {infoOpen && selected && actionBar('hidden md:flex')}
