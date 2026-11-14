@@ -231,7 +231,7 @@ export default function PdfReader({ id, label, src, title, sourceUrl, embedded =
       {document && width > 0 && !error && Array.from({ length: document.numPages }, (_, index) => <PdfPage key={`${id}-${retry}-${index}`} frame={firstFrame} document={document} page={index + 1} label={label} width={Math.max(1, width - (embedded ? 8 : 24))} height={embedded ? Infinity : Math.max(1, height - 24)} zoom={zoom} initialRatio={pageRatio} root={pane.current} onFirstPaint={firstPaint} />)}
     </div>
     {!embedded && <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs text-mc-text/50">
-      <p>手機雙指縮放 · 電腦 Ctrl＋滾輪縮放、拖曳移動 · 自動記住閱讀位置</p>
+      <p>自動記住閱讀位置</p>
       {resumedPage && <p role="status" className="flex items-center gap-2">已接續第 {resumedPage} 頁<button type="button" className="min-h-11 rounded-lg px-2 text-blue-300 hover:bg-mc-accent" onClick={() => { setZoom(1); pane.current?.scrollTo(0, 0); setResumedPage(null) }}>回到開頭</button></p>}
     </div>}
   </div>

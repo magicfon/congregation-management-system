@@ -90,6 +90,6 @@ export default function MinistryCanvas({ image, history, strokes, onChange, edit
       <g opacity=".35" pointerEvents="none">{history.map((s,i)=><g key={i}>{marks(s,'#22c55e')}</g>)}</g><g opacity=".5" pointerEvents="none">{marks(erased || strokes,'#3b82f6')}{draft&&marks([draft],'#3b82f6')}</g>
     </svg>
     {limitError&&<p role="alert" className="p-2 text-xs text-amber-300">{limitError}</p>}
-    <p className="p-2 text-xs text-mc-text/50">{imageError?'小地圖載入失敗，請重新載入。可先用文字提交進度。':'綠色：已交接進度 · 藍色：本次筆跡。雙指可縮放／移動，單指塗畫／擦除自己的未提交筆跡。'}</p>
+    <p className="p-2 text-xs text-mc-text/50">{imageError?'小地圖載入失敗，請重新載入。可先用文字提交進度。':'綠色：已交接進度 · 藍色：本次筆跡。單指塗畫／擦除自己的未提交筆跡。'}</p>
   </div>
 }
