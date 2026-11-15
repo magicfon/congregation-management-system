@@ -12,9 +12,9 @@ export type MenuKey = 'sister' | 'brother-general' | 'brother-manage' | 'admin-g
 export const menuKeys: MenuKey[] = ['sister', 'brother-general', 'brother-manage', 'admin-general', 'admin-manage']
 const tabbedKeys = menuKeys.filter(key => key !== 'sister') as Exclude<MenuKey, 'sister'>[]
 const liffId = configuredLiffId()
-const stateKey = (key: MenuKey) => liffId ? `line_rich_menu_v11_${key}_liff_${liffId}` : `line_rich_menu_v11_${key}`
+const stateKey = (key: MenuKey) => liffId ? `line_rich_menu_v12_${key}_liff_${liffId}` : `line_rich_menu_v12_${key}`
 // Alias ids are per channel: [a-z0-9_-], at most 32 characters.
-export const aliasId = (key: MenuKey) => `cms-v11-${key}`
+export const aliasId = (key: MenuKey) => `cms-v12-${key}`
 const menuUrl = (view: string) => liffId ? `https://liff.line.me/${liffId}/?view=${view}` : `${botSite}${liffDestination(view)}`
 const lockKey = 'line_rich_menu_publish_lock'
 const api = 'https://api.line.me/v2/bot'
@@ -46,7 +46,7 @@ function definition(key: MenuKey) {
   })) : []
   return {
     size: { width, height }, selected: true,
-    name: `楠梓會眾${label}選單 v11`, chatBarText: '開啟功能選單',
+    name: `楠梓會眾${label}選單 v12`, chatBarText: '開啟功能選單',
     areas: [...tabAreas, ...rows.flatMap((keys, row) => {
       const cell = Math.floor(width / keys.length), y = top + row * rowH
       return keys.map((name, i) => ({
