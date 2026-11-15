@@ -14,7 +14,7 @@ export async function lineBotAnswer(db: PrismaClient, uid: string, command: stri
   }
   if (!member.active) return '此成員帳號已停用，請聯絡管理員確認權限。'
   const footer = `\n\n開啟網站查看詳情：\n${botSite}/dashboard`
-  if (command === '我的委派') return assignmentsText(await personalAssignments(db, member.id, now), `${botSite}/dashboard?view=assignments`)
+  if (command === '我的委派') return assignmentsText(await personalAssignments(db, member.id, now))
   if (command === '我的地圖') {
     const areas = await db.area.findMany({ where: { assignedMemberId: member.id }, orderBy: { sheetNo: 'asc' } })
     const maps = areas.filter(isAreaDispatched)
