@@ -55,7 +55,8 @@ export default function MidweekPrint({ weeks, initial }: { weeks: ManagedWeek[];
         </label>)}
       </fieldset>
       {error && <p role="alert" className="mt-3 rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
-      <div className="mt-5 flex gap-2">
+      {/* 週數多時清單會很長，確認列固定在視窗底部，不用捲到最下面才能按。 */}
+      <div className="sticky -bottom-5 -mx-5 -mb-5 mt-3 flex gap-2 border-t border-white/10 bg-mc-bg px-5 pb-5 pt-3 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6 sm:pb-6">
         <button className={`${button} flex-1`} disabled={busy} onClick={() => setOpen(false)}>返回</button>
         <button className={`${button} flex-1 bg-blue-600 font-semibold text-white`} disabled={busy || !chosen.length} onClick={print}>{busy ? '準備中…' : `列印 ${chosen.length} 週`}</button>
       </div>
