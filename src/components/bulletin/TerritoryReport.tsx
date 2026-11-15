@@ -5,7 +5,7 @@ import { AlertTriangle, ExternalLink, Plus, X } from 'lucide-react'
 
 type Area = { sheetNo: number; label: string; holder: string | null; dispatched: string | null }
 type Options = { restricted?: string; guest: boolean; admin: boolean; name: string; today: string; timeslots: string[]; maxAreas: number; held: Area[]; areas: Area[] }
-type Verdict = { sheetNo: number; action: 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self'; reason: string }
+type Verdict = { sheetNo: number; action: 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self' | 'managed'; reason: string }
 const OTHER = 'other'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 bg-mc-accent px-3 text-base'
 const label = 'mb-1 block text-sm text-mc-text/70'
@@ -71,7 +71,8 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkKey, Boolean(options)])
   const blocked = selected.filter(a => verdicts[a.sheetNo]?.action === 'blocked')
-  const warned = selected.filter(a => !['return', 'blocked', 'self'].includes(verdicts[a.sheetNo]?.action || 'return'))
+  const warned = selected.filter(a => !['return', 'blocked', 'self', 'managed'].includes(verdicts[a.sheetNo]?.action || 'return'))
+  const managed = selected.filter(a => verdicts[a.sheetNo]?.action === 'managed')
   function outcome(a: Area) {
     const v = verdicts[a.sheetNo]
     if (!v) return '檢查中…'
@@ -112,7 +113,7 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
       const value = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(value.error || '回報未送出，請稍後再試')
       const pending: number[] = value.pending || []
-      setNotice(`已送出 ${selected.length} 區的回報${value.returned?.length ? `，交回 ${value.returned.length} 張地圖` : ''}。${pending.length ? `${pending.join('、')} 號將由管理員確認後交回。` : ''}${tags.length === 1 && doNotVisit.trim() ? '拒絕拜訪地址已送管理員審核。' : ''}${value.warning || ''}`)
+      setNotice(`已送出 ${selected.length} 區的回報${value.returned?.length ? `，交回 ${value.returned.length} 張地圖` : ''}${value.managed?.length ? `，個人管理 ${value.managed.join('、')} 號已記下領取日與完成日` : ''}。${pending.length ? `${pending.join('、')} 號將由管理員確認後交回。` : ''}${tags.length === 1 && doNotVisit.trim() ? '拒絕拜訪地址已送管理員審核。' : ''}${value.warning || ''}`)
       setNote(''); setDoNotVisit(''); setStartDate(''); setTags([]); setAreaText(''); setReviewing(false)
       await load()
     } catch (e) { setError(e instanceof Error ? e.message : '回報未送出'); setReviewing(false) } finally { lock.current = false; setBusy(false) }
@@ -134,7 +135,7 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
         </div>
         {areaHint && <p role="alert" className="mt-1 text-xs text-amber-300">{areaHint}</p>}
         {options.held.some(a => !tags.includes(a.sheetNo)) && <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-xs text-mc-text/50">我領取的：</span>{options.held.filter(a => !tags.includes(a.sheetNo)).map(a => <button key={a.sheetNo} type="button" onClick={() => addTag(a.sheetNo)} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-white/10 px-3 text-sm text-mc-text/80 hover:bg-white/5"><Plus aria-hidden="true" className="h-3.5 w-3.5" />{a.label}</button>)}</div>}
-        {(blocked.length > 0 || warned.length > 0) && <ul className="mt-2 space-y-0.5 text-xs">{[...blocked, ...warned].map(a => <li key={a.sheetNo} className={verdicts[a.sheetNo]?.action === 'blocked' ? 'text-red-300' : 'text-amber-200'}>{a.label}：{outcome(a)}</li>)}</ul>}
+        {(blocked.length > 0 || warned.length > 0 || managed.length > 0) && <ul className="mt-2 space-y-0.5 text-xs">{[...blocked, ...warned, ...managed].map(a => <li key={a.sheetNo} className={verdicts[a.sheetNo]?.action === 'blocked' ? 'text-red-300' : verdicts[a.sheetNo]?.action === 'managed' ? 'text-blue-300' : 'text-amber-200'}>{a.label}：{outcome(a)}</li>)}</ul>}
         {blocked.length > 0 && <p role="alert" className="mt-1 text-xs text-red-300">請移除標紅的區域才能送出。</p>}
       </div>
       <div>

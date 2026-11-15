@@ -53,6 +53,7 @@ model Area {
   id               String   @id @default(cuid())
   name             String
   personalTerritory Boolean @default(false)
+  personalManaged  Boolean  @default(false) // 個人管理：不可分發／申請，持有人即管理人，自行回報領取日與完成日（ADR-0130）
   dispatchEnabled  Boolean  @default(true) // 暫停時保留持有人，阻擋新申請與分發
   description      String?
   assignedTo       String?

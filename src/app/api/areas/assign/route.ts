@@ -34,10 +34,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少 areaId' }, { status: 400 })
     }
 
+    // 個人管理的地圖不分發也不收回，要先在地圖設定改分類（ADR-0130）
+    const managed = await prisma.area.findUnique({ where: { id: areaId }, select: { personalManaged: true } })
+    if (managed?.personalManaged) return NextResponse.json({ error: '這是個人管理的地圖，不能分發或收回；要改請先到地圖設定改分類' }, { status: 409 })
+
     // If memberId is null/empty, unassign
     if (!memberId) {
       const updated = await prisma.area.update({
-        where: { id: areaId },
+        where: { id: areaId, personalManaged: false },
         data: {
           assignedMemberId: null,
           assignedTo: null,
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const now = new Date()
     const updated = await prisma.area.update({
-      where: { id: areaId, dispatchEnabled: true },
+      where: { id: areaId, dispatchEnabled: true, personalManaged: false },
       data: {
         assignedMemberId: memberId,
         assignedTo: member.name,

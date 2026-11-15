@@ -176,7 +176,7 @@ export default function MapAllocationList() {
                   <td className={`px-2 py-1 text-right whitespace-nowrap tabular-nums ${area.idleDays === null ? 'text-mc-text/40' : area.idleDays >= 180 ? 'text-red-400' : area.idleDays >= 90 ? 'text-yellow-300' : 'text-mc-text'}`}>
                     {area.idleDays === null ? '—' : <><strong>{area.idleDays}</strong> 天</>}
                   </td>
-                  <td className="px-2 py-1 max-w-28 break-words">{area.personalTerritory && <span className="block text-blue-300">個人區域</span>}{!area.dispatchEnabled && <span className="block text-amber-300">暫停分發</span>}{area.isDispatched ? <><span className="text-mc-text/50">使用中</span><span className="ml-1 text-xs">{area.assignedTo || '未知持有人'}</span></> : area.dispatchEnabled ? <span className="text-emerald-300">可分發</span> : null}</td>
+                  <td className="px-2 py-1 max-w-28 break-words">{area.personalTerritory && <span className="block text-blue-300">個人區域</span>}{area.personalManaged && <span className="block text-blue-300">個人管理</span>}{!area.dispatchEnabled && <span className="block text-amber-300">暫停分發</span>}{area.isDispatched ? <><span className="text-mc-text/50">使用中</span><span className="ml-1 text-xs">{area.assignedTo || '未知持有人'}</span></> : area.dispatchEnabled ? <span className="text-emerald-300">可分發</span> : null}</td>
                 </tr>)}
             </tbody>
           </table>

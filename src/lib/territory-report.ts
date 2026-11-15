@@ -12,7 +12,7 @@ export const MAX_REPORT_AREAS = 20
 export class TerritoryReportError extends Error { constructor(message: string, public status = 400) { super(message) } }
 
 export type TerritoryReportInput = { name: string; sheetNos: number[]; timeslot: string; startDate: string; endDate: string; note: string; doNotVisit: string }
-export type ReportArea = { id: string; sheetNo: number | null; assignedMemberId: string | null; dispatchedAt: Date | null; completedAt: Date | null; lastReportedCompletedAt: Date | null }
+export type ReportArea = { id: string; sheetNo: number | null; assignedMemberId: string | null; dispatchedAt: Date | null; completedAt: Date | null; lastReportedCompletedAt: Date | null; personalManaged?: boolean }
 
 function validDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value
@@ -49,7 +49,8 @@ export function reportReturnsArea(area: ReportArea, endDate: string) {
 
 /** 使用中卻已有晚於領取日的完成回報：回報了卻沒交回。同一天不算，可能是前一位的回報。 */
 export function reportedButHeld(area: ReportArea) {
-  return isAreaDispatched(area) && Boolean(area.dispatchedAt && area.lastReportedCompletedAt) && taipeiDate(area.lastReportedCompletedAt) > taipeiDate(area.dispatchedAt)
+  // 個人管理的地圖回報後本來就不交回（ADR-0130）
+  return !area.personalManaged && isAreaDispatched(area) && Boolean(area.dispatchedAt && area.lastReportedCompletedAt) && taipeiDate(area.lastReportedCompletedAt) > taipeiDate(area.dispatchedAt)
 }
 
 /** USER_ENTERED 會執行公式，使用者文字開頭若像公式就當純文字。 */
@@ -72,12 +73,16 @@ export type ReportActor = { memberId: string | null; name: string; admin: boolea
  * return 自己的地圖交回；proxy 管理員代持有人回報並交回；confirm 別人的地圖，交管理員確認；
  * merge 管理員回報已有待確認的地圖，併入同一則；record 只留紀錄；blocked 不能送出；
  * self 自主管理地圖的成員（ADR-0101）回報未領取的地圖：只留紀錄，免確認；別人領取中的照一般規則。
+ * managed 個人管理的地圖（ADR-0130）：管理人或管理員回報，開始日記為領取日、結束日記為完成日，不交回；其他人不能回報。
  */
-export type ReportAction = 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self'
+export type ReportAction = 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self' | 'managed'
 export type ReportVerdict = { action: ReportAction; reason: string }
 
 export function classifyReportArea(area: ReportArea, actor: ReportActor, endDate: string, pendingAlert: boolean): ReportVerdict {
   const held = isAreaDispatched(area)
+  if (area.personalManaged && held) return actor.admin || (actor.memberId && area.assignedMemberId === actor.memberId)
+    ? { action: 'managed', reason: '個人管理：開始日記為領取日、結束日記為完成日，不交回' }
+    : { action: 'blocked', reason: '這是個人管理的地圖，由管理人自行回報' }
   if (held && actor.memberId && area.assignedMemberId === actor.memberId) {
     const dispatched = taipeiDate(area.dispatchedAt)
     if (area.dispatchedAt && endDate < dispatched) return { action: 'blocked', reason: `結束日早於您領取這張地圖的日期（${dispatched}）` }
@@ -95,7 +100,7 @@ export function classifyReportArea(area: ReportArea, actor: ReportActor, endDate
     ? { action: 'proxy', reason: '不是你領取的，將以持有人名義代為回報並交回' }
     : { action: 'record', reason: '結束日早於目前持有人的領取日，只寫入回報紀錄，不交回' }
 }
-export const needsConfirmation = (verdict: ReportVerdict) => !['return', 'blocked', 'self'].includes(verdict.action)
+export const needsConfirmation = (verdict: ReportVerdict) => !['return', 'blocked', 'self', 'managed'].includes(verdict.action)
 
 /** 同一輪派發的鍵：領取時間；沒有領取時間的舊資料用 none。 */
 export const dispatchKey = (area: { dispatchedAt: Date | null }) => area.dispatchedAt ? area.dispatchedAt.toISOString() : 'none'
@@ -137,7 +142,7 @@ export async function brothersOnlyBlocked(db: Tx | PrismaClient, accountId: stri
   if (!accountId || admin) return false
   const member = await db.member.findUnique({ where: { id: accountId }, select: { gender: true } })
   if (member?.gender !== 'sister') return false
-  const personal = await db.area.findMany({ where: { assignedMemberId: accountId, personalTerritory: true }, select: { assignedMemberId: true, dispatchedAt: true, completedAt: true } })
+  const personal = await db.area.findMany({ where: { assignedMemberId: accountId, OR: [{ personalTerritory: true }, { personalManaged: true }] }, select: { assignedMemberId: true, dispatchedAt: true, completedAt: true } })
   return !personal.some(isAreaDispatched)
 }
 
@@ -160,7 +165,7 @@ export async function submitTerritoryReport(db: PrismaClient, accountId: string 
   return db.$transaction(async tx => {
     const actor = await resolveReportActor(tx, accountId, Boolean(options.admin), input.name)
     if (await brothersOnlyBlocked(tx, accountId, Boolean(options.admin))) throw new TerritoryReportError(BROTHERS_ONLY_MESSAGE, 403)
-    const results: { sheetNo: number; action: ReportAction }[] = []
+    const results: { sheetNo: number; action: ReportAction; holder?: string; dispatchedAt?: Date }[] = []
     const rows: (string | number)[][] = []
     for (const sheetNo of input.sheetNos) {
       const area = await tx.area.findUnique({ where: { sheetNo }, include: { assignedMember: { select: { name: true } } } })
@@ -170,14 +175,21 @@ export async function submitTerritoryReport(db: PrismaClient, accountId: string 
       if (verdict.action === 'blocked') throw new TerritoryReportError(`${sheetNo} 號：${verdict.reason}`, 409)
       if (needsConfirmation(verdict) && !options.confirmed) throw new TerritoryReportError(`${sheetNo} 號需要確認，請在確認畫面勾選後再送出`, 409)
       // 管理員代為回報：Sheet 姓名與系統紀錄都記在持有人名下
-      const proxy = verdict.action === 'proxy'
+      const proxy = verdict.action === 'proxy' || (verdict.action === 'managed' && area.assignedMemberId !== actor.memberId)
       const reportMemberId = proxy ? area.assignedMemberId : actor.memberId
       const content = proxy ? JSON.stringify({ ...JSON.parse(reportContent(input, sheetNo)), reportedBy: actor.name }) : reportContent(input, sheetNo)
       const duplicate = reportMemberId && await tx.report.findFirst({ where: { memberId: reportMemberId, areaId: area.id, content, submittedAt: { gte: new Date(now.getTime() - DUPLICATE_WINDOW_MS) } } })
       if (duplicate) throw new TerritoryReportError(`${sheetNo} 號的回報剛剛已送出，不需要重複送出`, 409)
       const endAt = new Date(`${input.endDate}T00:00:00+08:00`)
       const reported = !area.lastReportedCompletedAt || area.lastReportedCompletedAt < endAt ? { lastReportedCompletedAt: endAt } : {}
-      if (verdict.action === 'return' || proxy) {
+      let managedStart: Date | undefined
+      if (verdict.action === 'managed') {
+        // 最新的一次回報才更新領取日（D 欄）；補報較舊的只更新紀錄
+        const latest = !area.lastReportedCompletedAt || input.endDate >= taipeiDate(area.lastReportedCompletedAt)
+        managedStart = latest ? new Date(`${input.startDate}T00:00:00+08:00`) : undefined
+        const updated = await tx.area.updateMany({ where: { id: area.id, assignedMemberId: area.assignedMemberId, personalManaged: true }, data: { ...reported, ...(managedStart ? { dispatchedAt: managedStart, completedAt: null } : {}), lastActivityAt: now } })
+        if (updated.count !== 1) throw new TerritoryReportError(`${sheetNo} 號地圖狀態剛被更新，請重新載入後再送出`, 409)
+      } else if (verdict.action === 'return' || proxy) {
         const updated = await tx.area.updateMany({ where: { id: area.id, assignedMemberId: area.assignedMemberId, dispatchedAt: area.dispatchedAt, completedAt: area.completedAt }, data: { completedAt: now, lastActivityAt: now, returnUndo: returnUndoState(area, input.endDate, now), ...reported } })
         if (updated.count !== 1) throw new TerritoryReportError(`${sheetNo} 號地圖狀態剛被更新，請重新載入後再送出`, 409)
         // 持有人自己交回：別人先前的回報留給管理員知道，不必再處理地圖；管理員代為回報則直接結案
@@ -190,7 +202,7 @@ export async function submitTerritoryReport(db: PrismaClient, accountId: string 
       if (verdict.action === 'confirm' || verdict.action === 'merge') await addNotHolderReport(tx, area, { name: actor.name, startDate: input.startDate, endDate: input.endDate, at: now.toISOString() }, report?.id ?? null, now)
       if (input.doNotVisit) await tx.doNotVisitReport.create({ data: { areaId: area.id, address: input.doNotVisit, reporterName: actor.name, memberId: actor.memberId, createdAt: now } })
       rows.push(reportSheetRow(proxy ? area.assignedMember?.name || actor.name : actor.name, input, sheetNo, now))
-      results.push({ sheetNo, action: verdict.action })
+      results.push({ sheetNo, action: verdict.action, ...(managedStart ? { holder: area.assignedMember?.name || '', dispatchedAt: managedStart } : {}) })
     }
     await appendRows(rows)
     return results
