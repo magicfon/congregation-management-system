@@ -1,0 +1,2 @@
+-- 個人管理地圖（ADR-0130）
+ALTER TABLE "areas" ADD COLUMN IF NOT EXISTS "personalManaged" BOOLEAN NOT NULL DEFAULT false;

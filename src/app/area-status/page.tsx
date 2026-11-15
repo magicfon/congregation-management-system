@@ -5,7 +5,7 @@ import { UserRound, CalendarDays, Undo2, Send, ClipboardPlus, ChevronDown, MapPi
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import DispatchSubmitBar from '../../components/map/DispatchSubmitBar'
 import RequestSubmitBar from '../../components/map/RequestSubmitBar'
-import AreaProperties from '../../components/map/AreaProperties'
+import AreaProperties, { AreaCategory } from '../../components/map/AreaProperties'
 import AreaStatusMap from '../../components/map/AreaStatusMap'
 import DoNotVisitNotice from '../../components/map/DoNotVisitNotice'
 import { DISTRICT_NAMES } from '../../lib/allocation'
@@ -24,11 +24,12 @@ export default function AreaStatusPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminMode, setAdminMode] = useState<'dispatch' | 'request'>('dispatch')
   const dispatchMode = isAdmin && adminMode === 'dispatch'
-  const [categories, setCategories] = useState<Record<string, boolean>>({})
+  const [categories, setCategories] = useState<Record<string, AreaCategory>>({})
   const [availability, setAvailability] = useState<Record<string, boolean>>({})
   useEffect(() => { const controller = new AbortController(); void fetch('/api/me', { signal: controller.signal }).then(r => r.ok ? r.json() : null).then(user => { if (!controller.signal.aborted) setIsAdmin(user?.role === 'admin') }).catch(() => {}); return () => controller.abort() }, [])
-  function updateAvailability(id: string, enabled: boolean, personal: boolean) {
-    setCategories(old => ({ ...old, [id]: personal }))
+  function updateAvailability(id: string, enabled: boolean, category: AreaCategory) {
+    setCategories(old => ({ ...old, [id]: category }))
+    if (category.managedBy !== null) setQueue(old => old.filter(item => item.id !== id))
     setAvailability(old => ({ ...old, [id]: enabled }))
     if (!enabled) setQueue(old => old.filter(item => item.id !== id))
   }
@@ -131,14 +132,17 @@ export default function AreaStatusPage() {
   }, [historyKey, revision])
   const currentHistory = history?.key === historyKey ? history : null
   // 地圖資訊底部固定的領圖操作列：可加入的地圖不必捲到明細最下面（ADR-0123）
-  const addable = selected?.reports.filter(r => r.areaId && !r.isDispatched && ((availability[r.areaId] ?? r.dispatchEnabled))) ?? []
+  const addable = selected?.reports.filter(r => r.areaId && !reportState(r).unavailable) ?? []
   const multiAdd = (selected?.numbers.length ?? 0) > 1
   function reportState(r: HeatReport) {
     const enabled = (r.areaId ? availability[r.areaId] : undefined) ?? r.dispatchEnabled
-    const personal = (r.areaId ? categories[r.areaId] : undefined) ?? r.personalTerritory
-    const unavailable = !enabled || !r.areaId || r.isDispatched
-    const status = !r.areaId ? '未配對' : r.isDispatched ? '使用中' : !enabled ? '暫停分發' : dispatchMode ? '可分發' : '可申請'
-    return { personal, unavailable, status }
+    const category = r.areaId ? categories[r.areaId] : undefined
+    const personal = category?.personal ?? r.personalTerritory
+    // 個人管理（ADR-0130）：不分發、不可申請，由管理人自行回報
+    const managedBy = category ? category.managedBy : r.personalManaged ? r.assignedTo || '' : null
+    const unavailable = !enabled || !r.areaId || r.isDispatched || managedBy !== null
+    const status = !r.areaId ? '未配對' : managedBy !== null ? '個人管理' : r.isDispatched ? '使用中' : !enabled ? '暫停分發' : dispatchMode ? '可分發' : '可申請'
+    return { personal, managedBy, unavailable, status }
   }
   const statusPill = (r: HeatReport) => { const { unavailable, status } = reportState(r); return <span className={`shrink-0 rounded-full px-2 py-1 text-xs ${unavailable ? 'bg-white/5 text-mc-text/60' : 'bg-emerald-400/10 text-emerald-300'}`}>{status}</span> }
   // 抽屜把手：點一下或上下滑動切換展開／收起
@@ -212,10 +216,10 @@ export default function AreaStatusPage() {
             {selected.numbers.length > 1 && <p className="mb-3 text-xs text-amber-300">此區塊包含多張地圖，請逐張選取。</p>}
             {!selected.reports.length && <p className="text-sm text-mc-text/60">尚未對應地圖號碼，請先在編輯器指定號碼。</p>}
             <div className="space-y-4">{selected.reports.map(r => {
-              const { personal } = reportState(r)
+              const { personal, managedBy } = reportState(r)
               return <article key={r.number} className="space-y-3 border-b border-white/10 pb-3 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between"><span className="text-sm text-mc-text/60">{selected.numbers.length > 1 ? `${r.number} 號` : '地圖狀態'}{personal && <span className="ml-2 text-blue-300">個人區域</span>}</span>{statusPill(r)}</div>
-                {r.isDispatched && <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm"><dt className="flex items-center gap-1.5 text-mc-text/50"><UserRound size={14} aria-hidden="true" />持有人</dt><dd>{r.assignedTo || '未記錄'}</dd><dt className="flex items-center gap-1.5 text-mc-text/50"><CalendarDays size={14} aria-hidden="true" />領取日</dt><dd>{r.dispatchedDate || '未記錄'}</dd></dl>}
+                {(r.isDispatched || managedBy !== null) && <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm"><dt className="flex items-center gap-1.5 text-mc-text/50"><UserRound size={14} aria-hidden="true" />{managedBy !== null ? '管理人' : '持有人'}</dt><dd>{managedBy || r.assignedTo || '未記錄'}</dd><dt className="flex items-center gap-1.5 text-mc-text/50"><CalendarDays size={14} aria-hidden="true" />領取日</dt><dd>{r.dispatchedDate || '未記錄'}</dd></dl>}
                 {isAdmin && r.isDispatched && r.undoDispatchedAt !== null && <button type="button" disabled={actionBusy} onClick={() => void undoDispatch(r)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 disabled:opacity-40"><Undo2 size={15} aria-hidden="true" />派錯了？撤銷派發</button>}
                 <DoNotVisitNotice text={r.doNotVisit} />
                 {data?.imageNumbers?.includes(r.number) && <a href={`/maps/areas/${r.number}.jpg`} download={`${DISTRICT_NAMES[mapId]}-${r.number}號.jpg`} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-mc-text/80 hover:bg-white/5"><Download size={15} aria-hidden="true" />下載{selected.numbers.length > 1 ? ` ${r.number} 號` : ''}圖檔</a>}
@@ -250,7 +254,7 @@ export default function AreaStatusPage() {
           {!selected.reports.length ? <p className="text-sm text-mc-text/60">尚未對應地圖號碼</p> : <ul className="space-y-1.5">{selected.reports.map(r => <li key={r.number} className="flex items-center gap-3">
             {multiAdd && <span className="w-12 shrink-0 text-sm text-mc-text/60">{r.number} 號</span>}
             <p className="shrink-0"><strong className="text-2xl font-semibold tabular-nums">{data.syncedAt && r.days !== null ? r.days : '—'}</strong><span className="ml-1 text-xs text-mc-text/60">天</span></p>
-            <p className="min-w-0 flex-1 text-xs leading-snug text-mc-text/60">{r.isDispatched ? <>持有人 {r.assignedTo || '未記錄'}<br />領取 {r.dispatchedDate || '未記錄'}</> : <>上次完成<br />{!data.syncedAt ? '尚未同步' : r.lastCompletedDate || '無紀錄'}</>}</p>
+            <p className="min-w-0 flex-1 text-xs leading-snug text-mc-text/60">{r.isDispatched ? <>{reportState(r).managedBy !== null ? '管理人' : '持有人'} {r.assignedTo || '未記錄'}<br />領取 {r.dispatchedDate || '未記錄'}</> : <>上次完成<br />{!data.syncedAt ? '尚未同步' : r.lastCompletedDate || '無紀錄'}</>}</p>
             {statusPill(r)}
           </li>)}</ul>}
           {selected.reports.some(r => r.doNotVisit) && <p className="mt-1.5 text-xs text-amber-300">有拒絕拜訪紀錄，往上看明細</p>}

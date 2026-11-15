@@ -16,7 +16,7 @@ export type AlertAction = 'return' | 'keep' | 'restore' | 'use_sheet'
 
 export type ReturnUndo = ReturnType<typeof returnUndoState>
 export type SheetMismatch = { sheetNo: number; sheetMember: string; sheetDate: string; dbMember: string; dbDate: string }
-type DetectArea = { id: string; sheetNo: number | null; assignedMemberId: string | null; dispatchedAt: Date | null; completedAt: Date | null; lastReportedCompletedAt: Date | null; returnUndo: Prisma.JsonValue | null }
+type DetectArea = { id: string; sheetNo: number | null; assignedMemberId: string | null; dispatchedAt: Date | null; completedAt: Date | null; lastReportedCompletedAt: Date | null; returnUndo: Prisma.JsonValue | null; personalManaged?: boolean }
 
 /** 系統眼中的持有人：已交回的地圖保留歷史持有人，但對 Sheet C 欄而言是空白。 */
 export function currentHolder(area: { assignedMemberId: string | null; dispatchedAt: Date | null; completedAt: Date | null; assignedMember?: { name: string } | null }) {
@@ -39,7 +39,7 @@ export function basisRemoved(area: DetectArea): ReturnUndo | null {
 export async function syncReportAlerts(db: PrismaClient, mismatches: SheetMismatch[], now = new Date()) {
   const areas: DetectArea[] = await db.area.findMany({
     where: { OR: [{ assignedMemberId: { not: null }, lastReportedCompletedAt: { not: null } }, { returnUndo: { not: Prisma.DbNull } }, { reportAlerts: { some: { status: 'pending' } } }, { sheetNo: { in: mismatches.map(m => m.sheetNo) } }] },
-    select: { id: true, sheetNo: true, assignedMemberId: true, dispatchedAt: true, completedAt: true, lastReportedCompletedAt: true, returnUndo: true },
+    select: { id: true, sheetNo: true, assignedMemberId: true, dispatchedAt: true, completedAt: true, lastReportedCompletedAt: true, returnUndo: true, personalManaged: true },
   })
   const alerts = await db.reportAlert.findMany({ where: { OR: [{ status: 'pending' }, { kind: 'not_holder' }] }, select: { id: true, areaId: true, kind: true, cycleKey: true, status: true } })
   const byId = new Map(areas.map(a => [a.id, a]))
@@ -86,6 +86,8 @@ export async function resolveReportAlert(db: PrismaClient, id: string, action: A
     const close = (resolution: string) => tx.reportAlert.update({ where: { id }, data: { status: 'resolved', resolvedAt: now, resolvedBy: admin, resolution, updatedAt: now } })
     const stale = async () => { await tx.reportAlert.update({ where: { id }, data: { status: 'resolved', resolvedAt: now, resolvedBy: '系統', resolution: 'auto', updatedAt: now } }); return { stale: true as const, sheet: null } }
     if (action === 'keep') { await close('keep'); return { stale: false as const, sheet: null } }
+    // 個人管理的地圖不交回、不換人（ADR-0130）
+    if (area.personalManaged && (action === 'return' || action === 'use_sheet')) throw new TerritoryReportError('這是個人管理的地圖，不能交回或改持有人；要改請先到地圖設定改分類', 409)
 
     if (action === 'return') {
       if (!isAreaDispatched(area) || dispatchKey(area) !== alert.cycleKey.split('|')[0]) return stale()

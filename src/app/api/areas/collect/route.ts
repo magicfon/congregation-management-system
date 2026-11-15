@@ -19,11 +19,12 @@ export async function POST(request: NextRequest) {
 
     const now = new Date()
 
-    const areas = await prisma.area.findMany({ where: { id: { in: areaIds } }, select: { id: true, sheetNo: true } })
+    // 個人管理的地圖不收回（ADR-0130）
+    const areas = await prisma.area.findMany({ where: { id: { in: areaIds }, personalManaged: false }, select: { id: true, sheetNo: true } })
 
     // Batch update: set completedAt and clear assignment
     const result = await prisma.area.updateMany({
-      where: { id: { in: areaIds } },
+      where: { id: { in: areas.map(a => a.id) }, personalManaged: false },
       data: {
         completedAt: now,
         lastActivityAt: now,

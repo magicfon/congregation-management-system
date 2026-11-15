@@ -58,7 +58,15 @@ export async function POST(request: NextRequest) {
         await updateSnapshot(returned.map(sheetNo => ({ sheetNo, member: '', date: null, keepDate: true })))
       } catch { warning = '回報已送出、地圖已交回，區域狀態表稍後會自動同步。' }
     }
-    return respond({ ok: true, returned, pending, warning }, 201)
+    // 個人管理（ADR-0130）：C 欄維持管理人、D 欄改成這次的領取日
+    const managed = results.filter(result => result.action === 'managed' && result.dispatchedAt)
+    if (managed.length) {
+      try {
+        await batchUpdate(DEFAULT_SHEET_ID, managed.map(m => ({ range: `區域狀態!C${m.sheetNo + 1}:D${m.sheetNo + 1}`, values: [[m.holder || '', taipeiDate(m.dispatchedAt!)]] })))
+        await updateSnapshot(managed.map(m => ({ sheetNo: m.sheetNo, member: m.holder || '', date: m.dispatchedAt! })))
+      } catch { warning = '回報已送出，區域狀態表的領取日稍後會自動同步。' }
+    }
+    return respond({ ok: true, returned, pending, managed: managed.map(m => m.sheetNo), warning }, 201)
   } catch (error) {
     if (error instanceof TerritoryReportError) return respond({ error: error.message }, error.status)
     if (error instanceof SyntaxError) return respond({ error: '資料格式無效' }, 400)

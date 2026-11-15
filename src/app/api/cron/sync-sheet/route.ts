@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     let maxTs: Date | null = null
     for (const row of reportRows) {
-      const [tsCell, nameCell, , noCell, , endCell] = row
+      const [tsCell, nameCell, , noCell, startCell, endCell] = row
       const ts = parseTs((tsCell || '').toString())
       if (!ts || ts <= lastTs) continue
       const name = (nameCell || '').toString().trim()
@@ -107,6 +107,18 @@ export async function POST(request: NextRequest) {
         // 站內回報也會寫進這張表，送出時已處理過（ADR-0076），用系統紀錄辨識
         const inApp = await prisma.report.findFirst({ where: { areaId: area.id, content: { contains: `"endDate":"${endDate}"` } }, select: { id: true } })
         if (!inApp) await prisma.$transaction(tx => addNotHolderReport(tx, area, { name, startDate: '', endDate, at: ts.toISOString() }, null, new Date()))
+        if (!maxTs || ts > maxTs) maxTs = ts
+        continue
+      }
+      // 個人管理（ADR-0130）：管理人用 Google 表單回報也不交回，開始日記為領取日（站內回報已處理過，結果相同）
+      if (area.personalManaged) {
+        const start = parseDate((startCell || '').toString())
+        const startAt = start ? new Date(`${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}T00:00:00+08:00`) : null
+        const latest = !area.lastReportedCompletedAt || taipeiDate(completedAt) >= taipeiDate(area.lastReportedCompletedAt)
+        if (startAt && latest && area.dispatchedAt?.getTime() !== startAt.getTime()) {
+          await prisma.area.update({ where: { id: area.id }, data: { dispatchedAt: startAt, completedAt: null, lastActivityAt: new Date() } })
+          result.imported++
+        }
         if (!maxTs || ts > maxTs) maxTs = ts
         continue
       }
@@ -188,7 +200,8 @@ export async function POST(request: NextRequest) {
       const dbDate = taipeiDate(area.dispatchedAt)
       const dbChanged = dbMember !== snapMember || dbDate !== snapDate
 
-      if (dbChanged) {
+      // 個人管理的地圖在 Sheet 上被改成別人：以系統為準（ADR-0130）
+      if (dbChanged || (area.personalManaged && dbMember && sheetMember !== dbMember)) {
         // 兩邊都變 → 真衝突 → DB 贏（後寫的贏：DB 操作時間 > Sheet 手動編輯）
         // 推 DB 回 Sheet + 記錄
         result.conflicts++
@@ -236,9 +249,12 @@ export async function POST(request: NextRequest) {
       if (!isActive) continue
       const snap = snapshot.get(area.sheetNo)
       const dbMember = area.assignedMember?.name || ''
-      if (snap && snap.member === dbMember) continue // 快照已同步，OK
+      // 個人管理的領取日由回報更新，Sheet 寫入失敗時這裡補推 D 欄（ADR-0130）
+      const managedDateBehind = area.personalManaged && snap?.member === dbMember && snap.date !== taipeiDate(area.dispatchedAt)
+      if (snap && snap.member === dbMember && !managedDateBehind) continue // 快照已同步，OK
       const statusRow = statusRows.find(r => Number(r[1]) === area.sheetNo)
-      if (statusRow && (statusRow[2] || '').toString().trim() === dbMember) continue // Sheet 已正確
+      if (!managedDateBehind && statusRow && (statusRow[2] || '').toString().trim() === dbMember) continue // Sheet 已正確
+      if (pushQueue.some(p => p.sheetNo === area.sheetNo)) continue
       pushQueue.push({ sheetNo: area.sheetNo, memberName: dbMember, dispatchedAt: area.dispatchedAt })
       snapUpdates.push({ sheetNo: area.sheetNo, member: dbMember, date: area.dispatchedAt })
       result.pushedBack++
