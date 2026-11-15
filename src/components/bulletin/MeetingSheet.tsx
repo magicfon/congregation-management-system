@@ -1,6 +1,6 @@
 'use client'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { sectionColors, sectionNames, timeline, type Meeting, type MeetingItem, type Highlight } from '@/lib/midweek'
+import { isCancelled, sectionColors, sectionNames, timeline, type Meeting, type MeetingItem, type Highlight } from '@/lib/midweek'
 import styles from './MeetingSheet.module.css'
 import { useSheetGestures } from './useSheetGestures'
 import { useMemberNameCheck } from './useMemberNameCheck'
@@ -42,6 +42,7 @@ export default function MeetingSheet({ meeting, editor, marks, palette = {} }: {
       {editor && <datalist id="meeting-members">{editor.members.map(m => <option key={m.id} value={m.name} />)}</datalist>}
       {meeting.note && <p className={styles.note}><span style={{ background: background('note', meeting.noteHighlight) }}>{editor ? <TextField value={meeting.note} label="更新標示" onChange={note => editor.change({ note })} /> : meeting.note}</span></p>}
       <h2 className={styles.heading}><span style={{ background: background('date') }}>{editor ? <button type="button" className={styles.editable} aria-label="日期與整張節目表設定" onClick={() => editor.settings(-1)}>[{Number(month)}月{Number(day)}日]</button> : `[${Number(month)}月${Number(day)}日]`}</span>｜每週閱讀經文：<span style={{ background: background('reading') }}>{editor ? <TextField value={meeting.reading} label="每週閱讀經文" onChange={reading => editor.change({ reading })} /> : meeting.reading}</span></h2>
+      {isCancelled(meeting) ? <div className={styles.cancelled} role="note"><p>本週無聚會</p><p><span style={{ background: background('cancelled') }}>{meeting.cancelled}</span></p></div> : <>
       <div className={styles.chair}><small>主席：</small><span style={{ background: background('chair') }}>{editor ? <>[<NameField value={meeting.chair} label="主席" members={editor.members} onChange={chair => editor.change({ chair })} />]</> : name(meeting.chair, 'chair') && `[${name(meeting.chair, 'chair')}]`}</span></div>
       {rows.map((row, index) => <Fragment key={row.id}>
         {row.section !== 'opening' && rows[index - 1]?.section !== row.section && <div className={styles.section}><h3 style={{ background: sectionColors[row.section] }}>{sectionNames[row.section]}</h3>{row.section !== 'living' && <small>第一班</small>}</div>}
@@ -57,6 +58,7 @@ export default function MeetingSheet({ meeting, editor, marks, palette = {} }: {
           {editor && <button type="button" aria-label={`${index + 1} 節目設定`} className={styles.rowSettings} onClick={() => editor.settings(index)}>⋯</button>}
         </div>
       </Fragment>)}
+      </>}
     </article></div></div>
   </div>
 }

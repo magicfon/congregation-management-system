@@ -1,7 +1,7 @@
 import { botSite, lineBotReady, lineRequest } from './line-bot-client'
 import type { PrismaClient } from '@prisma/client'
 import { displayDate } from './student-notice-text'
-import { MeetingError, type Meeting, type MeetingItem, type MeetingRecord } from './midweek'
+import { isCancelled, MeetingError, type Meeting, type MeetingItem, type MeetingRecord } from './midweek'
 
 // S-89-CH 學生練習通知單，以 LINE Flex 卡片呈現（ADR-0090）。
 export type StudentNotice = { name: string; assistant: string; date: string; title: string; classNumber: 1 | 2 | 3; weekId: string; itemId?: string }
@@ -9,6 +9,8 @@ export type NoticeOptions = { preview?: boolean; updated?: boolean; ack?: string
 export const isStudentItem = (item: MeetingItem) => item.role === '學生' || item.role === '學生/助手'
 
 export function studentNotices(weekId: string, meeting: Meeting): StudentNotice[] {
+  // 取消聚會的週沒有學生作業；先前發過的人會在名單上列為「取消」（ADR-0131）。
+  if (isCancelled(meeting)) return []
   return meeting.items.filter(item => isStudentItem(item) && item.person.trim()).map(item => ({ name: item.person.trim(), assistant: item.assistant.trim(), date: meeting.date, title: item.title.replace(/[[\]]/g, '').trim(), classNumber: 1, weekId, itemId: item.id }))
 }
 

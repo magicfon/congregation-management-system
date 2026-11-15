@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client'
 import { taipeiDate } from './google-sheets'
 import { addDays, serviceRoles, type Assignments } from './service-roster'
-import type { MeetingRecord } from './midweek'
+import { isCancelled, type MeetingRecord } from './midweek'
 
 export type AssignmentKind = 'service' | 'program'
 export type PersonalAssignment = { kind: AssignmentKind; id: string; date: string; endDate: string; category: string; title: string; role: string; href: string }
@@ -32,7 +32,7 @@ export async function personalAssignments(db: PrismaClient, memberId: string, no
   }
   if (uniqueName) for (const row of records) {
     const meeting = (JSON.parse(row.value) as MeetingRecord).published
-    if (!meeting) continue
+    if (!meeting || isCancelled(meeting)) continue
     const href = `/bulletin/midweek-meeting?week=${encodeURIComponent(row.key.slice('midweek:record:'.length))}`
     const add = (id: string, title: string, role: string) => entries.push({ kind: 'program', id: `${row.key}:${id}`, date: meeting.date, endDate: meeting.date, category: '週中聚會', title, role, href })
     if (meeting.chair.trim() === name) add('chair', '主席', '')

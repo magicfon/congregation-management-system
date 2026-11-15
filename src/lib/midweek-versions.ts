@@ -26,6 +26,7 @@ export function localDate(now = new Date()) {
 export function contentFields(meeting: Meeting): Record<string, string | number> {
   const result: Record<string, string | number> = {}
   for (const key of ['date', 'start', 'reading', 'chair', 'note'] as const) result[key] = meeting[key]
+  result.cancelled = meeting.cancelled?.trim() || ''
   timeline(meeting).forEach((item, index) => {
     for (const key of ['title', 'minutes', 'counsel', 'role', 'person', 'assistant', 'section', 'at'] as const) result[fieldKey(item.id, key)] = item[key]
     result[fieldKey(item.id, 'order')] = index

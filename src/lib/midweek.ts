@@ -8,7 +8,11 @@ export type MeetingItem = {
 export type Meeting = {
   date: string; start: string; reading: string; chair: string; note: string
   noteHighlight: Highlight; items: MeetingItem[]
+  // 本週取消聚會的原因；有值就整週顯示「本週無聚會」，節目與人員保留以便恢復（ADR-0131）。
+  cancelled?: string
 }
+export const cancelReasons = ['大會', '分區監督探訪', '紀念聚會', '特別活動']
+export const isCancelled = (meeting: Pick<Meeting, 'cancelled'>) => Boolean(meeting.cancelled?.trim())
 export type SourceWeek = { id: string; url: string; week: string; label: string; reading: string; items: MeetingItem[]; hash: string }
 export type MeetingRecord = { revision: number; sourceHash: string; draft: Meeting; published: Meeting | null; publishedAt: string | null; publishedVersion?: number; draftBaseVersion?: number; versions?: import('./midweek-versions').MeetingVersion[]; versionDates?: Record<string, string | null>; draftOwner?: DraftOwner; sourceSnapshot?: SourceSnapshot }
 // 草稿建立時的手冊原稿，手冊更新後拿來左右比對（ADR-0111）。
@@ -99,6 +103,7 @@ export function validateMeeting(value: unknown): Meeting {
     ids.add(row.id)
   }
   if (v.items.reduce((sum, r) => sum + r.minutes + r.counsel, 0) > 600) return fail()
+  if (v.cancelled !== undefined && !str(v.cancelled, 60)) return fail()
   // Return only known fields, never persist arbitrary submitted properties.
-  return { date: v.date, start: v.start, reading: v.reading, chair: v.chair, note: v.note, noteHighlight: v.noteHighlight, items: v.items.map(r => ({ id: r.id, section: r.section, title: r.title, minutes: r.minutes, counsel: r.counsel, role: r.role, person: r.person, assistant: r.assistant, highlight: r.highlight, ...(r.timeHighlight !== undefined ? { timeHighlight: r.timeHighlight } : {}), ...(r.personHighlight !== undefined ? { personHighlight: r.personHighlight } : {}) })) }
+  return { date: v.date, start: v.start, reading: v.reading, chair: v.chair, note: v.note, noteHighlight: v.noteHighlight, ...(v.cancelled?.trim() ? { cancelled: v.cancelled.trim() } : {}), items: v.items.map(r => ({ id: r.id, section: r.section, title: r.title, minutes: r.minutes, counsel: r.counsel, role: r.role, person: r.person, assistant: r.assistant, highlight: r.highlight, ...(r.timeHighlight !== undefined ? { timeHighlight: r.timeHighlight } : {}), ...(r.personHighlight !== undefined ? { personHighlight: r.personHighlight } : {}) })) }
 }

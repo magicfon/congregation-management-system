@@ -7,7 +7,7 @@ import MeetingSheet from './MeetingSheet'
 import styles from './Midweek.module.css'
 import type { MeetingVersion, Palette } from '@/lib/midweek-versions'
 
-type Week = { id: string; date: string; reading: string }
+type Week = { id: string; date: string; reading: string; cancelled?: string }
 const field = 'w-full min-w-0 min-h-11 rounded-lg border border-white/15 bg-mc-card px-3 py-2 text-base font-normal text-mc-text'
 async function api(url: string, options?: RequestInit) {
   const response = await fetch(url, { cache: 'no-store', ...options })
@@ -65,7 +65,7 @@ export default function Midweek({ embedded = false }: { embedded?: boolean }) {
     <div className="flex items-center gap-1 sm:gap-2">
       <select aria-label="選擇週次" className={`${field} !w-0 flex-1 !px-2 text-sm`} value={id} disabled={loading} onChange={e => switchWeek(e.target.value)}>
         {!weeks.length && <option value="">尚未發布節目</option>}
-        {weeks.map(w => <option key={w.id} value={w.id}>{w.date.slice(5).replace('-', '/')}</option>)}
+        {weeks.map(w => <option key={w.id} value={w.id}>{w.date.slice(5).replace('-', '/')}{w.cancelled ? '（無聚會）' : ''}</option>)}
       </select>
       {isAdmin && <Link aria-label="編排節目" title="編排節目" className={readerButton} href="/midweek/manage"><Pencil aria-hidden="true" className="h-4 w-4" /><span className="text-sm">編排</span></Link>}
     </div>

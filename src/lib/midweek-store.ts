@@ -29,7 +29,7 @@ export async function getRecord(id: string) {
 export async function meetingList(management: boolean) {
   const records = await prisma.setting.findMany({ where: { key: { startsWith: RECORD_PREFIX } } })
   const byId = new Map(records.map(row => [row.key.slice(RECORD_PREFIX.length), JSON.parse(row.value) as MeetingRecord]))
-  if (!management) return [...byId].filter(([, r]) => r.published).map(([id, r]) => ({ id, date: r.published!.date, reading: r.published!.reading, publishedAt: r.publishedAt })).sort((a, b) => b.date.localeCompare(a.date))
+  if (!management) return [...byId].filter(([, r]) => r.published).map(([id, r]) => ({ id, date: r.published!.date, reading: r.published!.reading, publishedAt: r.publishedAt, ...(r.published!.cancelled ? { cancelled: r.published!.cancelled } : {}) })).sort((a, b) => b.date.localeCompare(a.date))
   const sources = await prisma.setting.findMany({ where: { key: { startsWith: SOURCE_PREFIX } } })
   return sources.map(row => {
     const s = JSON.parse(row.value) as SourceWeek, r = byId.get(s.id)
