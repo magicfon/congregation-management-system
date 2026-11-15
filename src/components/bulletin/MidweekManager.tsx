@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { currentAndFutureWeeks, nextMidweekCheck, pastWeeks } from '@/lib/midweek'
 import type { Palette } from '@/lib/midweek-versions'
 import MidweekWeek, { type ManagedWeek } from './MidweekWeek'
+import MidweekPrint from './MidweekPrint'
 
 type Sync = { month: string; remaining: number; done: number; imported: number; completedAt: string | null; errors: { url: string; error: string }[]; busy?: boolean }
 const button = 'min-h-11 rounded-lg border border-white/15 px-4 py-2 disabled:opacity-40'
@@ -84,7 +85,10 @@ export default function MidweekManager() {
         <option value="">本週起（可編輯）</option>
         {past.map(week => <option key={week.id} value={week.id}>{week.date.replaceAll('-', '/')}　{week.reading}（唯讀）</option>)}
       </select>}
-      <Link className="shrink-0 px-2 py-3 text-sm text-mc-text/70 hover:text-mc-text" href="/bulletin/midweek-meeting">查看公開頁 ↗</Link>
+      <div className="flex shrink-0 items-center gap-2">
+        {!loading && <MidweekPrint weeks={pastWeek ? [pastWeek, ...weeks] : weeks} initial={pastWeek ? [pastWeek.id] : weeks.slice(0, 1).map(week => week.id)} />}
+        <Link className="shrink-0 px-2 py-3 text-sm text-mc-text/70 hover:text-mc-text" href="/bulletin/midweek-meeting">查看公開頁 ↗</Link>
+      </div>
     </div>
     {!loading && <details className="rounded-xl border border-white/10 px-4">
       <summary className="cursor-pointer py-3 text-sm text-mc-text/70">更多管理</summary>

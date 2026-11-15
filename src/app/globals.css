@@ -262,3 +262,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 /* 週中嵌入頁不顯示捲軸，手機滑動、電腦滾輪捲動；捲軸時有時無會改變節目表寬度，造成縮放來回抖動（ADR-0114）。 */
 .bulletin-embed-no-scrollbar, .bulletin-embed-no-scrollbar * { scrollbar-width: none; }
 .bulletin-embed-no-scrollbar::-webkit-scrollbar, .bulletin-embed-no-scrollbar *::-webkit-scrollbar { display: none; }
+
+/* 週中編排列印（ADR-0132）：只印列印區，其餘畫面全部隱藏。 */
+.midweek-print { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+  body.printing-midweek { background: white !important; }
+  body.printing-midweek > :not(.midweek-print) { display: none !important; }
+  body.printing-midweek > .midweek-print { display: block; color: #111; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .midweek-print-page { zoom: 0.59; break-after: page; }
+  .midweek-print-page:last-child { break-after: auto; }
+}

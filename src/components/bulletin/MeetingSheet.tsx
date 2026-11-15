@@ -20,25 +20,12 @@ function NameField({ value, label, onChange, members }: { value: string; label: 
   const check = useMemberNameCheck(members)
   return <>{check.dialog}<input aria-label={label} list={focused ? 'meeting-members' : undefined} onFocus={() => setFocused(true)} onBlur={e => { setFocused(false); check.onBlur(e) }} className={styles.nameField} value={value} placeholder="姓名" style={{ width: `${Math.max(2, Array.from(value || '姓名').length) + (focused ? 1.8 : .05)}em` }} onChange={e => onChange(e.target.value)} /></>
 }
-export default function MeetingSheet({ meeting, editor, marks, palette = {} }: { meeting: Meeting; editor?: Editor; marks?: Marks; palette?: Palette }) {
+function SheetContent({ meeting, editor, marks, palette = {} }: { meeting: Meeting; editor?: Editor; marks?: Marks; palette?: Palette }) {
   const background = (key: string, legacy?: Highlight) => marks ? versionColor(marks[key] || 0, palette) : markColor(legacy || '')
   const name = (value: string, key: string) => value || (marks?.[key] ? '待安排' : '')
-  const viewport = useRef<HTMLDivElement>(null), sheet = useRef<HTMLElement>(null)
-  const [width, setWidth] = useState(1200), [height, setHeight] = useState(1400), [zoom, setZoom] = useState<number | null>(null)
-  useEffect(() => {
-    const observer = new ResizeObserver(() => { if (viewport.current) setWidth(viewport.current.clientWidth); if (sheet.current) setHeight(sheet.current.offsetHeight) })
-    if (viewport.current) observer.observe(viewport.current)
-    if (sheet.current) observer.observe(sheet.current)
-    return () => observer.disconnect()
-  }, [])
-  const scale = zoom ?? Math.min(1, width / 1200)
-  useSheetGestures(viewport, sheet, !!editor, scale, Math.min(1, width / 1200), setZoom)
   const rows = timeline(meeting)
   const [, month, day] = meeting.date.split('-')
-  return <div>
-    <div ref={viewport} className={`${styles.viewport} ${styles.gestures}`} tabIndex={0} aria-label="週中聚會節目表">
-    <div style={{ width: 1200 * scale, height: height * scale, margin: 'auto', position: 'relative' }}>
-    <article ref={sheet} className={styles.sheet} style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+  return <>
       {editor && <datalist id="meeting-members">{editor.members.map(m => <option key={m.id} value={m.name} />)}</datalist>}
       {meeting.note && <p className={styles.note}><span style={{ background: background('note', meeting.noteHighlight) }}>{editor ? <TextField value={meeting.note} label="更新標示" onChange={note => editor.change({ note })} /> : meeting.note}</span></p>}
       <h2 className={styles.heading}><span style={{ background: background('date') }}>{editor ? <button type="button" className={styles.editable} aria-label="日期與整張節目表設定" onClick={() => editor.settings(-1)}>[{Number(month)}月{Number(day)}日]</button> : `[${Number(month)}月${Number(day)}日]`}</span>｜每週閱讀經文：<span style={{ background: background('reading') }}>{editor ? <TextField value={meeting.reading} label="每週閱讀經文" onChange={reading => editor.change({ reading })} /> : meeting.reading}</span></h2>
@@ -59,6 +46,28 @@ export default function MeetingSheet({ meeting, editor, marks, palette = {} }: {
         </div>
       </Fragment>)}
       </>}
+  </>
+}
+// 列印用：固定 1200px 寬、不縮放不手勢，由列印版面整頁縮小成 A4（ADR-0132）。
+export function PrintSheet({ meeting }: { meeting: Meeting }) {
+  return <article className={`${styles.sheet} ${styles.printSheet}`}><SheetContent meeting={meeting} /></article>
+}
+export default function MeetingSheet({ meeting, editor, marks, palette = {} }: { meeting: Meeting; editor?: Editor; marks?: Marks; palette?: Palette }) {
+  const viewport = useRef<HTMLDivElement>(null), sheet = useRef<HTMLElement>(null)
+  const [width, setWidth] = useState(1200), [height, setHeight] = useState(1400), [zoom, setZoom] = useState<number | null>(null)
+  useEffect(() => {
+    const observer = new ResizeObserver(() => { if (viewport.current) setWidth(viewport.current.clientWidth); if (sheet.current) setHeight(sheet.current.offsetHeight) })
+    if (viewport.current) observer.observe(viewport.current)
+    if (sheet.current) observer.observe(sheet.current)
+    return () => observer.disconnect()
+  }, [])
+  const scale = zoom ?? Math.min(1, width / 1200)
+  useSheetGestures(viewport, sheet, !!editor, scale, Math.min(1, width / 1200), setZoom)
+  return <div>
+    <div ref={viewport} className={`${styles.viewport} ${styles.gestures}`} tabIndex={0} aria-label="週中聚會節目表">
+    <div style={{ width: 1200 * scale, height: height * scale, margin: 'auto', position: 'relative' }}>
+    <article ref={sheet} className={styles.sheet} style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+      <SheetContent meeting={meeting} editor={editor} marks={marks} palette={palette} />
     </article></div></div>
   </div>
 }
