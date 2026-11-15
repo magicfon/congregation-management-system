@@ -18,6 +18,8 @@ export default function AreaStatusPage() {
   const [infoOpen, setInfoOpen] = useState(true)
   const [queueOpen, setQueueOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // 手機底部抽屜：收起時只露出重點卡，展開後顯示完整明細、設定與清單（ADR-0129）
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminMode, setAdminMode] = useState<'dispatch' | 'request'>('dispatch')
@@ -103,7 +105,7 @@ export default function AreaStatusPage() {
     setPendingNumber(null)
   }, [pendingNumber, data, loading, mapId])
   // 點選區域：展開地圖資訊，收合設定與派發／申請清單，讓明細有空間顯示
-  function showRegion(id: string) { setSelectedId(id); setInfoOpen(true); setSettingsOpen(false); setQueueOpen(false); setUndoMessage('') }
+  function showRegion(id: string) { setSelectedId(id); setInfoOpen(true); setSettingsOpen(false); setQueueOpen(false); setSheetOpen(false); setUndoMessage('') }
   function jumpToNumber() {
     const number = Number(jumpText.trim())
     const target = Number.isInteger(number) ? data?.numberMaps?.[number] : undefined
@@ -131,6 +133,25 @@ export default function AreaStatusPage() {
   // 地圖資訊底部固定的領圖操作列：可加入的地圖不必捲到明細最下面（ADR-0123）
   const addable = selected?.reports.filter(r => r.areaId && !r.isDispatched && ((availability[r.areaId] ?? r.dispatchEnabled))) ?? []
   const multiAdd = (selected?.numbers.length ?? 0) > 1
+  function reportState(r: HeatReport) {
+    const enabled = (r.areaId ? availability[r.areaId] : undefined) ?? r.dispatchEnabled
+    const personal = (r.areaId ? categories[r.areaId] : undefined) ?? r.personalTerritory
+    const unavailable = !enabled || !r.areaId || r.isDispatched
+    const status = !r.areaId ? '未配對' : r.isDispatched ? '使用中' : !enabled ? '暫停分發' : dispatchMode ? '可分發' : '可申請'
+    return { personal, unavailable, status }
+  }
+  const statusPill = (r: HeatReport) => { const { unavailable, status } = reportState(r); return <span className={`shrink-0 rounded-full px-2 py-1 text-xs ${unavailable ? 'bg-white/5 text-mc-text/60' : 'bg-emerald-400/10 text-emerald-300'}`}>{status}</span> }
+  // 抽屜把手：點一下或上下滑動切換展開／收起
+  const touchY = useRef<number | null>(null)
+  function sheetHandle(open: boolean) {
+    return <button type="button" aria-expanded={open} aria-controls="area-sheet" aria-label={open ? '收起明細' : '展開完整明細'} onClick={() => { if (!open) setInfoOpen(true); setSheetOpen(!open) }}
+      onTouchStart={e => { touchY.current = e.touches[0].clientY }}
+      onTouchEnd={e => { const start = touchY.current; touchY.current = null; if (start === null) return; const dy = e.changedTouches[0].clientY - start; if (Math.abs(dy) > 24) { e.preventDefault(); if (dy < 0) setInfoOpen(true); setSheetOpen(dy < 0) } }}
+      className="flex w-full shrink-0 flex-col items-center gap-1 pt-2 pb-1 md:hidden">
+      <span aria-hidden="true" className="h-1 w-10 rounded-full bg-white/25" />
+      <span className="flex items-center gap-1 text-[11px] text-mc-text/50">{open ? '往下收起' : selected ? '往上看最近回報、下載圖檔' + (isAdmin ? '、設定' : '') : '往上看完整面板'}<ChevronDown size={12} aria-hidden="true" className={open ? '' : 'rotate-180'} /></span>
+    </button>
+  }
   // 領圖操作列：加入按鈕＋已選張數。手機固定在畫面最下方，電腦放在地圖資訊底部（ADR-0123）
   function actionBar(className: string) {
     return <div className={`shrink-0 items-stretch gap-2 border-t border-white/10 bg-mc-card p-2 ${className}`}>
@@ -140,7 +161,7 @@ export default function AreaStatusPage() {
             const number = multiAdd ? ` ${r.number} 號` : ''
             return <button key={r.number} type="button" disabled={actionBusy || full} aria-pressed={queued} onClick={() => toggleQueued(r)} className={`min-h-11 flex-1 basis-28 rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-40 ${queued ? 'border border-blue-400/40 bg-blue-400/10 text-blue-300' : 'bg-mc-highlight text-white'}`}>{queued ? `✓${number} 已加入 · 移除` : full ? '已選滿 5 張' : `＋ 加入${dispatchMode ? '分發' : '申請'}${number}`}</button>
           }) : <p className="self-center px-1 text-sm text-mc-text/50">{selected.reports.length ? '這個區塊目前不能加入' : '尚未對應地圖號碼'}</p>}</div>
-          <button type="button" onClick={() => setQueueOpen(true)} aria-controls="area-queue-content" aria-label={`${dispatchMode ? '派發清單' : '申請清單'}已選 ${queue.length} 張，點此查看`} className="flex min-h-11 shrink-0 flex-col items-center justify-center rounded-lg border border-white/10 px-2.5 py-1 hover:bg-white/5">
+          <button type="button" onClick={() => { setQueueOpen(true); setSheetOpen(true) }} aria-controls="area-queue-content" aria-label={`${dispatchMode ? '派發清單' : '申請清單'}已選 ${queue.length} 張，點此查看`} className="flex min-h-11 shrink-0 flex-col items-center justify-center rounded-lg border border-white/10 px-2.5 py-1 hover:bg-white/5">
             <SelectedCount count={queue.length} max={dispatchMode ? null : 5} /><span className="mt-0.5 text-[11px] text-blue-300">查看清單</span>
           </button>
     </div>
@@ -161,18 +182,20 @@ export default function AreaStatusPage() {
       </div>
     </header>
     {jumpMessage && <p role="status" className="shrink-0 text-sm text-amber-300">{jumpMessage}</p>}
-    <div className="shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+    <div className="shrink-0 hidden md:flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
       <div className="w-44"><div className="h-2 rounded-full" style={{ background: maxDays === null ? '#64748b' : maxDays === 0 ? '#22c55e' : 'linear-gradient(to right, #22c55e, #facc15, #ef4444)' }} /><div className="flex justify-between mt-0.5 text-mc-text/60"><span>0 天</span><span>{maxDays === null ? '無紀錄' : `${maxDays} 天`}</span></div></div>
       <label className="flex items-center gap-1.5"><input type="checkbox" checked={grayDispatched} onChange={e => setGrayDispatched(e.target.checked)} />已分發地圖顯示灰色</label>
       <span className="hidden lg:inline text-mc-text/50">距上次完成回報 · 三區共用色階</span>
     </div>
-    <div className={`flex-1 min-h-0 grid ${queueOpen ? 'grid-rows-[minmax(0,0.35fr)_minmax(0,1.65fr)]' : 'grid-rows-[minmax(0,0.8fr)_minmax(0,1.2fr)]'} md:grid-rows-1 md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] gap-2`}>
+    <div className="relative flex-1 min-h-0 grid grid-rows-1 md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] gap-2">
       <div className="min-h-0 min-w-0 relative">
+        {data && !loading && <MobileLegend maxDays={maxDays} grayDispatched={grayDispatched} onGray={setGrayDispatched} />}
         {loading && <div role="status" className="h-full rounded-xl bg-mc-card flex items-center justify-center text-sm text-mc-text/60">正在載入分區…</div>}
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
         {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setFocus(null); showRegion(id) }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} focus={focus} />}
       </div>
-      <aside aria-label="區塊明細與領圖操作" className="min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card">
+      <aside id="area-sheet" aria-label="區塊明細與領圖操作" className={`min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:h-[92%] max-md:rounded-b-none max-md:shadow-[0_-6px_24px_rgba(0,0,0,0.35)] ${sheetOpen ? '' : 'max-md:hidden'}`}>
+        {sheetHandle(true)}
         {isAdmin && <div className="shrink-0 border-b border-white/10 p-1.5 md:p-2">
           <div role="group" aria-label="領圖操作模式" className="grid grid-cols-2 gap-1 rounded-lg bg-black/15 p-1">
             {([{ mode: 'dispatch', label: '派發', Icon: Send }, { mode: 'request', label: '申請', Icon: ClipboardPlus }] as const).map(({ mode, label, Icon }) => <button key={mode} type="button" aria-pressed={adminMode === mode} disabled={actionBusy || (mode === 'request' && queue.length > 5)} onClick={() => setAdminMode(mode)} className={`flex min-h-10 md:min-h-11 items-center justify-center gap-2 rounded-md py-1.5 md:py-2 text-sm disabled:opacity-40 ${adminMode === mode ? 'bg-blue-400/15 text-blue-300' : 'text-mc-text/50 hover:bg-white/5'}`}><Icon size={15} aria-hidden="true" />{label}</button>)}
@@ -180,7 +203,7 @@ export default function AreaStatusPage() {
           {(!dispatchMode || queue.length > 5) && <p className="mt-1 text-center text-[11px] text-mc-text/50">{queue.length > 5 ? '選取降至 5 張以內，即可切換申請' : '為自己申請領取 · 最多 5 張'}</p>}
         </div>}
         <section className={`min-h-0 flex flex-col overflow-hidden ${infoOpen ? 'flex-1' : 'shrink-0'}`}>
-        <PanelToggle open={infoOpen} onToggle={() => setInfoOpen(open => !open)} controls="area-info-content" Icon={MapPinned}>地圖資訊</PanelToggle>
+        <PanelToggle className="max-md:hidden" open={infoOpen} onToggle={() => setInfoOpen(open => !open)} controls="area-info-content" Icon={MapPinned}>地圖資訊</PanelToggle>
         <div id="area-info-content" ref={detailPanel} hidden={!infoOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <section aria-live="polite" className="p-3">
           {undoMessage && <p role="status" className="mb-3 rounded-lg bg-white/5 px-3 py-2 text-sm text-mc-text/80">{undoMessage}</p>}
@@ -189,12 +212,9 @@ export default function AreaStatusPage() {
             {selected.numbers.length > 1 && <p className="mb-3 text-xs text-amber-300">此區塊包含多張地圖，請逐張選取。</p>}
             {!selected.reports.length && <p className="text-sm text-mc-text/60">尚未對應地圖號碼，請先在編輯器指定號碼。</p>}
             <div className="space-y-4">{selected.reports.map(r => {
-              const enabled = (r.areaId ? availability[r.areaId] : undefined) ?? r.dispatchEnabled
-              const personal = (r.areaId ? categories[r.areaId] : undefined) ?? r.personalTerritory
-              const unavailable = !enabled || !r.areaId || r.isDispatched
-              const status = !r.areaId ? '未配對' : r.isDispatched ? '使用中' : !enabled ? '暫停分發' : dispatchMode ? '可分發' : '可申請'
+              const { personal } = reportState(r)
               return <article key={r.number} className="space-y-3 border-b border-white/10 pb-3 last:border-0 last:pb-0">
-                <div className="flex items-center justify-between"><span className="text-sm text-mc-text/60">{selected.numbers.length > 1 ? `${r.number} 號` : '地圖狀態'}{personal && <span className="ml-2 text-blue-300">個人區域</span>}</span><span className={`rounded-full px-2 py-1 text-xs ${unavailable ? 'bg-white/5 text-mc-text/60' : 'bg-emerald-400/10 text-emerald-300'}`}>{status}</span></div>
+                <div className="flex items-center justify-between"><span className="text-sm text-mc-text/60">{selected.numbers.length > 1 ? `${r.number} 號` : '地圖狀態'}{personal && <span className="ml-2 text-blue-300">個人區域</span>}</span>{statusPill(r)}</div>
                 {r.isDispatched && <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm"><dt className="flex items-center gap-1.5 text-mc-text/50"><UserRound size={14} aria-hidden="true" />持有人</dt><dd>{r.assignedTo || '未記錄'}</dd><dt className="flex items-center gap-1.5 text-mc-text/50"><CalendarDays size={14} aria-hidden="true" />領取日</dt><dd>{r.dispatchedDate || '未記錄'}</dd></dl>}
                 {isAdmin && r.isDispatched && r.undoDispatchedAt !== null && <button type="button" disabled={actionBusy} onClick={() => void undoDispatch(r)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300 hover:bg-red-400/10 disabled:opacity-40"><Undo2 size={15} aria-hidden="true" />派錯了？撤銷派發</button>}
                 <DoNotVisitNotice text={r.doNotVisit} />
@@ -220,9 +240,24 @@ export default function AreaStatusPage() {
           {dispatchMode ? <DispatchSubmitBar items={queue} onBusy={setActionBusy} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} /> : <RequestSubmitBar compact onBusy={setActionBusy} items={queue} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} />}
           </div>
         </section>
+        {data && !loading && actionBar('flex md:hidden')}
       </aside>
+      {data && !loading && !sheetOpen && <div aria-label="區塊重點與領圖操作" className="absolute inset-x-0 bottom-0 z-20 flex max-h-[55%] flex-col overflow-hidden rounded-t-2xl border border-white/10 bg-mc-card shadow-[0_-6px_24px_rgba(0,0,0,0.35)] md:hidden">
+        {sheetHandle(false)}
+        {selected && <section aria-live="polite" className="min-h-0 overflow-y-auto overscroll-contain px-3 pb-2">
+          {undoMessage && <p role="status" className="mb-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-mc-text/80">{undoMessage}</p>}
+          <div className="flex items-center justify-between gap-2"><h2 className="text-lg font-semibold">{DISTRICT_NAMES[mapId]} {selected.numbers.length ? `${selected.numbers.join('、')} 號` : '未配對區塊'}</h2><button type="button" aria-label="取消查看區塊" onClick={() => setSelectedId(null)} className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-mc-text/70">×</button></div>
+          {!selected.reports.length ? <p className="text-sm text-mc-text/60">尚未對應地圖號碼</p> : <ul className="space-y-1.5">{selected.reports.map(r => <li key={r.number} className="flex items-center gap-3">
+            {multiAdd && <span className="w-12 shrink-0 text-sm text-mc-text/60">{r.number} 號</span>}
+            <p className="shrink-0"><strong className="text-2xl font-semibold tabular-nums">{data.syncedAt && r.days !== null ? r.days : '—'}</strong><span className="ml-1 text-xs text-mc-text/60">天</span></p>
+            <p className="min-w-0 flex-1 text-xs leading-snug text-mc-text/60">{r.isDispatched ? <>持有人 {r.assignedTo || '未記錄'}<br />領取 {r.dispatchedDate || '未記錄'}</> : <>上次完成<br />{!data.syncedAt ? '尚未同步' : r.lastCompletedDate || '無紀錄'}</>}</p>
+            {statusPill(r)}
+          </li>)}</ul>}
+          {selected.reports.some(r => r.doNotVisit) && <p className="mt-1.5 text-xs text-amber-300">有拒絕拜訪紀錄，往上看明細</p>}
+        </section>}
+        {actionBar('flex')}
+      </div>}
     </div>
-    {data && !loading && actionBar('flex md:hidden rounded-xl border')}
   </div></DashboardLayout>
 }
 
@@ -241,9 +276,18 @@ function RecentReports({ entries, failed }: { entries: AreaReportEntry[] | undef
 }
 
 // 側欄可收合區塊的標頭：整列可點，右側「展開／收合」標籤讓使用者一眼看出能點（ADR-0083）
-function PanelToggle({ open, onToggle, controls, Icon, children }: { open: boolean; onToggle: () => void; controls: string; Icon: LucideIcon; children: React.ReactNode }) {
-  return <h2><button type="button" aria-expanded={open} aria-controls={controls} onClick={onToggle} className={`group flex min-h-12 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold transition-colors ${open ? 'bg-white/[0.03] hover:bg-white/[0.07]' : 'bg-blue-400/[0.08] hover:bg-blue-400/15'}`}>
+function PanelToggle({ open, onToggle, controls, Icon, children, className }: { open: boolean; onToggle: () => void; controls: string; Icon: LucideIcon; children: React.ReactNode; className?: string }) {
+  return <h2 className={className}><button type="button" aria-expanded={open} aria-controls={controls} onClick={onToggle} className={`group flex min-h-12 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold transition-colors ${open ? 'bg-white/[0.03] hover:bg-white/[0.07]' : 'bg-blue-400/[0.08] hover:bg-blue-400/15'}`}>
     <span className="flex min-w-0 items-center gap-2"><Icon size={16} aria-hidden="true" className="shrink-0 text-blue-300" /><span className="truncate">{children}</span></span>
     <span aria-hidden="true" className="flex shrink-0 items-center gap-1 rounded-full border border-blue-400/40 bg-blue-400/10 py-1 pl-2.5 pr-2 text-xs font-medium text-blue-300 group-hover:border-blue-300/70 group-hover:bg-blue-400/20">{open ? '收合' : '展開'}<ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} /></span>
   </button></h2>
+}
+
+// 手機版色階與灰色開關浮在地圖右上（全圖按鈕下方），讓地圖佔滿畫面（ADR-0129）
+function MobileLegend({ maxDays, grayDispatched, onGray }: { maxDays: number | null; grayDispatched: boolean; onGray: (v: boolean) => void }) {
+  return <div className="absolute right-3 top-14 z-10 w-28 rounded-lg border border-white/10 bg-mc-card/90 px-2 py-1.5 text-[11px] shadow md:hidden">
+    <div className="h-1.5 rounded-full" style={{ background: maxDays === null ? '#64748b' : maxDays === 0 ? '#22c55e' : 'linear-gradient(to right, #22c55e, #facc15, #ef4444)' }} />
+    <div className="mt-0.5 flex justify-between text-mc-text/60"><span>0</span><span>{maxDays === null ? '無紀錄' : `${maxDays} 天`}</span></div>
+    <label className="mt-1 flex min-h-7 items-center gap-1.5"><input type="checkbox" checked={grayDispatched} onChange={e => onGray(e.target.checked)} />已分發灰色</label>
+  </div>
 }
