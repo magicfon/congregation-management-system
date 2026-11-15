@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { NoticePlanRow } from '@/lib/student-notice'
 import { studentNoticeImage } from '@/lib/student-notice-text'
 
@@ -29,7 +29,8 @@ function Person({ label, row }: { label: string; row?: NoticePlanRow }) {
     {row.reason && <span className="text-xs text-mc-text/60">{row.reason}</span>}
   </div>
 }
-export default function StudentNotices({ weekId }: { weekId: string }) {
+// 從週卡工具列點「學生通知單」才掛上，掛上即讀取名單；「收起」交回工具列。
+export default function StudentNotices({ weekId, onClose }: { weekId: string; onClose: () => void }) {
   const [rows, setRows] = useState<NoticePlanRow[] | null>(null)
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('')
   const [preview, setPreview] = useState<{ file: File; url: string } | null>(null)
@@ -45,6 +46,8 @@ export default function StudentNotices({ weekId }: { weekId: string }) {
       if (action === 'student-notices-send') setMessage(data.failed ? `已送出 ${data.sent} 則，${data.failed} 則失敗，可再按一次重送` : `已送出 ${data.sent} 則`)
     } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
+  const started = useRef(false)
+  useEffect(() => { if (!started.current) { started.current = true; run('student-notices') } })
   // 先開預覽，確認後才分享（手機）或下載（不支援分享時）。
   async function open(row: NoticePlanRow) {
     setBusy(true); setError('')
@@ -63,8 +66,9 @@ export default function StudentNotices({ weekId }: { weekId: string }) {
   return <div className="space-y-3 rounded-xl border border-mc-text/15 bg-mc-accent/40 p-3 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p className="text-sm text-mc-text/70">學生練習通知單（LINE）</p>
-      {rows ? <button className={button} disabled={busy} onClick={() => setRows(null)}>收起</button> : <button className={button} disabled={busy} onClick={() => run('student-notices')}>{busy ? '讀取中…' : '發送學生通知單'}</button>}
+      <button className={button} onClick={onClose}>收起</button>
     </div>
+    {!rows && busy && <p role="status" className="text-sm text-mc-text/60">讀取中…</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
     {message && <p role="status" className="text-sm text-green-300">{message}</p>}
     {rows && <>

@@ -10,6 +10,9 @@ import { draftBaseVersionOf, draftOwnerStale, publishedVersionOf, sameContent, p
 export type ManagedWeek = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
 const field = 'w-full min-w-0 min-h-11 rounded-lg border border-white/15 bg-mc-card px-3 py-2 text-base font-normal text-mc-text'
 const button = 'min-h-11 rounded-lg border border-white/15 px-4 py-2 disabled:opacity-40'
+const tool = 'inline-flex min-h-10 flex-1 basis-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-white/15 px-2 text-sm sm:basis-auto sm:px-3 hover:bg-mc-accent disabled:opacity-40 sm:flex-none'
+const toolOn = 'bg-mc-accent font-semibold'
+const Icon = ({ d }: { d: string }) => <svg aria-hidden="true" viewBox="0 0 24 24" className="hidden h-4 w-4 shrink-0 sm:block" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
 const endpoint = '/api/midweek/manage'
 async function api(url: string, options?: RequestInit) {
   const response = await fetch(url, { cache: 'no-store', ...options })
@@ -30,6 +33,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
   const [me, setMe] = useState('')
   const [comparing, setComparing] = useState(false)
   const [cancelReason, setCancelReason] = useState<string | null>(null)
+  const [notices, setNotices] = useState(false)
   const versions = record?.versions || []
   const dates = record?.versionDates || {}
   const historical = versions.find(v=>v.number===versionNumber)
@@ -121,6 +125,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
     if (target < 0 || target >= items.length) return
     ;[items[index], items[target]] = [items[target], items[index]]; change({ items })
   }
+  const canNotify = Boolean(!readOnly && !historical && record?.published)
   const status = loading ? '' : record?.published && isCancelled(record.published) ? '無聚會' : record?.published ? '已發布' : versions.length ? '已下架' : '草稿'
   return <section aria-labelledby={`week-${id}`} className="min-w-0 space-y-4 overflow-hidden rounded-2xl border border-mc-text/20 bg-mc-card px-3 pb-4 shadow-md sm:px-5 sm:pb-5">
     <h2 id={`week-${id}`} className="-mx-3 flex flex-wrap items-center gap-x-3 gap-y-1 bg-blue-900 px-3 py-3 text-lg font-semibold text-white sm:-mx-5 sm:px-5 sm:text-xl">
@@ -151,15 +156,20 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
           {readOnly ? null : lockedBy && !historical ? (draftOwnerStale(lockedBy) && <button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => save('take-over')}>接手草稿</button>) : historical ? <><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => setVersionNumber(0)}>返回編輯</button>{!lockedBy && <button className={`${button} flex-1 sm:flex-none`} disabled={busy || loading} onClick={() => save('restore')}>用這版當草稿</button>}</> : <>{ownDraft && <button className={`${button} flex-1 text-red-300 sm:flex-none`} disabled={busy} onClick={() => save('discard')}>放棄草稿</button>}<button className={`${button} flex-1 sm:flex-none`} disabled={busy || !dirty} onClick={() => save('save')}>儲存草稿</button><button className={`${button} flex-1 bg-blue-600 font-semibold text-white sm:flex-none`} disabled={busy || (!draftChanged && !backToBase)} onClick={() => save('publish')}>{draftChanged ? `發布第${shown?.number || 1}版` : backToBase ? `${record?.published ? '改回' : ''}公開第${baseVersion!.number}版` : '已發布'}</button></>}
         </div>
       </div>
-      {editable && (cancelled ? <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-400/40 bg-red-500/10 p-3 sm:p-4"><p className="font-semibold text-red-200">本週無聚會：{meeting.cancelled}</p><button className={`${button} w-full sm:w-auto`} disabled={busy} onClick={resumeWeek}>恢復聚會</button></div>
-        : cancelReason === null ? <button className={`${button} text-red-300`} disabled={busy} onClick={() => setCancelReason('')}>本週取消聚會</button>
-        : <div className="space-y-3 rounded-xl border border-red-400/40 bg-red-500/10 p-3 sm:p-4">
+      {editable && cancelled && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-400/40 bg-red-500/10 p-3 sm:p-4"><p className="font-semibold text-red-200">本週無聚會：{meeting.cancelled}</p><button className={`${button} w-full sm:w-auto`} disabled={busy} onClick={resumeWeek}>恢復聚會</button></div>}
+      {/* 本週工具列：節目表設定、學生通知單、取消聚會收成一列小按鈕，點開才展開面板。 */}
+      {(editable || canNotify) && <div className="flex gap-2">
+        {editable && !cancelled && <button className={tool} disabled={busy} onClick={() => setSelected(-1)}><Icon d="M10.3 4.3a1.7 1.7 0 0 1 3.4 0l.2 1a7 7 0 0 1 1.6.9l1-.4a1.7 1.7 0 0 1 2.3 2.4l-.7.8a7 7 0 0 1 0 1.9l.7.8a1.7 1.7 0 0 1-2.3 2.4l-1-.4a7 7 0 0 1-1.6.9l-.2 1a1.7 1.7 0 0 1-3.4 0l-.2-1a7 7 0 0 1-1.6-.9l-1 .4a1.7 1.7 0 0 1-2.3-2.4l.7-.8a7 7 0 0 1 0-1.9l-.7-.8a1.7 1.7 0 0 1 2.3-2.4l1 .4a7 7 0 0 1 1.6-.9zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5" />節目表設定</button>}
+        {canNotify && <button className={`${tool} ${notices ? toolOn : ''}`} aria-expanded={notices} onClick={() => { setNotices(open => !open); setCancelReason(null) }}><Icon d="M4 6h16v12H4zM4 7l8 6 8-6" />學生通知單</button>}
+        {editable && !cancelled && <button className={`${tool} text-red-300 ${cancelReason !== null ? toolOn : ''}`} aria-expanded={cancelReason !== null} disabled={busy} onClick={() => { setCancelReason(reason => reason === null ? '' : null); setNotices(false) }}><Icon d="M5 5l14 14M19 5L5 19" />取消聚會</button>}
+      </div>}
+      {editable && !cancelled && cancelReason !== null && <div className="space-y-3 rounded-xl border border-red-400/40 bg-red-500/10 p-3 sm:p-4">
           <p className="text-sm">選擇或填寫沒有聚會的原因，公布欄會顯示「本週無聚會：原因」，節目與人員保留，之後可恢復。</p>
           <div className="flex flex-wrap gap-2">{cancelReasons.map(reason => <button key={reason} className={`${button} ${cancelReason === reason ? 'border-red-300 bg-red-500/20 font-semibold' : ''}`} aria-pressed={cancelReason === reason} disabled={busy} onClick={() => setCancelReason(reason)}>{reason}</button>)}</div>
           <label className="flex flex-col gap-2 text-sm">原因（可自填）<input className={field} maxLength={60} placeholder="例如：區域大會" value={cancelReason} onChange={e => setCancelReason(e.target.value)} /></label>
           <div className="flex gap-2"><button className={`${button} flex-1 sm:flex-none`} disabled={busy} onClick={() => setCancelReason(null)}>返回</button><button className={`${button} flex-1 bg-red-700 font-semibold text-white sm:flex-none`} disabled={busy || !cancelReason.trim()} onClick={cancelWeek}>取消聚會並公開</button></div>
-        </div>)}
-      {!readOnly && !historical && record?.published && <StudentNotices key={`${id}:${record.publishedVersion}`} weekId={id} />}
+        </div>}
+      {canNotify && notices && <StudentNotices key={`${id}:${record?.publishedVersion}`} weekId={id} onClose={() => setNotices(false)} />}
       {editable && <>
         {nameCheck.dialog}
         {source && record && source.hash !== record.sourceHash && sourceChangeCount(record.sourceSnapshot || meeting, source) > 0 && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-amber-300">手冊已更新，現有安排已保留。</p><button className={button} onClick={() => setComparing(true)}>查看手冊更動</button></div>}
@@ -178,7 +188,6 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
         </fieldset></dialog>
       </>}
       <fieldset disabled={busy} className="min-w-0">
-        {editable && !cancelled && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-mc-text/70"><p>點選節目或姓名即可編輯。</p><button className={button} onClick={() => setSelected(-1)}>節目表設定</button></div>}
         <div className="overflow-hidden rounded border border-mc-text/15"><MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={editable && !cancelled ? { change, itemChange, settings: setSelected, members } : undefined} /></div>
         {editable && !cancelled && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
       </fieldset>
