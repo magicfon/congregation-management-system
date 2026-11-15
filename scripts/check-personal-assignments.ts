@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import type { PrismaClient } from '@prisma/client'
-import { personalAssignments, assignmentsText } from '../src/lib/personal-assignments'
+import { personalAssignments, assignmentsText, lineDate } from '../src/lib/personal-assignments'
 import { lineBotAnswer } from '../src/lib/line-bot-queries'
 import type { Meeting } from '../src/lib/midweek'
 
@@ -40,12 +40,15 @@ async function main() {
   assert(!data.upcoming.some(i => i.id.includes('draft')))
   assert(!data.upcoming.some(i => i.title === '講台'))
   assert.match(await lineBotAnswer(db, 'uid', '我的委派', now), /開始交談（學生）/)
-  assert.match(assignmentsText(data, 'https://example.test/dashboard'), /完整委派與過去紀錄/)
-  const long = assignmentsText({ ...data, upcoming: Array.from({ length: 100 }, (_, i) => ({ ...data.upcoming[0], title: '很長的節目'.repeat(60), id: String(i) })) }, 'https://example.test/dashboard')
+  assert.match(assignmentsText(data), /完整委派與過去紀錄/)
+  const long = assignmentsText({ ...data, upcoming: Array.from({ length: 100 }, (_, i) => ({ ...data.upcoming[0], title: '很長的節目'.repeat(60), id: String(i) })) })
   assert(long.length <= 4500)
   assert.match(long, /另有 \d+ 項/)
-  assert.match(long, /https:\/\/example.test\/dashboard\/assignments\/service/)
-  assert.match(long, /https:\/\/example.test\/dashboard\/assignments\/program/)
+  assert(!/https?:\/\//.test(long))
+  assert(!/\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}/.test(long))
+  assert.match(long, /\d{1,2}月\d{1,2}日（[日一二三四五六]）/)
+  assert.equal(lineDate('2026-11-15'), '11月15日（日）')
+  assert.equal(lineDate('2026-11-21'), '11月21日（六）')
   const sunday = await personalAssignments(db, 'me', new Date('2026-10-18T15:59:59Z'))
   const monday = await personalAssignments(db, 'me', new Date('2026-10-18T16:00:00Z'))
   assert.equal(sunday.upcoming.length, 9)
@@ -64,8 +67,7 @@ async function main() {
   assert(sister.upcoming.some(item => item.role === '助手'))
   const reply = await lineBotAnswer(db, 'uid', '我的委派', now)
   assert(!reply.includes('弟兄服務'))
-  assert(!reply.includes('/assignments/service'))
-  assert(reply.includes('/assignments/program'))
+  assert(!reply.includes('http'))
   person = null
   assert(!(await personalAssignments(db, 'me', now)).notices.some(text => text.includes('服務安排')))
   person = { id: 'person' }
@@ -77,7 +79,7 @@ async function main() {
   person = null
   const empty = await personalAssignments(db, 'me', now)
   assert.equal(empty.upcoming.length, 0)
-  assert.match(assignmentsText(empty, 'https://example.test'), /沒有本週/)
+  assert.match(assignmentsText(empty), /沒有本週/)
   active = false
   assert.match(await lineBotAnswer(db, 'uid', '我的委派', now), /停用/)
   console.log('PASS: personal identity, published snapshots, all roles, stopped weeks, Taipei week boundary, duplicate names, LINE query and long replies')

@@ -49,20 +49,26 @@ export async function personalAssignments(db: PrismaClient, memberId: string, no
   return { showBrotherService, upcoming: visible.filter(isUpcoming), past: visible.filter(item => !isUpcoming(item)).reverse(), notices }
 }
 
-export function assignmentsText(data: PersonalAssignments, dashboardUrl: string): string {
-  const base = new URL(dashboardUrl).origin
+// LINE 會把 2026-11-15、11/15、11-15 這類寫法自動變成超連結，私訊改用「11月15日（日）」。
+export function lineDate(date: string): string {
+  const [, month, day] = date.split('-').map(Number)
+  const weekday = '日一二三四五六'[new Date(`${date}T04:00:00Z`).getUTCDay()]
+  return `${month}月${day}日（${weekday}）`
+}
+
+export function assignmentsText(data: PersonalAssignments): string {
   const sections = ([['service', '弟兄服務'], ['program', '節目委派']] as const).filter(([kind]) => data.showBrotherService || kind === 'program').map(([kind, label]) => {
     const items = data.upcoming.filter(item => item.kind === kind)
     let text = `【${data.showBrotherService ? label : '我的委派'}】本週起 · ${items.length} 項`
     let count = 0
     for (const item of items) {
-      const line = `\n• ${item.date}${item.endDate !== item.date ? `～${item.endDate}` : ''}｜${item.category}｜${item.title}${item.role ? `（${item.role}）` : ''}`
+      const line = `\n• ${lineDate(item.date)}${item.endDate !== item.date ? `～${lineDate(item.endDate)}` : ''}｜${item.category}｜${item.title}${item.role ? `（${item.role}）` : ''}`
       if (text.length + line.length > 1750) break
       text += line; count++
     }
     if (!items.length) text += '\n目前沒有本週及未來已公布的委派。'
     if (count < items.length) text += `\n另有 ${items.length - count} 項，請至網站查看。`
-    return `${text}\n${base}/dashboard/assignments/${kind}`
+    return text
   })
-  return `我的委派\n${sections.join('\n\n')}${data.notices.length ? `\n\n${data.notices.join('\n')}` : ''}\n\n完整委派與過去紀錄請開啟上述連結。`
+  return `我的委派\n${sections.join('\n\n')}${data.notices.length ? `\n\n${data.notices.join('\n')}` : ''}\n\n完整委派與過去紀錄請至網站「我的看板」查看。`
 }
