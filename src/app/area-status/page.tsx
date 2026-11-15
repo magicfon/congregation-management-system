@@ -15,9 +15,10 @@ import { type AreaReportEntry } from '../../lib/area-report-history'
 const LAST_MAP_KEY = 'area-status:last-map'
 
 export default function AreaStatusPage() {
-  const [infoOpen, setInfoOpen] = useState(true)
-  const [queueOpen, setQueueOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  // 地圖資訊、設定、清單一次只展開一個，展開一個時其他自動收合
+  const [openPanel, setOpenPanel] = useState<'info' | 'settings' | 'queue' | null>('info')
+  const infoOpen = openPanel === 'info', settingsOpen = openPanel === 'settings', queueOpen = openPanel === 'queue'
+  const togglePanel = (panel: 'info' | 'settings' | 'queue') => setOpenPanel(current => current === panel ? null : panel)
   // 手機底部抽屜：收起時只露出重點卡，展開後顯示完整明細、設定與清單（ADR-0129）
   const [sheetOpen, setSheetOpen] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
@@ -106,7 +107,7 @@ export default function AreaStatusPage() {
     setPendingNumber(null)
   }, [pendingNumber, data, loading, mapId])
   // 點選區域：展開地圖資訊，收合設定與派發／申請清單，讓明細有空間顯示
-  function showRegion(id: string) { setSelectedId(id); setInfoOpen(true); setSettingsOpen(false); setQueueOpen(false); setSheetOpen(false); setUndoMessage('') }
+  function showRegion(id: string) { setSelectedId(id); setOpenPanel('info'); setSheetOpen(false); setUndoMessage('') }
   function jumpToNumber() {
     const number = Number(jumpText.trim())
     const target = Number.isInteger(number) ? data?.numberMaps?.[number] : undefined
@@ -148,12 +149,11 @@ export default function AreaStatusPage() {
   // 抽屜把手：點一下或上下滑動切換展開／收起
   const touchY = useRef<number | null>(null)
   function sheetHandle(open: boolean) {
-    return <button type="button" aria-expanded={open} aria-controls="area-sheet" aria-label={open ? '收起明細' : '展開完整明細'} onClick={() => { if (!open) setInfoOpen(true); setSheetOpen(!open) }}
+    return <button type="button" aria-expanded={open} aria-controls="area-sheet" aria-label={open ? '收起明細' : '展開完整明細'} onClick={() => { if (!open) setOpenPanel('info'); setSheetOpen(!open) }}
       onTouchStart={e => { touchY.current = e.touches[0].clientY }}
-      onTouchEnd={e => { const start = touchY.current; touchY.current = null; if (start === null) return; const dy = e.changedTouches[0].clientY - start; if (Math.abs(dy) > 24) { e.preventDefault(); if (dy < 0) setInfoOpen(true); setSheetOpen(dy < 0) } }}
-      className="flex w-full shrink-0 flex-col items-center gap-1 pt-2 pb-1 md:hidden">
-      <span aria-hidden="true" className="h-1 w-10 rounded-full bg-white/25" />
-      <span className="flex items-center gap-1 text-[11px] text-mc-text/50">{open ? '往下收起' : selected ? '往上看最近回報、下載圖檔' + (isAdmin ? '、設定' : '') : '往上看完整面板'}<ChevronDown size={12} aria-hidden="true" className={open ? '' : 'rotate-180'} /></span>
+      onTouchEnd={e => { const start = touchY.current; touchY.current = null; if (start === null) return; const dy = e.changedTouches[0].clientY - start; if (Math.abs(dy) > 24) { e.preventDefault(); if (dy < 0) setOpenPanel('info'); setSheetOpen(dy < 0) } }}
+      className="flex min-h-9 w-full shrink-0 items-center justify-center text-mc-text/50 md:hidden">
+      <ChevronDown size={22} aria-hidden="true" className={open ? '' : 'rotate-180'} />
     </button>
   }
   // 領圖操作列：加入按鈕＋已選張數。手機固定在畫面最下方，電腦放在地圖資訊底部（ADR-0123）
@@ -165,7 +165,7 @@ export default function AreaStatusPage() {
             const number = multiAdd ? ` ${r.number} 號` : ''
             return <button key={r.number} type="button" disabled={actionBusy || full} aria-pressed={queued} onClick={() => toggleQueued(r)} className={`min-h-11 flex-1 basis-28 rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-40 ${queued ? 'border border-blue-400/40 bg-blue-400/10 text-blue-300' : 'bg-mc-highlight text-white'}`}>{queued ? `✓${number} 已加入 · 移除` : full ? '已選滿 5 張' : `＋ 加入${dispatchMode ? '分發' : '申請'}${number}`}</button>
           }) : <p className="self-center px-1 text-sm text-mc-text/50">{selected.reports.length ? '這個區塊目前不能加入' : '尚未對應地圖號碼'}</p>}</div>
-          <button type="button" onClick={() => { setQueueOpen(true); setSheetOpen(true) }} aria-controls="area-queue-content" aria-label={`${dispatchMode ? '派發清單' : '申請清單'}已選 ${queue.length} 張，點此查看`} className="flex min-h-11 shrink-0 flex-col items-center justify-center rounded-lg border border-white/10 px-2.5 py-1 hover:bg-white/5">
+          <button type="button" onClick={() => { setOpenPanel('queue'); setSheetOpen(true) }} aria-controls="area-queue-content" aria-label={`${dispatchMode ? '派發清單' : '申請清單'}已選 ${queue.length} 張，點此查看`} className="flex min-h-11 shrink-0 flex-col items-center justify-center rounded-lg border border-white/10 px-2.5 py-1 hover:bg-white/5">
             <SelectedCount count={queue.length} max={dispatchMode ? null : 5} /><span className="mt-0.5 text-[11px] text-blue-300">查看清單</span>
           </button>
     </div>
@@ -207,7 +207,7 @@ export default function AreaStatusPage() {
           {(!dispatchMode || queue.length > 5) && <p className="mt-1 text-center text-[11px] text-mc-text/50">{queue.length > 5 ? '選取降至 5 張以內，即可切換申請' : '為自己申請領取 · 最多 5 張'}</p>}
         </div>}
         <section className={`min-h-0 flex flex-col overflow-hidden ${infoOpen ? 'flex-1' : 'shrink-0'}`}>
-        <PanelToggle className="max-md:hidden" open={infoOpen} onToggle={() => setInfoOpen(open => !open)} controls="area-info-content" Icon={MapPinned}>地圖資訊</PanelToggle>
+        <PanelToggle open={infoOpen} onToggle={() => togglePanel('info')} controls="area-info-content" Icon={MapPinned}>地圖資訊</PanelToggle>
         <div id="area-info-content" ref={detailPanel} hidden={!infoOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <section aria-live="polite" className="p-3">
           {undoMessage && <p role="status" className="mb-3 rounded-lg bg-white/5 px-3 py-2 text-sm text-mc-text/80">{undoMessage}</p>}
@@ -233,13 +233,13 @@ export default function AreaStatusPage() {
         {infoOpen && selected && actionBar('hidden md:flex')}
         </section>
         {isAdmin && <section className={`min-h-0 flex flex-col overflow-hidden border-t border-white/10 ${settingsOpen ? 'flex-1' : 'shrink-0'}`}>
-          <PanelToggle open={settingsOpen} onToggle={() => setSettingsOpen(open => !open)} controls="area-settings-content" Icon={Settings2}>設定</PanelToggle>
+          <PanelToggle open={settingsOpen} onToggle={() => togglePanel('settings')} controls="area-settings-content" Icon={Settings2}>設定</PanelToggle>
           <div id="area-settings-content" hidden={!settingsOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
             {settingsOpen && (selected?.reports.some(r => r.areaId) ? <div className="space-y-4 divide-y divide-white/10 [&>*+*]:pt-4">{selected.reports.map(r => r.areaId && <AreaProperties key={r.areaId} areaId={r.areaId} number={r.number} showNumber={selected.numbers.length > 1} onChange={updateAvailability} />)}</div> : <p className="py-4 text-center text-sm text-mc-text/50">{selected ? '此區塊尚未對應地圖號碼' : '先點選地圖，再調整分發設定'}</p>)}
           </div>
         </section>}
-        <section className={`min-h-0 flex flex-col overflow-hidden border-t border-white/10 ${queueOpen ? `flex-[3] md:flex-1 ${infoOpen && dispatchMode ? 'lg:flex-[2]' : ''}` : 'shrink-0'}`}>
-          <PanelToggle open={queueOpen} onToggle={() => setQueueOpen(open => !open)} controls="area-queue-content" Icon={ListChecks}>{dispatchMode ? '派發清單' : '申請清單'}<SelectedCount className="ml-2" count={queue.length} max={dispatchMode ? null : 5} /></PanelToggle>
+        <section className={`min-h-0 flex flex-col overflow-hidden border-t border-white/10 ${queueOpen ? 'flex-1' : 'shrink-0'}`}>
+          <PanelToggle open={queueOpen} onToggle={() => togglePanel('queue')} controls="area-queue-content" Icon={ListChecks}>{dispatchMode ? '派發清單' : '申請清單'}<SelectedCount className="ml-2" count={queue.length} max={dispatchMode ? null : 5} /></PanelToggle>
           <div id="area-queue-content" hidden={!queueOpen} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {dispatchMode ? <DispatchSubmitBar items={queue} onBusy={setActionBusy} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} /> : <RequestSubmitBar compact onBusy={setActionBusy} items={queue} onRemove={id => setQueue(old => old.filter(i => i.id !== id))} onSubmitted={() => { setQueue([]); setRevision(v => v + 1) }} />}
           </div>
