@@ -5,7 +5,7 @@ import { isCancelled, type MeetingRecord } from './midweek'
 
 export type AssignmentKind = 'service' | 'program'
 export type PersonalAssignment = { kind: AssignmentKind; id: string; date: string; endDate: string; category: string; title: string; role: string; href: string }
-export type PersonalAssignments = { showBrotherService: boolean; upcoming: PersonalAssignment[]; past: PersonalAssignment[]; notices: string[] }
+export type PersonalAssignments = { showBrotherService: boolean; weekStart: string; weekEnd: string; upcoming: PersonalAssignment[]; past: PersonalAssignment[]; notices: string[] }
 
 export async function personalAssignments(db: PrismaClient, memberId: string, now = new Date()): Promise<PersonalAssignments> {
   const [members, person, weeks, records] = await Promise.all([
@@ -14,8 +14,11 @@ export async function personalAssignments(db: PrismaClient, memberId: string, no
     db.serviceWeek.findMany({ where: { stopped: false }, orderBy: { startDate: 'asc' } }),
     db.setting.findMany({ where: { key: { startsWith: 'midweek:record:' } } }),
   ])
+  const today = taipeiDate(now)
+  const monday = addDays(today, -((new Date(`${today}T04:00:00Z`).getUTCDay() + 6) % 7))
+  const sunday = addDays(monday, 6)
   const member = members.find(m => m.id === memberId)
-  if (!member) return { showBrotherService: false, upcoming: [], past: [], notices: [] }
+  if (!member) return { showBrotherService: false, weekStart: monday, weekEnd: sunday, upcoming: [], past: [], notices: [] }
   const showBrotherService = member.gender !== 'sister'
   const name = member.name.trim()
   const uniqueName = !!name && members.filter(m => m.name.trim() === name).length === 1
@@ -41,12 +44,10 @@ export async function personalAssignments(db: PrismaClient, memberId: string, no
       if (item.assistant.trim() === name) add(`${item.id}:assistant`, item.title, '助手')
     }
   }
-  const today = taipeiDate(now)
-  const monday = addDays(today, -((new Date(`${today}T04:00:00Z`).getUTCDay() + 6) % 7))
   const isUpcoming = (item: PersonalAssignment) => item.category === '服務安排' ? item.endDate >= today : item.date >= monday
   entries.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
   const visible = entries.filter(item => showBrotherService || item.kind === 'program')
-  return { showBrotherService, upcoming: visible.filter(isUpcoming), past: visible.filter(item => !isUpcoming(item)).reverse(), notices }
+  return { showBrotherService, weekStart: monday, weekEnd: sunday, upcoming: visible.filter(isUpcoming), past: visible.filter(item => !isUpcoming(item)).reverse(), notices }
 }
 
 // LINE 會把 2026-11-15、11/15、11-15 這類寫法自動變成超連結，私訊改用「11月15日（日）」。
