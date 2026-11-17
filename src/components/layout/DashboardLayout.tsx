@@ -70,12 +70,11 @@ function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* Backdrop — mobile only */}
-      {mobileOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/60 z-20"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+      <div
+        aria-hidden="true"
+        className={`md:hidden fixed inset-0 bg-black/60 z-20 transition-opacity duration-200 motion-reduce:transition-none ${mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        onClick={() => setMobileOpen(false)}
+      />
 
       <Sidebar
         currentUser={currentUser}

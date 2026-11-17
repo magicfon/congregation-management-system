@@ -86,9 +86,9 @@ export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, cu
       className={`
         fixed left-0 top-14 h-[calc(100dvh-3.5rem)] bg-mc-card border-r border-white/5 flex flex-col z-30
         overflow-hidden
-        transition-[width,transform] duration-200 ease-in-out
+        transition-[width,transform,visibility] duration-200 ease-in-out motion-reduce:transition-none
         w-64
-        ${open ? 'translate-x-0' : '-translate-x-full'}
+        ${open ? 'translate-x-0' : 'max-md:invisible -translate-x-full'}
         md:translate-x-0
         ${collapsed ? 'md:w-16' : 'md:w-64'}
       `}

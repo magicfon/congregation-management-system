@@ -198,7 +198,7 @@ export default function AreaStatusPage() {
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
         {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setFocus(null); showRegion(id) }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} focus={focus} />}
       </div>
-      <aside id="area-sheet" aria-label="區塊明細與領圖操作" className={`min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:h-[92%] max-md:rounded-b-none max-md:shadow-[0_-6px_24px_rgba(0,0,0,0.35)] ${sheetOpen ? '' : 'max-md:hidden'}`}>
+      <aside id="area-sheet" aria-label="區塊明細與領圖操作" className={`min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:z-[25] max-md:h-[92%] max-md:rounded-b-none max-md:shadow-[0_-6px_24px_rgba(0,0,0,0.35)] max-md:transition-[transform,visibility] max-md:duration-300 max-md:ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none ${sheetOpen ? '' : 'max-md:invisible max-md:translate-y-full'}`}>
         {sheetHandle(true)}
         {isAdmin && <div className="shrink-0 border-b border-white/10 p-1.5 md:p-2">
           <div role="group" aria-label="領圖操作模式" className="grid grid-cols-2 gap-1 rounded-lg bg-black/15 p-1">
