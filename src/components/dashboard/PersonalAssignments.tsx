@@ -42,11 +42,11 @@ export default function PersonalAssignmentsPanel({ data }: { data: PersonalAssig
   return <section id="assignments" data-dashboard-section="assignments" className="dashboard-section scroll-mt-20">
     <header className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-xl font-semibold">我的委派</h2><span className="text-sm text-mc-text/70">本週起 · {upcoming.length} 項</span></header>
     {data.notices.length > 0 && <details className="mt-4 text-sm text-amber-200"><summary className="min-h-11 cursor-pointer py-3">有 {data.notices.length} 項資料需要確認</summary><div className="space-y-2 pb-3 leading-relaxed">{data.notices.map(notice => <p key={notice}>{notice}</p>)}</div></details>}
-    <div data-assignments-week="this" className="mt-5">
-      <h3 className="text-sm font-medium text-mc-text/70">本週 <span className="tabular-nums">{shortDate(data.weekStart)}–{shortDate(data.weekEnd)}</span></h3>
-      {thisWeek.length ? <AssignmentList items={thisWeek} /> : <div className="my-3 flex items-center gap-3 rounded-xl bg-mc-card p-5 text-sm text-mc-text/70"><CalendarDays size={20} aria-hidden="true" /><p>本週沒有委派</p></div>}
+    <div data-assignments-week="this" className="mt-5 rounded-xl border-2 border-blue-300/70 bg-blue-400/10 px-4 pt-4 sm:px-5">
+      <h3 className="flex flex-wrap items-baseline gap-2 text-lg font-semibold text-blue-100">本週委派<span className="text-sm font-normal tabular-nums text-blue-200/80">{shortDate(data.weekStart)}–{shortDate(data.weekEnd)}</span></h3>
+      {thisWeek.length ? <AssignmentList items={thisWeek} /> : <div className="flex items-center gap-3 py-5 text-base font-medium text-blue-100"><CalendarDays size={20} aria-hidden="true" /><p>本週沒有委派</p></div>}
     </div>
-    <div data-assignments-week="later" className="border-t border-white/10 pt-5">
+    <div data-assignments-week="later" className="pt-6">
       <h3 className="text-sm font-medium text-mc-text/70">接下來</h3>
       {later.length ? <AssignmentList items={initial} /> : <p className="py-4 text-sm text-mc-text/70">暫無已公布委派</p>}
     </div>
