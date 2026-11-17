@@ -42,7 +42,7 @@ export default function DashboardPage() {
     {error && <div role="alert" className="rounded-xl bg-red-400/10 p-4 text-red-200">{error}<button className="ml-3 min-h-11 underline underline-offset-4" onClick={() => setRevision(v => v + 1)}>重新載入</button></div>}
     {!data && !error && <div role="status" className="space-y-4"><span className="text-sm text-mc-text/70">正在載入看板…</span><div aria-hidden="true" className="h-48 rounded-xl bg-mc-card motion-safe:animate-pulse" /></div>}
     {data && <>
-      <PersonalAssignmentsPanel data={data.assignments} kind={typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('kind') === 'program' ? 'program' : 'service'} />
+      <PersonalAssignmentsPanel data={data.assignments} />
       {data.showTerritory && <>
         <section id="maps" data-dashboard-section="maps" className="dashboard-section scroll-mt-20">
           <header className="flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-lg font-semibold">我的地圖 <span className="ml-2 text-sm font-normal text-mc-text/70">{data.maps.length} 張</span></h2><a href="/map-requests" className="inline-flex min-h-11 items-center gap-2 text-sm text-blue-200">領圖申請{data.pendingRequests.length > 0 && <span className="text-amber-200">{data.pendingRequests.length} 待審</span>}<ArrowRight size={15} aria-hidden="true" /></a></header>
