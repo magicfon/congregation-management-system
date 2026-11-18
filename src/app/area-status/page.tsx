@@ -75,6 +75,18 @@ export default function AreaStatusPage() {
   const [error, setError] = useState('')
   const [signedOut, setSignedOut] = useState(false)
   const [loading, setLoading] = useState(true)
+  // 收起時抽屜只往下滑到重點卡的高度，接著換成重點卡，看起來是同一張抽屜收到底（ADR-0129）
+  const peekCard = useRef<HTMLDivElement>(null)
+  const [peekHeight, setPeekHeight] = useState(0)
+  useEffect(() => {
+    const el = peekCard.current
+    if (!el) { setPeekHeight(0); return }
+    const update = () => setPeekHeight(el.offsetHeight)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [data, loading])
   const [revision, setRevision] = useState(0)
   const [history, setHistory] = useState<{ key: string; entries: Record<number, AreaReportEntry[]> | null; failed: boolean } | null>(null)
   useEffect(() => {
@@ -198,7 +210,7 @@ export default function AreaStatusPage() {
         {error && <div role="alert" className="h-full overflow-auto rounded-xl border border-red-400/30 p-4 text-red-300">{error} {signedOut && <a className="underline" href="/login?callbackUrl=/area-status">重新登入</a>}</div>}
         {data && !loading && <AreaStatusMap data={data} selectedId={selectedId} onSelect={id => { setFocus(null); showRegion(id) }} grayDispatched={grayDispatched} queuedAreaIds={queue.map(i => i.id)} focus={focus} />}
       </div>
-      <aside id="area-sheet" aria-label="區塊明細與領圖操作" className={`min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:z-[25] max-md:h-[92%] max-md:rounded-b-none max-md:shadow-[0_-6px_24px_rgba(0,0,0,0.35)] max-md:transition-[transform,visibility] max-md:duration-300 max-md:ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none ${sheetOpen ? '' : 'max-md:invisible max-md:translate-y-full'}`}>
+      <aside id="area-sheet" aria-label="區塊明細與領圖操作" className={`min-h-0 min-w-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-mc-card max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:z-[25] max-md:h-[92%] max-md:rounded-b-none max-md:shadow-[0_-6px_24px_rgba(0,0,0,0.35)] max-md:transition-[transform,visibility] max-md:duration-300 max-md:ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none ${sheetOpen ? '' : 'max-md:invisible max-md:translate-y-[calc(100%-var(--peek-h))]'}`} style={{ '--peek-h': `${peekHeight}px` } as React.CSSProperties}>
         {sheetHandle(true)}
         {isAdmin && <div className="shrink-0 border-b border-white/10 p-1.5 md:p-2">
           <div role="group" aria-label="領圖操作模式" className="grid grid-cols-2 gap-1 rounded-lg bg-black/15 p-1">
@@ -246,7 +258,7 @@ export default function AreaStatusPage() {
         </section>
         {data && !loading && actionBar('flex md:hidden')}
       </aside>
-      {data && !loading && !sheetOpen && <div aria-label="區塊重點與領圖操作" className="absolute inset-x-0 bottom-0 z-20 flex max-h-[55%] flex-col overflow-hidden rounded-t-2xl border border-white/10 bg-mc-card shadow-[0_-6px_24px_rgba(0,0,0,0.35)] md:hidden">
+      {data && !loading && <div ref={peekCard} aria-label="區塊重點與領圖操作" className={`${sheetOpen ? 'invisible ' : ''}absolute inset-x-0 bottom-0 z-20 flex max-h-[55%] flex-col overflow-hidden rounded-t-2xl border border-white/10 bg-mc-card shadow-[0_-6px_24px_rgba(0,0,0,0.35)] md:hidden`}>
         {sheetHandle(false)}
         {selected && <section aria-live="polite" className="min-h-0 overflow-y-auto overscroll-contain px-3 pb-2">
           {undoMessage && <p role="status" className="mb-2 rounded-lg bg-white/5 px-3 py-2 text-sm text-mc-text/80">{undoMessage}</p>}
