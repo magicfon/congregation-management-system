@@ -4,8 +4,10 @@ import { bulletinCategories } from '@/lib/bulletin'
 import PdfReader from '@/components/bulletin/PdfReader'
 import Midweek from '@/components/bulletin/Midweek'
 
-// 嵌入外部網站（Google 協作平台）用的無邊框版本：不包 DashboardLayout、無標頭，固定淺色（ADR-0084、ADR-0085）。
-const embeddable = ['public-talks', 'midweek-meeting']
+// 嵌入外部網站（Google 協作平台）用的無邊框版本：不包 DashboardLayout、無標頭，固定淺色（ADR-0084、ADR-0085、ADR-0136）。
+const embeddable = ['public-talks', 'midweek-meeting', 'ministry-groups']
+// 這些嵌入頁不顯示捲軸：內容隨框寬縮放，捲軸時有時無會讓寬度來回跳而抖動（ADR-0114、ADR-0136）。
+const noScrollbar = ['ministry-groups']
 
 type Props = { params: { category: string } }
 export function generateStaticParams() { return embeddable.map(category => ({ category })) }
@@ -22,7 +24,7 @@ export default function BulletinEmbedPage({ params }: Props) {
   </main>
   const source = category.sources.find(item => item.pdf)
   if (!source?.pdf) notFound()
-  return <main className="bulletin-embed fixed inset-0 overflow-hidden bg-mc-bg text-mc-text">
+  return <main className={`bulletin-embed ${noScrollbar.includes(category.slug) ? 'bulletin-embed-no-scrollbar ' : ''}fixed inset-0 overflow-hidden bg-mc-bg text-mc-text`}>
     <PdfReader id={source.pdf} label={source.label} embedded />
   </main>
 }
