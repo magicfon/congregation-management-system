@@ -4,7 +4,7 @@ import { isCancelled, sectionColors, sectionNames, timeline, type Meeting, type 
 import styles from './MeetingSheet.module.css'
 import { useSheetGestures } from './useSheetGestures'
 import { useMemberNameCheck } from './useMemberNameCheck'
-import { fieldKey, versionColor, type Marks, type Palette } from '@/lib/midweek-versions'
+import { fieldKey, revisionTags, versionColor, type Marks, type Palette } from '@/lib/midweek-versions'
 export const markColor = (value: Highlight) => value === 'yellow' ? '#ffff00' : value === 'green' ? '#00ff00' : undefined
 type Editor = {
   change: (patch: Partial<Meeting>) => void
@@ -20,12 +20,15 @@ function NameField({ value, label, onChange, members }: { value: string; label: 
   const check = useMemberNameCheck(members)
   return <>{check.dialog}<input aria-label={label} list={focused ? 'meeting-members' : undefined} onFocus={() => setFocused(true)} onBlur={e => { setFocused(false); check.onBlur(e) }} className={styles.nameField} value={value} placeholder="姓名" style={{ width: `${Math.max(2, Array.from(value || '姓名').length) + (focused ? 1.8 : .05)}em` }} onChange={e => onChange(e.target.value)} /></>
 }
-function SheetContent({ meeting, editor, marks, palette = {} }: { meeting: Meeting; editor?: Editor; marks?: Marks; palette?: Palette }) {
+type Dates = Record<number, string | null>
+function SheetContent({ meeting, editor, marks, palette = {}, dates }: { meeting: Meeting; editor?: Editor; marks?: Marks; palette?: Palette; dates?: Dates }) {
   const background = (key: string, legacy?: Highlight) => marks ? versionColor(marks[key] || 0, palette) : markColor(legacy || '')
   const name = (value: string, key: string) => value || (marks?.[key] ? '待安排' : '')
   const rows = timeline(meeting)
   const [, month, day] = meeting.date.split('-')
+  const tags = dates ? revisionTags(marks, dates) : []
   return <>
+      {!!tags.length && <p className={styles.revisions} aria-label="改版日期">{tags.map(tag => <span key={tag.number} style={{ background: versionColor(tag.number, palette) }}>{Number(tag.date.slice(5, 7))}/{Number(tag.date.slice(8, 10))}更新</span>)}</p>}
       {editor && <datalist id="meeting-members">{editor.members.map(m => <option key={m.id} value={m.name} />)}</datalist>}
       {meeting.note && <p className={styles.note}><span style={{ background: background('note', meeting.noteHighlight) }}>{editor ? <TextField value={meeting.note} label="更新標示" onChange={note => editor.change({ note })} /> : meeting.note}</span></p>}
       <h2 className={styles.heading}><span style={{ background: background('date') }}>{editor ? <button type="button" className={styles.editable} aria-label="日期與整張節目表設定" onClick={() => editor.settings(-1)}>[{Number(month)}月{Number(day)}日]</button> : `[${Number(month)}月${Number(day)}日]`}</span>｜每週閱讀經文：<span style={{ background: background('reading') }}>{editor ? <TextField value={meeting.reading} label="每週閱讀經文" onChange={reading => editor.change({ reading })} /> : meeting.reading}</span></h2>
@@ -52,7 +55,7 @@ function SheetContent({ meeting, editor, marks, palette = {} }: { meeting: Meeti
 export function PrintSheet({ meeting }: { meeting: Meeting }) {
   return <article className={`${styles.sheet} ${styles.printSheet}`}><SheetContent meeting={meeting} /></article>
 }
-export default function MeetingSheet({ meeting, editor, marks, palette = {} }: { meeting: Meeting; editor?: Editor; marks?: Marks; palette?: Palette }) {
+export default function MeetingSheet({ meeting, editor, marks, palette = {}, dates }: { meeting: Meeting; editor?: Editor; marks?: Marks; palette?: Palette; dates?: Dates }) {
   const viewport = useRef<HTMLDivElement>(null), sheet = useRef<HTMLElement>(null)
   const [width, setWidth] = useState(1200), [height, setHeight] = useState(1400), [zoom, setZoom] = useState<number | null>(null)
   useEffect(() => {
@@ -67,7 +70,7 @@ export default function MeetingSheet({ meeting, editor, marks, palette = {} }: {
     <div ref={viewport} className={`${styles.viewport} ${styles.gestures}`} tabIndex={0} aria-label="週中聚會節目表">
     <div style={{ width: 1200 * scale, height: height * scale, margin: 'auto', position: 'relative' }}>
     <article ref={sheet} className={styles.sheet} style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-      <SheetContent meeting={meeting} editor={editor} marks={marks} palette={palette} />
+      <SheetContent meeting={meeting} editor={editor} marks={marks} palette={palette} dates={dates} />
     </article></div></div>
   </div>
 }

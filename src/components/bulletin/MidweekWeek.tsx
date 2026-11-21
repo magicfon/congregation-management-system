@@ -5,7 +5,7 @@ import MeetingSheet from './MeetingSheet'
 import StudentNotices from './StudentNotices'
 import { useMemberNameCheck } from './useMemberNameCheck'
 import SourceChanges from './SourceChanges'
-import { draftBaseVersionOf, draftOwnerStale, publishedVersionOf, sameContent, previewVersion, versionLabel, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
+import { versionDatesOf, draftBaseVersionOf, draftOwnerStale, publishedVersionOf, sameContent, previewVersion, versionLabel, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
 
 export type ManagedWeek = { id: string; date: string; week?: string; reading: string; publishedAt?: string | null; changedSource?: boolean }
 const field = 'w-full min-w-0 min-h-11 rounded-lg border border-white/15 bg-mc-card px-3 py-2 text-base font-normal text-mc-text'
@@ -188,7 +188,7 @@ export default function MidweekWeek({ week, members, palette, onLoaded, readOnly
         </fieldset></dialog>
       </>}
       <fieldset disabled={busy} className="min-w-0">
-        <div className="overflow-hidden rounded border border-mc-text/15"><MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} editor={editable && !cancelled ? { change, itemChange, settings: setSelected, members } : undefined} /></div>
+        <div className="overflow-hidden rounded border border-mc-text/15"><MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} dates={versionDatesOf(versions, dates)} editor={editable && !cancelled ? { change, itemChange, settings: setSelected, members } : undefined} /></div>
         {editable && !cancelled && <button className={`${button} mt-4`} onClick={() => { change({ items: [...meeting.items, { id: crypto.randomUUID(), section: 'living', title: '新增節目', minutes: 5, counsel: 0, role: '', person: '', assistant: '', highlight: '' }] }); setSelected(meeting.items.length) }}>＋新增節目</button>}
       </fieldset>
     </>}

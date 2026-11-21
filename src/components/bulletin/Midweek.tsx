@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
 import { weekMonday, type Meeting } from '@/lib/midweek'
 import MeetingSheet from './MeetingSheet'
 import styles from './Midweek.module.css'
-import type { MeetingVersion, Palette } from '@/lib/midweek-versions'
+import { versionDatesOf, type MeetingVersion, type Palette } from '@/lib/midweek-versions'
 
 type Week = { id: string; date: string; reading: string; cancelled?: string }
 const field = 'w-full min-w-0 min-h-11 rounded-lg border border-white/15 bg-mc-card px-3 py-2 text-base font-normal text-mc-text'
@@ -24,6 +24,7 @@ export default function Midweek({ embedded = false }: { embedded?: boolean }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [publicVersionNumber, setPublicVersionNumber] = useState<number | null>(null)
   const [versions, setVersions] = useState<MeetingVersion[]>([])
+  const [versionDates, setVersionDates] = useState<Record<string, string | null>>({})
   const [palette, setPalette] = useState<Palette>({})
   const shown = versions.find(version => version.number === publicVersionNumber) || versions.at(-1)
   const alive = useRef(true)
@@ -52,7 +53,7 @@ export default function Midweek({ embedded = false }: { embedded?: boolean }) {
     const controller = new AbortController()
     setVersions([]); setPublicVersionNumber(null); setLoading(true); setMeeting(null); setError('')
     api(`/api/midweek?id=${id}`, { signal: controller.signal }).then(data => {
-      setMeeting(data.meeting); setVersions(data.versions || []); setPublicVersionNumber(data.publishedVersion ?? null)
+      setMeeting(data.meeting); setVersions(data.versions || []); setVersionDates(data.versionDates || {}); setPublicVersionNumber(data.publishedVersion ?? null)
       setPalette(data.palette || {})
     }).catch(e => { if (!controller.signal.aborted) setError(e.message) }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
@@ -76,6 +77,6 @@ export default function Midweek({ embedded = false }: { embedded?: boolean }) {
     {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-red-300">{error}</p>}
     {loading && <p role="status">載入中…</p>}
     {!loading && !meeting && !error && <p className="py-8 text-mc-text/60">目前沒有已發布的週中聚會節目。</p>}
-    {meeting && <MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} />}
+    {meeting && <MeetingSheet meeting={shown?.meeting || meeting} marks={shown?.marks} palette={palette} dates={versionDatesOf(versions, versionDates)} />}
   </div>
 }
