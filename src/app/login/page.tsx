@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import Link from 'next/link'
+import { PUBLIC_BOUNDARY_EDITOR_ENABLED } from '../../lib/public-boundary-editor'
 
 const ERROR_MESSAGES: Record<string, string> = {
   LineNotLinked: '此 LINE 帳號尚未綁定成員，請聯絡管理員',
@@ -104,8 +105,10 @@ function LoginForm() {
         <div className="text-center mt-6">
           <Link href="/map-images" className="mb-3 block rounded-xl border border-white/10 bg-mc-card px-4 py-3 text-sm text-blue-300 hover:bg-mc-accent">下載地圖（免登入）</Link>
           <Link href="/bulletin" className="mb-4 block rounded-xl border border-white/10 bg-mc-card px-4 py-3 text-sm text-blue-300 hover:bg-mc-accent">會眾公布欄（免登入）</Link>
-          <Link href="/boundary-editor" className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-4">地圖編輯器（免登入）</Link>
-          <p className="mt-1 text-xs text-mc-text/50">可直接編輯及儲存共用地圖草稿</p>
+          {PUBLIC_BOUNDARY_EDITOR_ENABLED && <>
+            <Link href="/boundary-editor" className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-4">地圖編輯器（免登入）</Link>
+            <p className="mt-1 text-xs text-mc-text/50">可直接編輯及儲存共用地圖草稿</p>
+          </>}
         </div>
         <p className="text-center text-xs text-mc-text/30 mt-6">
           Territory Assignment &mdash; 內部管理系統

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import DashboardLayout from '../../components/layout/DashboardLayout'
+import { PUBLIC_BOUNDARY_EDITOR_ENABLED } from '../../lib/public-boundary-editor'
 import 'leaflet/dist/leaflet.css'
 import type * as LeafletNS from 'leaflet'
 
@@ -212,7 +213,7 @@ export default function MapImagesPage() {
         <div>
           <h1 className="text-2xl font-bold text-mc-text">地圖圖檔</h1>
           <p className="text-sm text-mc-text-secondary mt-1">查看與下載地圖（全圖縮放 / 各區域小圖）</p>
-          <a href="/boundary-editor" className="inline-block text-sm text-sky-400 mt-2">地圖編輯器</a>
+          {PUBLIC_BOUNDARY_EDITOR_ENABLED && <a href="/boundary-editor" className="inline-block text-sm text-sky-400 mt-2">地圖編輯器</a>}
         </div>
       </div>
 
