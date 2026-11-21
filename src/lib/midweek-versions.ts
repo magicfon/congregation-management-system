@@ -15,6 +15,19 @@ export function versionColor(number: number, palette: Palette = {}) {
 export function versionLabel(number: number, date?: string | null, by?: string) {
   return `第${number}版・${date ? `${Number(date.slice(5,7))}/${Number(date.slice(8,10))}更新` : '日期未記錄'}${by ? `・${by}` : ''}`
 }
+// 節目表右上角的改版標示：列出紙面上仍有底色的各版（第2版起），依版號排序並套用該版顏色。
+// 尚未發布的草稿預覽版沒有日期，以今天日期顯示（發布時即記為今天）。
+export type RevisionTag = { number: number; date: string }
+export function revisionTags(marks: Marks | undefined, dates: Record<number, string | null | undefined> = {}, today = localDate()): RevisionTag[] {
+  const numbers = [...new Set(Object.values(marks || {}))].filter(number => number >= 2).sort((a, b) => a - b)
+  return numbers.map(number => ({ number, date: dates[number] || today }))
+}
+export function versionDatesOf(versions: { number: number; date: string | null }[], extra: Record<string, string | null> = {}) {
+  const result: Record<number, string | null> = {}
+  for (const [number, date] of Object.entries(extra)) result[Number(number)] = date
+  for (const version of versions) if (version.date) result[version.number] = version.date
+  return result
+}
 // 草稿超過這段時間沒再儲存，其他管理員才可接手（ADR-0102）。
 export const DRAFT_TAKEOVER_MS = 24 * 3600000
 export function draftOwnerStale(owner: DraftOwner, now = Date.now()) {
