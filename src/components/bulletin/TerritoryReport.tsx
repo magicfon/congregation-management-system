@@ -10,7 +10,7 @@ const OTHER = 'other'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 bg-mc-accent px-3 text-base'
 const label = 'mb-1 block text-sm text-mc-text/70'
 
-export default function TerritoryReport({ formUrl }: { formUrl: string }) {
+export default function TerritoryReport({ formUrl, embedded = false }: { formUrl: string; embedded?: boolean }) {
   const [options, setOptions] = useState<Options | null>(null)
   const [guestName, setGuestName] = useState('')
   const [error, setError] = useState('')
@@ -123,7 +123,7 @@ export default function TerritoryReport({ formUrl }: { formUrl: string }) {
   return <form onSubmit={review} className="space-y-4 rounded-2xl border border-white/10 bg-mc-card p-4 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">區域回報{options?.name && <span className="ml-2 text-sm font-normal text-mc-text/60">{options.name}</span>}</h2>{formLink}</div>
     {!options && !error && <p role="status" className="text-sm text-mc-text/50">正在讀取區域…</p>}
-    {options?.guest && <p className="text-sm text-mc-text/60"><a href="/login?callbackUrl=%2Fbulletin%2Fterritory-report" className="text-blue-300 underline-offset-2 hover:underline">登入</a>後姓名與領取中的地圖會自動帶入。</p>}
+    {options?.guest && !embedded && <p className="text-sm text-mc-text/60"><a href="/login?callbackUrl=%2Fbulletin%2Fterritory-report" className="text-blue-300 underline-offset-2 hover:underline">登入</a>後姓名與領取中的地圖會自動帶入。</p>}
     {options?.restricted && <p role="status" className="rounded-lg bg-white/5 p-4 text-sm text-mc-text/80">{options.restricted}</p>}
     {options && !options.restricted && <>
       {options.guest && <div><label htmlFor="report-name" className={label}>姓名</label><input id="report-name" required maxLength={30} autoComplete="name" value={guestName} onChange={e => setGuestName(e.target.value)} className={control} /></div>}
