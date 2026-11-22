@@ -15,7 +15,7 @@ export default async function ServiceRosterManagementPage() {
   if (!user?.id) redirect('/login?callbackUrl=%2Fservice-roster%2Fmanage')
   if (user.role !== 'admin') return <NoPermission title="管理服務安排" publicHref="/bulletin/service-roster" publicLabel="查看服務安排" />
 
-  return <DashboardLayout publicView>
+  return <DashboardLayout publicView wide>
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
       <h1 className="text-2xl font-semibold">管理服務安排</h1>
       <Link href="/bulletin/service-roster" className="flex min-h-12 items-center rounded-lg border border-white/10 px-4 text-base">查看公開頁</Link>

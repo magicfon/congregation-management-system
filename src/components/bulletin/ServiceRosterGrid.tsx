@@ -52,7 +52,7 @@ export default function ServiceRosterGrid({ weeks, people, revision, today, busy
 
   return <section aria-labelledby="roster-grid-title" className="space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h2 id="roster-grid-title" className="text-lg font-semibold">一覽表 <span className="text-base font-normal text-mc-text/60">{shown.length} 週 · 可左右滑動</span></h2>
+      <h2 id="roster-grid-title" className="text-lg font-semibold">一覽表 <span className="text-base font-normal text-mc-text/60">{shown.length} 週<span className="lg:hidden"> · 可左右滑動</span></span></h2>
       <div className="flex flex-wrap gap-2">
         {past.length > 0 && <button type="button" className={button} onClick={() => setShowPast(value => !value)}>{showPast ? '隱藏過去週次' : `顯示過去 ${past.length} 週`}</button>}
         <button type="button" className={button} disabled={busy} title={`本週起的${autoRoles.map(r => serviceRoles.find(role => role.id === r)!.label).join('、')}空缺`} onClick={autofill}>自動補空缺</button>
@@ -64,9 +64,9 @@ export default function ServiceRosterGrid({ weeks, people, revision, today, busy
         <caption className="sr-only">每列一週、每欄一項工作，選單可直接改人選</caption>
         <thead>
           <tr>
-            <th scope="col" className="sticky left-0 top-0 z-30 min-w-24 border-b border-r border-white/10 bg-mc-card px-2 py-2 text-base">週次</th>
-            {serviceRoles.map(role => <th key={role.id} scope="col" data-roster-group={role.group} className="sticky top-0 z-20 min-w-32 border-b border-r border-white/10 bg-mc-card p-1.5 last:border-r-0">
-              <span className="roster-duty-title flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-1 text-base font-bold"><ServiceDutyIcon role={role.id} /><span>{role.label}</span></span>
+            <th scope="col" className="sticky left-0 top-0 z-30 min-w-24 lg:min-w-20 border-b border-r border-white/10 bg-mc-card px-2 py-2 text-base">週次</th>
+            {serviceRoles.map(role => <th key={role.id} scope="col" data-roster-group={role.group} className="sticky top-0 z-20 min-w-32 border-b border-r border-white/10 bg-mc-card p-1.5 last:border-r-0 lg:min-w-24 lg:p-1">
+              <span className="roster-duty-title flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-1 text-base font-bold lg:px-1"><ServiceDutyIcon role={role.id} /><span>{role.label}</span></span>
             </th>)}
           </tr>
         </thead>

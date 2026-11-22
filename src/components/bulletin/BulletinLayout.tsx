@@ -7,7 +7,7 @@ import { ArrowLeft, PanelsTopLeft } from 'lucide-react'
 import { bulletinCategories } from '@/lib/bulletin'
 import { AppearanceControl } from '@/components/layout/AppearanceProvider'
 import BulletinMenu from '@/components/bulletin/BulletinMenu'
-export default function BulletinLayout({ children }: { children: React.ReactNode }) {
+export default function BulletinLayout({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   const pathname = usePathname()
   // 週中聚會閱讀頁沿用同一標頭，內容區留白較緊湊（ADR-0070）。
   const meetingReader = pathname === '/bulletin/midweek-meeting'
@@ -57,6 +57,7 @@ export default function BulletinLayout({ children }: { children: React.ReactNode
         </div>
       </div>
     </header>
-    <main className={meetingReader ? 'mx-auto max-w-6xl px-3 py-2 md:px-8 md:py-3' : 'mx-auto max-w-6xl p-4 md:p-8'}>{children}</main>
+    {/* 管理服務安排在電腦版放寬內容區，一覽表全部職務欄不必橫向捲動；手機版不變（ADR-0142）。 */}
+    <main className={meetingReader ? 'mx-auto max-w-6xl px-3 py-2 md:px-8 md:py-3' : `mx-auto max-w-6xl p-4 md:p-8${wide ? ' lg:max-w-none lg:px-4' : ''}`}>{children}</main>
   </div>
 }
