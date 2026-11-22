@@ -77,6 +77,8 @@ body {
 .bulletin-theme [data-roster-group="講台／音響／影音"] { --roster-hue: 195; }
 .bulletin-theme [data-roster-group="週中聚會"] { --roster-hue: 28; }
 .bulletin-theme [data-roster-group="我的委派"] { --roster-hue: 40; }
+.bulletin-theme .roster-band > :is(th, td):not(.bg-mc-accent) { background-image: linear-gradient(hsl(var(--bulletin-blue) / 0.1), hsl(var(--bulletin-blue) / 0.1)); }
+.bulletin-theme .roster-band > td select { background-color: transparent !important; }
 .bulletin-theme .roster-tab {
   min-height: 44px;
   padding: 4px 8px;
