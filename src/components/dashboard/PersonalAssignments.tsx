@@ -9,7 +9,7 @@ function shortDate(date: string) {
 
 function dateKey(item: PersonalAssignment) { return `${item.date}:${item.endDate}` }
 
-function AssignmentList({ items }: { items: PersonalAssignment[] }) {
+function AssignmentList({ items, emphasize = false }: { items: PersonalAssignment[]; emphasize?: boolean }) {
   const groups = new Map<string, PersonalAssignment[]>()
   for (const item of items) groups.set(dateKey(item), [...(groups.get(dateKey(item)) || []), item])
   return <div className="divide-y divide-white/10">{Array.from(groups, ([key, group]) => {
@@ -17,8 +17,8 @@ function AssignmentList({ items }: { items: PersonalAssignment[] }) {
     return <div key={key} className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3 py-5 sm:grid-cols-[5.5rem_minmax(0,1fr)] sm:gap-6">
       <div className="pt-2 tabular-nums">
         <p className="text-xs text-mc-text/70">{first.date.slice(0, 4)}</p>
-        <time dateTime={first.date} className="mt-1 block text-xl font-semibold tracking-tight">{shortDate(first.date)}</time>
-        {first.endDate !== first.date && <p className="mt-1 text-xs text-mc-text/70">至 <time dateTime={first.endDate}>{first.endDate.slice(0, 4) !== first.date.slice(0, 4) ? first.endDate : shortDate(first.endDate)}</time></p>}
+        <time dateTime={first.date} className={`mt-1 block tracking-tight ${emphasize ? 'text-2xl font-bold text-blue-100' : 'text-xl font-semibold'}`}>{shortDate(first.date)}</time>
+        {first.endDate !== first.date && (emphasize ? <p className="mt-1 text-xs text-blue-200/80">至 <time dateTime={first.endDate} className={`mt-0.5 block font-bold tracking-tight text-blue-100 ${first.endDate.slice(0, 4) !== first.date.slice(0, 4) ? 'text-base' : 'text-2xl'}`}>{first.endDate.slice(0, 4) !== first.date.slice(0, 4) ? first.endDate : shortDate(first.endDate)}</time></p> : <p className="mt-1 text-xs text-mc-text/70">至 <time dateTime={first.endDate}>{first.endDate.slice(0, 4) !== first.date.slice(0, 4) ? first.endDate : shortDate(first.endDate)}</time></p>)}
       </div>
       <div className="min-w-0"><p className="px-3 text-xs text-mc-text/70">{[...new Set(group.map(item => item.category))].join(' · ')}</p><ul className="mt-1 space-y-1">{group.map(item => <li key={item.id}>
         <a href={item.href} className="group flex min-h-14 items-center justify-between gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-300">
@@ -44,7 +44,7 @@ export default function PersonalAssignmentsPanel({ data }: { data: PersonalAssig
     {data.notices.length > 0 && <details className="mt-4 text-sm text-amber-200"><summary className="min-h-11 cursor-pointer py-3">有 {data.notices.length} 項資料需要確認</summary><div className="space-y-2 pb-3 leading-relaxed">{data.notices.map(notice => <p key={notice}>{notice}</p>)}</div></details>}
     <div data-assignments-week="this" className="mt-5 rounded-xl border-2 border-blue-300/70 bg-blue-400/10 px-4 pt-4 sm:px-5">
       <h3 className="flex flex-wrap items-baseline gap-2 text-lg font-semibold text-blue-100">本週委派<span className="text-sm font-normal tabular-nums text-blue-200/80">{shortDate(data.weekStart)}–{shortDate(data.weekEnd)}</span></h3>
-      {thisWeek.length ? <AssignmentList items={thisWeek} /> : <div className="flex items-center gap-3 py-5 text-base font-medium text-blue-100"><CalendarDays size={20} aria-hidden="true" /><p>本週沒有委派</p></div>}
+      {thisWeek.length ? <AssignmentList items={thisWeek} emphasize /> : <div className="flex items-center gap-3 py-5 text-base font-medium text-blue-100"><CalendarDays size={20} aria-hidden="true" /><p>本週沒有委派</p></div>}
     </div>
     <div data-assignments-week="later" className="pt-6">
       <h3 className="text-sm font-medium text-mc-text/70">接下來</h3>
