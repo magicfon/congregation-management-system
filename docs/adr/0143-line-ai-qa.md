@@ -7,7 +7,7 @@
 使用者要求 LINE 官方帳號加入 LLM 功能，用獨立的知識庫回答會眾系統的功能介紹、操作方式，以及委派安排。原本除了固定指令，其他文字只回一段固定說明。
 
 ## 決定
-- 模型由使用者指定用智譜 GLM（Z.ai 國際站）（OpenAI 相容 chat completions，預設 `glm-5.3`、`reasoning_effort: low`）。金鑰 `GLM_API_KEY`，可用 `GLM_MODEL` 換模型、`GLM_BASE_URL` 換端點（使用者選國際站，預設 `https://api.z.ai/api/paas/v4`；中國站為 `https://open.bigmodel.cn/api/paas/v4`）。只設在 Vercel Production。
+- 模型由使用者指定用智譜 GLM（Z.ai 國際站）（OpenAI 相容 chat completions，預設 `glm-5.3-flash`（使用者要求先試 Flash，可用 `GLM_MODEL` 改回 `glm-5.3`）、`reasoning_effort: low`）。金鑰 `GLM_API_KEY`，可用 `GLM_MODEL` 換模型、`GLM_BASE_URL` 換端點（使用者選國際站，預設 `https://api.z.ai/api/paas/v4`；中國站為 `https://open.bigmodel.cn/api/paas/v4`）。只設在 Vercel Production。
 - 固定指令（「我的委派」「我的地圖」「選單」、管理員的「通知單樣式」、加好友事件、通知單「收到」按鈕）照舊，不經過 AI。
 - 其他文字，若提問者的 LINE 已連結啟用中的成員，交給 GLM 回答；未連結的 LINE 照舊登記待確認並回固定說明，不呼叫 AI。
 - 知識庫獨立放在 `docs/line-agent-knowledge/*.md`，寫給會眾看的使用說明，不含程式細節或金鑰。資料量小（約 1 萬字），整份放在固定的 system 前綴，靠 GLM 的前綴快取省費用，不做向量檢索；超過約 20 萬字再改 pgvector。
