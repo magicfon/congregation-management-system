@@ -5,9 +5,9 @@ import Sidebar from './Sidebar'
 import BulletinLayout from '@/components/bulletin/BulletinLayout'
 import { type CurrentUserState } from './CurrentUser'
 
-export default function DashboardLayout({ children, publicView = false, entryView = false }: { children: React.ReactNode; publicView?: boolean; entryView?: boolean }) {
+export default function DashboardLayout({ children, publicView = false, entryView = false, wide = false }: { children: React.ReactNode; publicView?: boolean; entryView?: boolean; wide?: boolean }) {
   if (entryView) return <main className="mx-auto min-h-[calc(100dvh-3.5rem)] max-w-6xl p-4 md:p-8">{children}</main>
-  if (publicView) return <BulletinLayout>{children}</BulletinLayout>
+  if (publicView) return <BulletinLayout wide={wide}>{children}</BulletinLayout>
   return <MemberDashboardLayout>{children}</MemberDashboardLayout>
 }
 
