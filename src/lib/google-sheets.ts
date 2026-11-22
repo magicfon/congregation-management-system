@@ -196,3 +196,11 @@ export async function readSnapshot(): Promise<Map<number, CdSnapshotEntry>> {
   const snap: CdSnapshotEntry[] = JSON.parse(setting.value)
   return new Map(snap.map(e => [e.sheetNo, e]))
 }
+
+/** 刪除某分頁的一整列（row 為 1 起算的列號）；分頁 gid 依名稱查詢。 */
+export async function deleteSheetRow(sheetId: string, title: string, row: number): Promise<void> {
+  const meta = await spreadsheetRequest(sheetId, '?fields=sheets.properties(sheetId,title)')
+  const tab = (meta.sheets || []).find((s: { properties: { title: string } }) => s.properties.title === title)
+  if (!tab) throw new Error(`找不到分頁「${title}」`)
+  await spreadsheetRequest(sheetId, ':batchUpdate', { requests: [{ deleteDimension: { range: { sheetId: tab.properties.sheetId, dimension: 'ROWS', startIndex: row - 1, endIndex: row } } }] })
+}

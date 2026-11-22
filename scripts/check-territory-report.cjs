@@ -13,7 +13,7 @@ assert.equal(input({doNotVisit:'  加昌路279巷5號\n 有狗 '}).doNotVisit,'�
 assert.equal(input().doNotVisit,'')
 assert.throws(()=>input({sheetNos:[5,6],doNotVisit:'x'}),/回報一區/)
 assert.throws(()=>input({doNotVisit:'x'.repeat(101)}),/100 字/)
-assert.throws(()=>input({sheetNos:[5,214]}),/1–213/)
+assert.throws(()=>input({sheetNos:[5,216]}),/1–213/)
 assert.throws(()=>input({sheetNos:[]}),/1–213/)
 assert.throws(()=>input({sheetNos:Array.from({length:21},(_,i)=>i+1)}),/最多回報 20/)
 assert.deepEqual([...input({sheetNos:[5,5,'6']}).sheetNos],[5,6],'去重')
