@@ -4,6 +4,7 @@ const nextConfig = {
   experimental: {
     outputFileTracingIncludes: {
       '/api/line-bot/rich-menu': ['./public/line/rich-menu-*.png'],
+      '/api/line-bot/webhook': ['./docs/line-agent-knowledge/*.md'],
     },
   },
 }
