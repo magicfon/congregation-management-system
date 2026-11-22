@@ -5,7 +5,7 @@ import { AlertTriangle, ExternalLink, Plus, X } from 'lucide-react'
 
 type Area = { sheetNo: number; label: string; holder: string | null; dispatched: string | null }
 type Options = { restricted?: string; guest: boolean; admin: boolean; name: string; today: string; timeslots: string[]; maxAreas: number; held: Area[]; areas: Area[] }
-type Verdict = { sheetNo: number; action: 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self' | 'managed'; reason: string }
+type Verdict = { sheetNo: number; action: 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self' | 'managed' | 'sheet_only'; reason: string }
 const OTHER = 'other'
 const control = 'min-h-12 w-full rounded-lg border border-white/10 bg-mc-accent px-3 text-base'
 const label = 'mb-1 block text-sm text-mc-text/70'
@@ -71,7 +71,7 @@ export default function TerritoryReport({ formUrl, embedded = false }: { formUrl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkKey, Boolean(options)])
   const blocked = selected.filter(a => verdicts[a.sheetNo]?.action === 'blocked')
-  const warned = selected.filter(a => !['return', 'blocked', 'self', 'managed'].includes(verdicts[a.sheetNo]?.action || 'return'))
+  const warned = selected.filter(a => !['return', 'blocked', 'self', 'managed', 'sheet_only'].includes(verdicts[a.sheetNo]?.action || 'return'))
   const managed = selected.filter(a => verdicts[a.sheetNo]?.action === 'managed')
   function outcome(a: Area) {
     const v = verdicts[a.sheetNo]
@@ -86,7 +86,7 @@ export default function TerritoryReport({ formUrl, embedded = false }: { formUrl
 
   function addTag(no: number) {
     setAreaHint('')
-    if (!areaOf(no)) { setAreaHint('找不到這個區域號碼（1–213）'); return false }
+    if (!areaOf(no)) { setAreaHint('找不到這個區域號碼（1–215）'); return false }
     if (tags.includes(no)) return true
     if (options && tags.length >= options.maxAreas) { setAreaHint(`一次最多回報 ${options.maxAreas} 區`); return false }
     setTags(current => [...current, no])
@@ -131,9 +131,9 @@ export default function TerritoryReport({ formUrl, embedded = false }: { formUrl
         <label htmlFor="report-area" className={label}>區域</label>
         <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-mc-accent px-2 py-2">
           {selected.map(a => <button key={a.sheetNo} type="button" aria-label={`取消 ${a.label}`} onClick={() => setTags(current => current.filter(no => no !== a.sheetNo))} className={`inline-flex min-h-9 items-center gap-1 rounded-full px-3 text-sm ${tone(a)}`}>{a.label}<X aria-hidden="true" className="h-3.5 w-3.5" /></button>)}
-          <input id="report-area" inputMode="numeric" enterKeyHint="done" placeholder={tags.length ? '' : '輸入區號後按 Enter'} value={areaText} onKeyDown={areaKey} onBlur={() => { if (areaText && addTag(Number(areaText))) setAreaText('') }} onChange={e => { setAreaHint(''); setAreaText(e.target.value.replace(/\D/g, '').slice(0, 3)) }} className="min-h-9 min-w-[8rem] flex-1 bg-transparent px-1 text-base outline-none" />
+          <input id="report-area" aria-describedby="report-area-help" inputMode="numeric" enterKeyHint="done" placeholder={tags.length ? '' : '輸入區號後按 Enter'} value={areaText} onKeyDown={areaKey} onBlur={() => { if (areaText && addTag(Number(areaText))) setAreaText('') }} onChange={e => { setAreaHint(''); setAreaText(e.target.value.replace(/\D/g, '').slice(0, 3)) }} className="min-h-9 min-w-[8rem] flex-1 bg-transparent px-1 text-base outline-none" />
         </div>
-        {areaHint && <p role="alert" className="mt-1 text-xs text-amber-300">{areaHint}</p>}
+        {areaHint ? <p role="alert" className="mt-1 text-xs text-amber-300">{areaHint}</p> : <p id="report-area-help" className="mt-1 text-xs text-mc-text/60">每輸入一個區號就按 Enter（手機按「完成」）加入；可加入多個區域，一次最多 {options.maxAreas} 區。</p>}
         {options.held.some(a => !tags.includes(a.sheetNo)) && <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-xs text-mc-text/50">我領取的：</span>{options.held.filter(a => !tags.includes(a.sheetNo)).map(a => <button key={a.sheetNo} type="button" onClick={() => addTag(a.sheetNo)} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-white/10 px-3 text-sm text-mc-text/80 hover:bg-white/5"><Plus aria-hidden="true" className="h-3.5 w-3.5" />{a.label}</button>)}</div>}
         {(blocked.length > 0 || warned.length > 0 || managed.length > 0) && <ul className="mt-2 space-y-0.5 text-xs">{[...blocked, ...warned, ...managed].map(a => <li key={a.sheetNo} className={verdicts[a.sheetNo]?.action === 'blocked' ? 'text-red-300' : verdicts[a.sheetNo]?.action === 'managed' ? 'text-blue-300' : 'text-amber-200'}>{a.label}：{outcome(a)}</li>)}</ul>}
         {blocked.length > 0 && <p role="alert" className="mt-1 text-xs text-red-300">請移除標紅的區域才能送出。</p>}
@@ -150,8 +150,8 @@ export default function TerritoryReport({ formUrl, embedded = false }: { formUrl
         <div><label htmlFor="report-start" className={label}>開始日</label><input id="report-start" type="date" required max={endDate || options.today} value={startDate} onChange={e => setStartDate(e.target.value)} className={control} /></div>
         <div><label htmlFor="report-end" className={label}>結束日</label><input id="report-end" type="date" required min={startDate || undefined} max={options.today} value={endDate} onChange={e => setEndDate(e.target.value)} className={control} /></div>
       </div>
-      <div><label htmlFor="report-note" className={label}>備註（選填）</label><textarea id="report-note" rows={3} maxLength={500} value={note} onChange={e => setNote(e.target.value)} className={`${control} py-2`} /></div>
-      {tags.length === 1 && <div><label htmlFor="report-dnv" className={label}>拒絕拜訪地址（選填）</label><input id="report-dnv" maxLength={100} placeholder="例如：加昌路279巷5號" value={doNotVisit} onChange={e => setDoNotVisit(e.target.value)} className={control} /><p className="mt-1 text-xs text-mc-text/60">住戶要求不要再拜訪時填寫，管理員確認後會加到這張地圖。</p></div>}
+      <div><label htmlFor="report-note" className={label}>備註（選填）</label><textarea id="report-note" aria-describedby="report-note-help" rows={3} maxLength={500} value={note} onChange={e => setNote(e.target.value)} className={`${control} py-2`} /><p id="report-note-help" className="mt-1 text-xs text-mc-text/60">{tags.length === 1 && !areaOf(tags[0])?.label.includes('尚無地圖') ? '可寫傳道情況；拒絕拜訪的地址請填下方「拒絕拜訪地址」欄。' : '可寫傳道情況，也可以填入拒絕拜訪的地址（請註明區號）。'}</p></div>
+      {tags.length === 1 && areaOf(tags[0])?.label.includes('尚無地圖') !== true && <div><label htmlFor="report-dnv" className={label}>拒絕拜訪地址（選填）</label><input id="report-dnv" maxLength={100} placeholder="例如：加昌路279巷5號" value={doNotVisit} onChange={e => setDoNotVisit(e.target.value)} className={control} /><p className="mt-1 text-xs text-mc-text/60">住戶要求不要再拜訪時填寫，管理員確認後會加到這張地圖。</p></div>}
       {problem && <p role="alert" className="text-sm text-amber-300">{problem}</p>}
       {!reviewing && <button type="submit" disabled={busy || !ready} className="min-h-12 w-full rounded-lg bg-blue-500 px-4 text-base font-semibold text-white disabled:opacity-40">{selected.length && !checked ? '檢查區域中…' : '下一步：確認'}</button>}
       {reviewing && <section aria-labelledby="report-review-title" className="space-y-3 rounded-xl border border-white/10 bg-mc-accent p-4">

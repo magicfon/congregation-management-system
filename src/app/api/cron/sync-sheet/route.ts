@@ -16,7 +16,7 @@ import { syncReportCompletions } from '../../../../lib/report-completion-sync'
 import { syncServiceRoster } from '../../../../lib/service-roster-sync'
 import { syncDoNotVisit } from '../../../../lib/do-not-visit'
 import { currentHolder, syncReportAlerts, SheetMismatch } from '../../../../lib/report-alerts'
-import { addNotHolderReport, returnUndoState } from '../../../../lib/territory-report'
+import { addNotHolderReport, returnUndoState, SHEET_ONLY_SHEET_NOS } from '../../../../lib/territory-report'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -88,6 +88,8 @@ export async function POST(request: NextRequest) {
       const name = (nameCell || '').toString().trim()
       const sheetNo = Number(noCell)
       const area = bySheetNo.get(sheetNo)
+      // 尚未建立地圖的區號只留在 Sheet（ADR-0139），不算錯誤
+      if (!area && SHEET_ONLY_SHEET_NOS.includes(sheetNo)) { if (!maxTs || ts > maxTs) maxTs = ts; continue }
       if (!area) {
         result.errors.push(`回報區域 #${sheetNo} 找不到（${name}）`)
         continue

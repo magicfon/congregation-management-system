@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '../../../../lib/db'
 import { authOptions } from '../../../../lib/auth'
 import { taipeiDate } from '../../../../lib/google-sheets'
-import { checkTerritoryReport, resolveReportActor, TerritoryReportError, MAX_REPORT_AREAS } from '../../../../lib/territory-report'
+import { checkTerritoryReport, resolveReportActor, TerritoryReportError, MAX_REPORT_AREAS, isReportableSheetNo } from '../../../../lib/territory-report'
 
 export const dynamic = 'force-dynamic'
 const respond = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
     const sheetNos = [...new Set((Array.isArray(body.sheetNos) ? body.sheetNos : []).map(Number))]
-    if (!sheetNos.length || sheetNos.length > MAX_REPORT_AREAS || sheetNos.some(no => !Number.isInteger(no) || no < 1 || no > 213)) return respond({ error: '區域號碼無效' }, 400)
+    if (!sheetNos.length || sheetNos.length > MAX_REPORT_AREAS || sheetNos.some(no => !isReportableSheetNo(no))) return respond({ error: '區域號碼無效' }, 400)
     const endDate = typeof body.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.endDate) ? body.endDate : taipeiDate(new Date())
     const name = !user?.id && typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ').slice(0, 30) : ''
     const actor = await resolveReportActor(prisma, user?.id ?? null, user?.role === 'admin', name)
