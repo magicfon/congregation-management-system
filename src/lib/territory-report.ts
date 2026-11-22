@@ -8,6 +8,10 @@ export const REPORT_TIMESLOTS = ['星期六早上', '星期日早上', '星期�
 export const REPORT_SHEET_RANGE = '傳道區域回報!A:G'
 const DUPLICATE_WINDOW_MS = 10 * 60 * 1000
 export const MAX_REPORT_AREAS = 20
+// 尚未建立地圖的區號（ADR-0139）：可以回報，只寫入 Sheet「傳道區域回報」，不碰系統地圖與「區域狀態」
+export const SHEET_ONLY_SHEET_NOS = [214, 215]
+export const isReportableSheetNo = (no: number) => Number.isInteger(no) && ((no >= 1 && no <= 213) || SHEET_ONLY_SHEET_NOS.includes(no))
+export const SHEET_ONLY_REASON = '尚未建立地圖：只寫入回報紀錄'
 
 export class TerritoryReportError extends Error { constructor(message: string, public status = 400) { super(message) } }
 
@@ -25,7 +29,7 @@ export function parseReportInput(body: unknown, now = new Date(), guest = false)
   if (guest && (!name || name.length > 30)) throw new TerritoryReportError('請填寫姓名（最多 30 字）')
   const raw = Array.isArray(value.sheetNos) ? value.sheetNos : [value.sheetNo]
   const sheetNos = [...new Set(raw.map(Number))]
-  if (!sheetNos.length || sheetNos.some(no => !Number.isInteger(no) || no < 1 || no > 213)) throw new TerritoryReportError('區域號碼須為 1–213')
+  if (!sheetNos.length || sheetNos.some(no => !isReportableSheetNo(no))) throw new TerritoryReportError(`區域號碼須為 1–213 或 ${SHEET_ONLY_SHEET_NOS.join('、')}`)
   if (sheetNos.length > MAX_REPORT_AREAS) throw new TerritoryReportError(`一次最多回報 ${MAX_REPORT_AREAS} 區`)
   const timeslot = typeof value.timeslot === 'string' ? value.timeslot.trim() : ''
   if (!timeslot || timeslot.length > 30) throw new TerritoryReportError('請選擇或填寫傳道時段（最多 30 字）')
@@ -75,7 +79,7 @@ export type ReportActor = { memberId: string | null; name: string; admin: boolea
  * self 自主管理地圖的成員（ADR-0101）回報未領取的地圖：只留紀錄，免確認；別人領取中的照一般規則。
  * managed 個人管理的地圖（ADR-0130）：管理人或管理員回報，開始日記為領取日、結束日記為完成日，不交回；其他人不能回報。
  */
-export type ReportAction = 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self' | 'managed'
+export type ReportAction = 'return' | 'proxy' | 'confirm' | 'merge' | 'record' | 'blocked' | 'self' | 'managed' | 'sheet_only'
 export type ReportVerdict = { action: ReportAction; reason: string }
 
 export function classifyReportArea(area: ReportArea, actor: ReportActor, endDate: string, pendingAlert: boolean): ReportVerdict {
@@ -100,7 +104,7 @@ export function classifyReportArea(area: ReportArea, actor: ReportActor, endDate
     ? { action: 'proxy', reason: '不是你領取的，將以持有人名義代為回報並交回' }
     : { action: 'record', reason: '結束日早於目前持有人的領取日，只寫入回報紀錄，不交回' }
 }
-export const needsConfirmation = (verdict: ReportVerdict) => !['return', 'blocked', 'self', 'managed'].includes(verdict.action)
+export const needsConfirmation = (verdict: ReportVerdict) => !['return', 'blocked', 'self', 'managed', 'sheet_only'].includes(verdict.action)
 
 /** 同一輪派發的鍵：領取時間；沒有領取時間的舊資料用 none。 */
 export const dispatchKey = (area: { dispatchedAt: Date | null }) => area.dispatchedAt ? area.dispatchedAt.toISOString() : 'none'
@@ -152,6 +156,7 @@ export async function checkTerritoryReport(db: PrismaClient, actor: ReportActor,
   const pending = new Set((await db.reportAlert.findMany({ where: { areaId: { in: areas.map(a => a.id) }, kind: 'not_holder', status: 'pending' }, select: { areaId: true } })).map(a => a.areaId))
   return sheetNos.map(sheetNo => {
     const area = areas.find(a => a.sheetNo === sheetNo)
+    if (!area && SHEET_ONLY_SHEET_NOS.includes(sheetNo)) return { sheetNo, action: 'sheet_only' as const, reason: SHEET_ONLY_REASON }
     return { sheetNo, ...(area ? classifyReportArea(area, actor, endDate, pending.has(area.id)) : { action: 'blocked' as const, reason: `找不到區域號碼 ${sheetNo}` }) }
   })
 }
@@ -169,6 +174,12 @@ export async function submitTerritoryReport(db: PrismaClient, accountId: string 
     const rows: (string | number)[][] = []
     for (const sheetNo of input.sheetNos) {
       const area = await tx.area.findUnique({ where: { sheetNo }, include: { assignedMember: { select: { name: true } } } })
+      if (!area && SHEET_ONLY_SHEET_NOS.includes(sheetNo)) {
+        if (input.doNotVisit) throw new TerritoryReportError(`${sheetNo} 號尚未建立地圖，拒絕拜訪地址請寫在備註`)
+        rows.push(reportSheetRow(actor.name, input, sheetNo, now))
+        results.push({ sheetNo, action: 'sheet_only' })
+        continue
+      }
       if (!area) throw new TerritoryReportError(`找不到區域號碼 ${sheetNo}`)
       const pending = await tx.reportAlert.findFirst({ where: { areaId: area.id, kind: 'not_holder', status: 'pending' } })
       const verdict = classifyReportArea(area, actor, input.endDate, Boolean(pending))
