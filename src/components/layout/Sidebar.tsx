@@ -74,8 +74,10 @@ type Props = {
 export default function Sidebar({ open, onClose, collapsed, onToggleCollapse, currentUser, onRetryUser }: Props) {
   const pathname = usePathname()
   const isAdmin = currentUser.status === 'ready' && currentUser.role === 'admin'
+  // 角色未確定（載入中／失敗）時不顯示任何角色專屬項目，避免管理員換頁時閃現「成員一覽」
+  const isNonAdmin = currentUser.status === 'ready' && currentUser.role !== 'admin'
   const navGroups = [
-    { label: '日常查看', items: [navItems[1], navItems[0], navItems[5], ...(!isAdmin ? [{ ...navItems[7], label: '成員一覽' }] : [])] },
+    { label: '日常查看', items: [navItems[1], navItems[0], navItems[5], ...(isNonAdmin ? [{ ...navItems[7], label: '成員一覽' }] : [])] },
     { label: '地圖工作', items: [navItems[2], navItems[3], navItems[6], navItems[4],
       { href: '/bulletin/territory-report', label: '傳道回報', icon: <FileCheck2 size={20} aria-hidden="true" /> }] },
     ...(isAdmin ? [{ label: '管理', items: adminManagementLinks.map(link => ({ ...link, icon: <Settings2 size={20} aria-hidden="true" /> })) }] : []),

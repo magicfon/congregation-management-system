@@ -11,9 +11,17 @@ export default function DashboardLayout({ children, publicView = false, entryVie
   return <MemberDashboardLayout>{children}</MemberDashboardLayout>
 }
 
+// 每頁各自包 DashboardLayout，換頁時會重新掛載；記住上一次的登入資訊，
+// 避免每次換頁先以「載入中」渲染側欄、角色相關選單閃現又消失。
+let lastKnownUser: CurrentUserState | null = null
+
 function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [currentUser, setCurrentUser] = useState<CurrentUserState>({ status: 'loading' })
+  const [currentUser, setCurrentUserState] = useState<CurrentUserState>(() => lastKnownUser ?? { status: 'loading' })
+  const setCurrentUser = useCallback((next: CurrentUserState) => {
+    lastKnownUser = next.status === 'ready' ? next : null
+    setCurrentUserState(next)
+  }, [])
   const userRequest = useRef<AbortController | null>(null)
   const refreshUser = useCallback(async () => {
     userRequest.current?.abort()
@@ -28,7 +36,7 @@ function MemberDashboardLayout({ children }: { children: React.ReactNode }) {
     } catch {
       if (!controller.signal.aborted) setCurrentUser({ status: 'error' })
     }
-  }, [])
+  }, [setCurrentUser])
   useEffect(() => {
     void refreshUser()
     const onFocus = () => { void refreshUser() }
