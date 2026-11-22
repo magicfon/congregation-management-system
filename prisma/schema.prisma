@@ -303,3 +303,19 @@ model PendingLineIdentity {
   lastSeenAt DateTime @default(now())
   @@map("pending_line_identities")
 }
+
+// LINE 自由文字問答紀錄：保留最近對話供追問，並計算每人每日提問數（ADR-0143）。
+model LineAiMessage {
+  id String @id @default(cuid())
+  uid String
+  memberId String?
+  role String // user | assistant
+  model String?
+  content String
+  inputTokens Int?
+  outputTokens Int?
+  cacheReadTokens Int?
+  createdAt DateTime @default(now())
+  @@index([uid, createdAt])
+  @@map("line_ai_messages")
+}
