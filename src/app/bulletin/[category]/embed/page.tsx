@@ -4,9 +4,10 @@ import { bulletinCategories } from '@/lib/bulletin'
 import PdfReader from '@/components/bulletin/PdfReader'
 import Midweek from '@/components/bulletin/Midweek'
 import TerritoryReport from '@/components/bulletin/TerritoryReport'
+import Announcements from '@/components/bulletin/Announcements'
 
-// 嵌入外部網站（Google 協作平台）用的無邊框版本：不包 DashboardLayout、無標頭，固定淺色（ADR-0084、ADR-0085、ADR-0136、ADR-0138）。
-const embeddable = ['public-talks', 'midweek-meeting', 'ministry-groups', 'territory-report']
+// 嵌入外部網站（Google 協作平台）用的無邊框版本：不包 DashboardLayout、無標頭，固定淺色（ADR-0084、ADR-0085、ADR-0136、ADR-0138、ADR-0141）。
+const embeddable = ['public-talks', 'midweek-meeting', 'ministry-groups', 'territory-report', 'announcements']
 // 這些嵌入頁不顯示捲軸：內容隨框寬縮放，捲軸時有時無會讓寬度來回跳而抖動（ADR-0114、ADR-0136）。
 const noScrollbar = ['ministry-groups']
 
@@ -26,6 +27,10 @@ export default function BulletinEmbedPage({ params }: Props) {
   // 區域回報嵌入版：iframe 內帶不到登入，一律以免登入（自填姓名）回報（ADR-0078、ADR-0138）。
   if (category.slug === 'territory-report') return <main className="bulletin-embed bulletin-embed-no-scrollbar fixed inset-0 overflow-auto bg-mc-bg p-2 text-mc-text sm:p-4">
     <div className="mx-auto max-w-2xl"><TerritoryReport formUrl={category.sources[0].url} embedded /></div>
+  </main>
+  // 會眾公告嵌入版：與公布欄相同的公告列表，最新一則預設展開；公開讀取，不需登入（ADR-0141）。
+  if (category.slug === 'announcements') return <main className="bulletin-embed bulletin-embed-no-scrollbar fixed inset-0 overflow-auto bg-mc-bg p-2 text-mc-text sm:p-4">
+    <div className="mx-auto max-w-4xl"><Announcements originalUrl={category.sources[0].url} embedded /></div>
   </main>
   const source = category.sources.find(item => item.pdf)
   if (!source?.pdf) notFound()
