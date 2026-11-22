@@ -7,6 +7,11 @@ import DispatchMemberPicker, { activeDispatchMembers } from './DispatchMemberPic
 import RequestSubmitBar from './RequestSubmitBar'
 
 type Member = { id: string; name: string }
+// 最近回報（ADR-0140）：key 與退回預覽只有管理員拿得到
+type Recent = { name: string; startDate: string; endDate: string; submittedAt: string | null; key?: string; restoreTo?: { holder: string; dispatched: string | null } | null; notRestored?: boolean; managedStart?: string | null; lastCompleted?: string | null }
+const md = (date: string) => date ? `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}` : ''
+const tpDate = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' }) : ''
+const tpTime = (iso: string | null) => iso ? new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '時間不明'
 
 export default function MapAllocationList() {
   const [areas, setAreas] = useState<AllocationArea[]>([])
@@ -25,6 +30,19 @@ export default function MapAllocationList() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [memberId, setMemberId] = useState('')
   const [note, setNote] = useState('')
+  const [recent, setRecent] = useState<Record<number, Recent> | null>(null)
+  const [recentError, setRecentError] = useState(false)
+
+  // Sheet 讀取較慢，不擋清單載入
+  const loadRecent = useCallback(async () => {
+    setRecentError(false)
+    try {
+      const res = await fetch('/api/areas/recent-reports', { cache: 'no-store' })
+      if (!res.ok) throw new Error()
+      setRecent((await res.json()).reports)
+    } catch { setRecentError(true) }
+  }, [])
+  useEffect(() => { void loadRecent() }, [loadRecent])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -90,6 +108,28 @@ export default function MapAllocationList() {
     finally { busyRef.current = false; setBusy(false) }
   }
 
+  async function withdraw(area: AllocationArea, report: Recent) {
+    if (!report.key || busyRef.current) return
+    const effects = [
+      '・刪除 Sheet「傳道區域回報」這一列、系統回報紀錄，以及這次附上的拒訪待審',
+      '・這筆回報造成的回報待確認一併移除',
+      `・最後完成日改為 ${report.lastCompleted ? tpDate(report.lastCompleted) : '空白（沒有其他回報）'}`,
+      report.restoreTo ? `・地圖恢復由 ${report.restoreTo.holder || '原持有人'} 使用中（領取日 ${tpDate(report.restoreTo.dispatched) || '不明'}），寫回 Sheet 區域狀態` : '',
+      report.notRestored ? '・這筆回報交回的地圖之後已重新分發或收回，地圖分配不變' : '',
+      report.managedStart ? `・個人管理領取日改回 ${tpDate(report.managedStart)}` : '',
+    ].filter(Boolean)
+    if (!window.confirm(`退回 ${allocationLabel(area)} 的回報？\n\n${report.name}・${md(report.startDate)}–${md(report.endDate)}（${tpTime(report.submittedAt)} 送出）\n\n${effects.join('\n')}\n\n退回後無法復原，要重新回報請再填一次。`)) return
+    busyRef.current = true; setBusy(true); setError(''); setMessage('')
+    try {
+      const res = await fetch('/api/territory-reports/withdraw', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: report.key }) })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '退回未完成，請重新整理確認狀態')
+      await Promise.all([load(), loadRecent()])
+      setMessage(`已退回 ${allocationLabel(area)} 的回報：${(data.done as string[]).join('、')}。${data.warning || ''}`)
+    } catch (e) { setError(e instanceof Error ? e.message : '連線中斷，請重新整理確認狀態後再試') }
+    finally { busyRef.current = false; setBusy(false) }
+  }
+
   async function dispatch() {
     const member = members.find((m) => m.id === memberId)
     if (!member || !selectedAreas.length || busyRef.current || loading || !isAdmin || error) return
@@ -117,7 +157,7 @@ export default function MapAllocationList() {
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="text-mc-text/70">共 {areas.length} 張 · 可分發 {available} 張 · 使用中 {areas.filter(a => a.isDispatched).length} 張 · 暫停分發 {areas.filter(a => !a.dispatchEnabled).length} 張</span>
         <div className="flex gap-2">
-          <button type="button" disabled={disabled} onClick={() => void load()} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs disabled:opacity-40">重新整理</button>
+          <button type="button" disabled={disabled} onClick={() => { void load(); void loadRecent() }} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs disabled:opacity-40">重新整理</button>
           {isAdmin && <button type="button" disabled={disabled} onClick={() => void refreshDates()} className="rounded-lg border border-blue-400/30 px-3 py-1.5 text-xs text-blue-300 disabled:opacity-40">更新回報日期</button>}
         </div>
       </div>
@@ -162,6 +202,7 @@ export default function MapAllocationList() {
                 <th scope="col" className="px-2 py-1">地圖</th>
                 <th scope="col" className="hidden sm:table-cell px-2 py-1">上次回報完成</th>
                 <th scope="col" className="px-2 py-1 text-right">距今</th>
+                <th scope="col" className="px-2 py-1">最近回報</th>
                 <th scope="col" className="px-2 py-1">分配狀態</th>
               </tr>
             </thead>
@@ -176,6 +217,15 @@ export default function MapAllocationList() {
                   <td className={`px-2 py-1 text-right whitespace-nowrap tabular-nums ${area.idleDays === null ? 'text-mc-text/40' : area.idleDays >= 180 ? 'text-red-400' : area.idleDays >= 90 ? 'text-yellow-300' : 'text-mc-text'}`}>
                     {area.idleDays === null ? '—' : <><strong>{area.idleDays}</strong> 天</>}
                   </td>
+                  <td className="px-2 py-1 text-xs">{(() => {
+                    const report = area.sheetNo ? recent?.[area.sheetNo] : undefined
+                    if (!recent) return <span className="text-mc-text/40">{recentError ? '讀取失敗' : '…'}</span>
+                    if (!report) return <span className="text-mc-text/40">—</span>
+                    return <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span title={`${report.name}・${report.startDate}–${report.endDate}・${tpTime(report.submittedAt)} 送出`}><span className="block">{report.name || '未填姓名'}</span><span className="block text-mc-text/50 tabular-nums">{md(report.startDate)}–{md(report.endDate)}</span></span>
+                      {isAdmin && report.key && <button type="button" disabled={disabled} onClick={() => void withdraw(area, report)} className="rounded border border-red-400/30 px-1.5 py-0.5 text-[11px] text-red-300 disabled:opacity-40">退回</button>}
+                    </div>
+                  })()}</td>
                   <td className="px-2 py-1 max-w-28 break-words">{area.personalTerritory && <span className="block text-blue-300">個人區域</span>}{area.personalManaged && <span className="block text-blue-300">個人管理</span>}{!area.dispatchEnabled && <span className="block text-amber-300">暫停分發</span>}{area.isDispatched ? <><span className="text-mc-text/50">使用中</span><span className="ml-1 text-xs">{area.assignedTo || '未知持有人'}</span></> : area.dispatchEnabled ? <span className="text-emerald-300">可分發</span> : null}</td>
                 </tr>)}
             </tbody>
