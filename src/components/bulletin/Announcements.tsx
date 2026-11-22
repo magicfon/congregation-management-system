@@ -5,7 +5,8 @@ import PdfReader from './PdfReader'
 import { MAX_ANNOUNCEMENT_BYTES } from '@/lib/bulletin-announcements'
 
 type Announcement = { id: string; title: string; size: number; createdAt: string }
-export default function Announcements({ originalUrl }: { originalUrl: string }) {
+// embedded：外部網站 iframe 用，只列公告與閱讀器，不查登入、不顯示管理與原頁連結（ADR-0141）。
+export default function Announcements({ originalUrl, embedded = false }: { originalUrl: string; embedded?: boolean }) {
   const [items, setItems] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -31,8 +32,9 @@ export default function Announcements({ originalUrl }: { originalUrl: string }) 
   }
   useEffect(() => {
     void load()
+    if (embedded) return
     void fetch('/api/me', { cache: 'no-store' }).then(async response => { if (response.ok) setIsAdmin((await response.json()).isAdmin === true) }).catch(() => {})
-  }, [])
+  }, [embedded])
   useEffect(() => {
     if (!isAdmin || window.location.hash !== '#manage-announcements') return
     const panel = document.getElementById('manage-announcements') as HTMLDetailsElement | null
@@ -87,6 +89,6 @@ export default function Announcements({ originalUrl }: { originalUrl: string }) 
       </div>
       <div id={`announcement-${item.id}`}>{open.has(item.id) && <PdfReader id={`announcement-${item.id}`} label={item.title} src={`/api/bulletin/announcements/${item.id}`} />}</div>
     </section>)}
-    <a href={originalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-xs text-mc-text/60 hover:text-blue-300">原 Google 公告頁<span className="sr-only">（另開分頁）</span></a>
+    {!embedded && <a href={originalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-xs text-mc-text/60 hover:text-blue-300">原 Google 公告頁<span className="sr-only">（另開分頁）</span></a>}
   </div>
 }
