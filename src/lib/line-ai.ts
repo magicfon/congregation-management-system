@@ -18,7 +18,7 @@ export const lineAiHistoryTurns = 5
 const maxQuestionLength = 500
 const knowledgeDir = path.join(process.cwd(), 'docs', 'line-agent-knowledge')
 
-export const lineAiModel = () => process.env.GLM_MODEL?.trim() || 'glm-5.3'
+export const lineAiModel = () => process.env.GLM_MODEL?.trim() || 'glm-5.3-flash'
 const glmEndpoint = () => `${(process.env.GLM_BASE_URL?.trim() || 'https://api.z.ai/api/paas/v4').replace(/\/+$/, '')}/chat/completions`
 
 export function lineAiReady() {

@@ -60,7 +60,7 @@ async function main() {
     const result = await lineAiAnswer(db, 'm1', 'U1', '怎麼申請地圖？', now, client)
     assert.equal(result.text, '到傳道地圖申請。')
     const params = calls[0]
-    assert.equal(params.model, 'glm-5.3')
+    assert.equal(params.model, 'glm-5.3-flash')
     assert.equal(params.messages[0].role, 'system')
     assert.match(params.messages[0].content, /<knowledge>/)
     assert.doesNotMatch(params.messages[0].content, /王小明|陳志強/, '固定前綴不放會變動的資料，才能命中快取')
