@@ -70,12 +70,13 @@ export default function ServiceRosterGrid({ weeks, people, revision, today, busy
             </th>)}
           </tr>
         </thead>
-        <tbody>{shown.map(week => {
+        <tbody>{shown.map((week, index) => {
           const assignments = current(week)
           const conflicts = conflictRoles(assignments)
           const thisWeek = week.startDate <= today && week.endDate >= today
           const usedBy = new Map(Object.entries(assignments).filter(([role]) => role !== 'backup').map(([role, a]) => [a!.personId, role as ServiceRole]))
-          return <tr key={week.startDate} className={`group ${week.endDate < today ? 'opacity-70' : ''}`}>
+          // 隔週交替底色，方便橫向對照同一週（ADR-0144）。
+          return <tr key={week.startDate} className={`group ${index % 2 ? 'roster-band' : ''} ${week.endDate < today ? 'opacity-70' : ''}`}>
             <th scope="row" className={`sticky left-0 z-10 border-b border-r border-white/10 px-2 py-1.5 align-middle text-base font-semibold ${thisWeek ? 'bg-mc-accent' : 'bg-mc-card'}`}>
               <button type="button" title="開啟單週編輯（停排、備註）" className="text-left underline-offset-4 hover:underline" onClick={() => openWeek(week.startDate)}>
                 <span className="block text-xs font-normal text-mc-text/60">{week.startDate.slice(0, 4)}{thisWeek ? ' · 本週' : ''}</span>
