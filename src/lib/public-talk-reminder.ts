@@ -1,29 +1,19 @@
-import { createHash } from 'crypto'
 import type { PrismaClient } from '@prisma/client'
 import { taipeiDate } from './google-sheets'
 import { lineBotReady } from './line-bot-client'
-import { drainLineNotifications } from './line-notifications'
+import { queueReminder, readReminderSettingsByKey, ReminderSettings, writeReminderSettingsByKey } from './reminder-recipients'
 
 // 公眾演講秩序表（公開試算表，與公布欄「公眾演講」同一份）。ADR-0145
 export const PUBLIC_TALK_SHEET_ID = '10dCF6Wcqp-11g4vHSYGCekfvGvBE8MKzOqTxgt9-jtM'
 const SETTING_KEY = 'public_talk_reminder'
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
-export type PublicTalkReminderSettings = { enabled: boolean; memberIds: string[]; lastRun?: { week: string; queued: number; at: string } | null }
+export const PUBLIC_TALK_REMINDER_KEY = SETTING_KEY
+export type PublicTalkReminderSettings = ReminderSettings<{ week: string; queued: number; at: string }>
 export type PublicTalkEntry = { date: string; number: string; title: string; speaker: string }
 
-export async function readReminderSettings(db: PrismaClient): Promise<PublicTalkReminderSettings> {
-  const row = await db.setting.findUnique({ where: { key: SETTING_KEY } })
-  try {
-    const value = row ? JSON.parse(row.value) : {}
-    return { enabled: value.enabled === true, memberIds: Array.isArray(value.memberIds) ? value.memberIds.filter((id: unknown) => typeof id === 'string') : [], lastRun: value.lastRun ?? null }
-  } catch { return { enabled: false, memberIds: [], lastRun: null } }
-}
-
-export async function writeReminderSettings(db: PrismaClient, settings: PublicTalkReminderSettings) {
-  const value = JSON.stringify(settings)
-  await db.setting.upsert({ where: { key: SETTING_KEY }, create: { key: SETTING_KEY, value }, update: { value } })
-}
+export const readReminderSettings = (db: PrismaClient): Promise<PublicTalkReminderSettings> => readReminderSettingsByKey(db, SETTING_KEY)
+export const writeReminderSettings = (db: PrismaClient, settings: PublicTalkReminderSettings) => writeReminderSettingsByKey(db, SETTING_KEY, settings)
 
 export function parseCsv(text: string): string[][] {
   const rows: string[][] = []
@@ -140,11 +130,6 @@ export async function buildWeekReminder(now = new Date()) {
   return { monday, sunday, talks, text: reminderText(talks, monday, sunday) }
 }
 
-function stableId(key: string) {
-  const hex = createHash('sha256').update(key).digest('hex')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`
-}
-
 /** 每週一排程：同一週同一人只排一次（固定 id），重跑只會補發未送達的 */
 export async function sendPublicTalkReminders(db: PrismaClient, now = new Date()) {
   const settings = await readReminderSettings(db)
@@ -152,10 +137,7 @@ export async function sendPublicTalkReminders(db: PrismaClient, now = new Date()
   if (!lineBotReady()) return { skipped: 'line_disabled' as const }
   const week = await buildWeekReminder(now)
   if (!week.text) return { skipped: 'no_talk' as const, week: week.monday }
-  const members = await db.member.findMany({ where: { id: { in: settings.memberIds }, active: true, deletedAt: null, lineuid: { not: null }, lineNotificationsEnabled: true }, select: { id: true, lineuid: true } })
-  const data = members.map(member => ({ id: stableId(`public-talk:${week.monday}:${member.id}`), memberId: member.id, lineUid: member.lineuid!, text: week.text!, nextAttemptAt: now, expiresAt: new Date(now.getTime() + 23 * 3600000) }))
-  const queued = data.length ? (await db.lineNotification.createMany({ data, skipDuplicates: true })).count : 0
-  const delivery = data.length ? await drainLineNotifications(db, data.map(d => d.id), now, 250) : null
+  const { recipients, queued, delivery } = await queueReminder(db, settings.memberIds, `public-talk:${week.monday}`, week.text, now, 23)
   await writeReminderSettings(db, { ...(await readReminderSettings(db)), lastRun: { week: week.monday, queued, at: now.toISOString() } })
-  return { week: week.monday, recipients: data.length, queued, delivery }
+  return { week: week.monday, recipients, queued, delivery }
 }

@@ -20,6 +20,7 @@
     "lint": "next lint",
     "check:regression": "node scripts/regression-checks.cjs",
     "check:line-ai": "tsx scripts/check-line-ai.ts",
+    "check:admin-task-reminder": "tsx scripts/check-admin-task-reminder.ts",
     "check:line-pairing": "node scripts/check-line-pairing.cjs",
     "check:map-allocation": "node scripts/check-map-allocation.cjs",
     "check:map-requests": "node scripts/check-map-requests.cjs",
