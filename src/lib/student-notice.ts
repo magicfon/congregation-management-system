@@ -166,3 +166,18 @@ export async function acknowledgeNotice(db: PrismaClient, lineUid: string, data:
   }
   return `已確認收到 ${displayDate(entry.date)} ${entry.title.replace(/[[\]]/g, '')}，謝謝！`
 }
+
+// 看板「學生通知單確認」：今天起已發布的各週，列出每位學生的通知單內容與確認狀態（ADR-0146）。
+export type NoticeOverviewWeek = { weekId: string; date: string; rows: NoticePlanRow[] }
+export async function studentNoticeOverview(db: PrismaClient, today: string): Promise<NoticeOverviewWeek[]> {
+  const records = await db.setting.findMany({ where: { key: { startsWith: 'midweek:record:' } } })
+  const weeks = records.map(row => ({ weekId: row.key.slice('midweek:record:'.length), meeting: (JSON.parse(row.value) as MeetingRecord).published }))
+    .filter((week): week is { weekId: string; meeting: Meeting } => !!week.meeting && week.meeting.date >= today && /^[a-f0-9]{24}$/.test(week.weekId))
+    .sort((a, b) => a.meeting.date.localeCompare(b.meeting.date))
+  const result: NoticeOverviewWeek[] = []
+  for (const week of weeks) {
+    const rows = (await buildPlan(db, week.weekId)).rows
+    if (rows.length) result.push({ weekId: week.weekId, date: week.meeting.date, rows })
+  }
+  return result
+}

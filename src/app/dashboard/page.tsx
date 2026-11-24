@@ -6,6 +6,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout'
 import LineBotStatus from '../../components/dashboard/LineBotStatus'
 import PublicTalkReminder from '../../components/dashboard/PublicTalkReminder'
 import LineNotificationPreference from '../../components/dashboard/LineNotificationPreference'
+import StudentNoticeStatus from '../../components/dashboard/StudentNoticeStatus'
 import SyncCheck from '../../components/dashboard/SyncCheck'
 import PersonalAssignmentsPanel from '../../components/dashboard/PersonalAssignments'
 import type { PersonalAssignments } from '../../lib/personal-assignments'
@@ -63,6 +64,8 @@ export default function DashboardPage() {
       </>}
       {/* 先看自己的委派與服務，再看管理待辦，最後是管理入口（ADR-0074）。 */}
       {data.isAdmin && <AdminTaskCenter />}
+      {/* 學生通知單確認狀態與內容核對（ADR-0146）。 */}
+      {data.isAdmin && <StudentNoticeStatus />}
       {data.isAdmin && <nav aria-label="常用管理" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {adminManagementLinks.map(link => <a key={link.href} href={link.href} className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-white/15 bg-mc-card px-4 text-sm text-mc-text hover:bg-mc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"><Settings2 size={16} aria-hidden="true" />{link.label}<ArrowRight size={16} aria-hidden="true" className="ml-auto" /></a>)}
       </nav>}
