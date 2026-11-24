@@ -241,7 +241,8 @@ export default function MembersPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 md:p-8">
+      {/* 成員名單電腦版限制寬度，避免欄位被拉得太開。 */}
+      <div className="mx-auto max-w-4xl p-4 md:p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6 md:mb-8">
           <div>
@@ -304,9 +305,6 @@ export default function MembersPage() {
                       </div>
                       {isAdmin && <MemberLineDetails member={m} />}
                       <div className="mt-2">{dispatchButton(m)}</div>
-                      <div className="text-xs text-mc-text/40 mt-1">
-                        {m._count.reports} 回報
-                      </div>
                     </div>
                   </div>
                   <div className="flex gap-1.5 flex-shrink-0">
@@ -339,15 +337,14 @@ export default function MembersPage() {
                 <tr className="border-b border-white/5 bg-mc-accent/50">
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">姓名</th>
                   {isAdmin && <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50">LINE 名稱</th>}
-                  <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider hidden lg:table-cell">活動記錄</th>
                   <th className="text-right px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {loading ? (
-                  <tr><td colSpan={isAdmin ? 4 : 3} className="text-center py-16 text-mc-text/30 text-sm">載入中…</td></tr>
+                  <tr><td colSpan={isAdmin ? 3 : 2} className="text-center py-16 text-mc-text/30 text-sm">載入中…</td></tr>
                 ) : members.length === 0 ? (
-                  <tr><td colSpan={isAdmin ? 4 : 3} className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</td></tr>
+                  <tr><td colSpan={isAdmin ? 3 : 2} className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</td></tr>
                 ) : (
                   members.map((m) => (
                     <tr key={m.id} className={`hover:bg-mc-accent/30 transition-colors ${!m.active ? 'opacity-50' : ''}`}>
@@ -363,11 +360,6 @@ export default function MembersPage() {
                         </div>
                       </td>
                       {isAdmin && <td className="px-5 py-4 max-w-64"><MemberLineDetails member={m} /></td>}
-                      <td className="px-5 py-4 hidden lg:table-cell">
-                        <span className="text-xs text-mc-text/50">
-                          {m._count.reports} 回報
-                        </span>
-                      </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {dispatchButton(m)}

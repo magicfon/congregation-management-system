@@ -50,8 +50,10 @@ export default function MemberLineDetails({ member }: { member: MemberDetails })
       aria-label={`${member.name}的 LINE 與聯絡詳細資訊`}
       onMouseEnter={show} onMouseLeave={closeSoon} onFocus={show}
       onBlur={event => { if (!card.current?.contains(event.relatedTarget as Node)) closeSoon() }} onClick={show}
-      className="min-h-11 max-w-full break-words text-left text-xs text-mc-text/60 hover:text-blue-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
-      {member.lineuid ? member.lineDisplayName || '已綁定 LINE（名稱待更新）' : '未綁定 LINE'}
+      className={`inline-flex min-h-11 max-w-full items-center gap-1.5 break-words text-left text-xs hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 ${member.lineuid ? 'text-emerald-300' : 'text-amber-300'}`}>
+      {/* 已連結綠色實心點、未連結琥珀色空心點，顏色之外也用符號區分。 */}
+      <span aria-hidden="true">{member.lineuid ? '●' : '○'}</span>
+      <span className="min-w-0">{member.lineuid ? member.lineDisplayName || '已綁定 LINE（名稱待更新）' : '未綁定 LINE'}</span>
     </button>
     {open && createPortal(<div ref={card} id={id} role="region" aria-label={`${member.name}的詳細資訊`}
       onMouseEnter={cancelClose} onMouseLeave={closeSoon} onFocus={cancelClose}
