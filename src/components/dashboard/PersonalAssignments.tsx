@@ -31,7 +31,7 @@ function AssignmentList({ items, emphasize = false }: { items: PersonalAssignmen
 }
 
 export default function PersonalAssignmentsPanel({ data }: { data: PersonalAssignments }) {
-  const { upcoming, past } = data
+  const { upcoming } = data
   const inThisWeek = (item: PersonalAssignment) => item.date <= data.weekEnd && item.endDate >= data.weekStart
   const thisWeek = upcoming.filter(inThisWeek)
   const later = upcoming.filter(item => !inThisWeek(item))
@@ -51,8 +51,5 @@ export default function PersonalAssignmentsPanel({ data }: { data: PersonalAssig
       {later.length ? <AssignmentList items={initial} /> : <p className="py-4 text-sm text-mc-text/70">暫無已公布委派</p>}
     </div>
     {remaining.length > 0 && <details className="group border-t border-white/10"><summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm text-blue-200 [&::-webkit-details-marker]:hidden">更多委派 · {remaining.length} 項<ChevronDown size={16} aria-hidden="true" className="transition-transform group-open:rotate-180" /></summary><AssignmentList items={remaining} /></details>}
-    <details className="group border-t border-white/10"><summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden">過去委派 · {past.length} 項<ChevronDown size={16} aria-hidden="true" className="transition-transform group-open:rotate-180" /></summary>
-      {past.length ? <AssignmentList items={past} /> : <p className="py-4 text-sm text-mc-text/70">尚無過去紀錄</p>}
-    </details>
   </section>
 }
