@@ -144,7 +144,7 @@ function MemberModal({
 
           {!member && <label className="flex items-start gap-2.5 cursor-pointer">
             <input type="checkbox" checked={showInDispatch} disabled={loading} onChange={e => setShowInDispatch(e.target.checked)} className="mt-1 h-4 w-4 accent-blue-500" />
-            <span className="text-sm text-mc-text/70">顯示於派發按鈕<span className="mt-1 block text-xs text-mc-text/40">僅啟用中的成員會顯示；不影響帳號或領圖申請。</span></span>
+            <span className="text-sm text-mc-text/70">顯示於地圖派發人選<span className="mt-1 block text-xs text-mc-text/40">僅啟用中的成員會顯示；不影響帳號或領圖申請。</span></span>
           </label>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-white/10 text-mc-text/60 hover:text-mc-text hover:bg-mc-accent text-sm transition-colors">
@@ -210,12 +210,12 @@ export default function MembersPage() {
 
   function dispatchButton(member: Member) {
     return isAdmin && <button type="button"
-      aria-label={`${member.name}：顯示於派發人選`}
+      aria-label={`${member.name}：顯示於地圖派發人選`}
       aria-pressed={member.showInDispatch !== false}
       disabled={dispatchSaving !== null}
       onClick={() => void handleToggleDispatch(member)}
       className={`min-h-11 rounded-lg border px-3 text-xs whitespace-nowrap disabled:opacity-50 ${member.showInDispatch !== false ? 'border-blue-400/30 bg-blue-400/10 text-blue-300' : 'border-white/10 text-mc-text/40'}`}
-    >{dispatchSaving === member.id ? '儲存中…' : member.showInDispatch !== false ? '派發人選 ✓' : '派發人選 −'}</button>
+    >{dispatchSaving === member.id ? '儲存中…' : member.showInDispatch !== false ? '地圖派發人選 ✓' : '地圖派發人選 −'}</button>
   }
 
   async function handleDelete(member: Member) {
