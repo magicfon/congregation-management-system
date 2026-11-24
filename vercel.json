@@ -10,6 +10,10 @@
     {
       "path": "/api/cron/sync-sheet",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/public-talk-reminder",
+      "schedule": "0 1 * * 1"
     }
   ]
 }
