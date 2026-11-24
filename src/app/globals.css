@@ -212,11 +212,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 /* Dashboard uses the same saved appearance as the public bulletin. */
-.dashboard-theme { --status-amber: 38 92% 75%; --status-green: 142 65% 72%; --status-red: 0 85% 82%; }
-.dashboard-theme[data-bulletin-theme="light"] { --status-amber: 30 90% 28%; --status-green: 145 75% 25%; --status-red: 0 75% 35%; }
+.dashboard-theme { --status-amber: 38 92% 75%; --status-green: 142 65% 72%; --status-red: 0 85% 82%; --week-ink: 214 95% 93%; --week-ink-muted: 213 94% 82%; }
+.dashboard-theme[data-bulletin-theme="light"] { --status-amber: 30 90% 28%; --status-green: 145 75% 25%; --status-red: 0 75% 35%; --week-ink: 218 75% 24%; --week-ink-muted: 216 70% 34%; }
 @media (prefers-color-scheme: light) {
-  .dashboard-theme:not([data-bulletin-theme="dark"]) { --status-amber: 30 90% 28%; --status-green: 145 75% 25%; --status-red: 0 75% 35%; }
+  .dashboard-theme:not([data-bulletin-theme="dark"]) { --status-amber: 30 90% 28%; --status-green: 145 75% 25%; --status-red: 0 75% 35%; --week-ink: 218 75% 24%; --week-ink-muted: 216 70% 34%; }
 }
+/* 本週委派日期：淺色模式原本沿用 blue-100，白底幾乎看不見。 */
+.dashboard-theme .text-blue-100 { color: hsl(var(--week-ink)); }
+.dashboard-theme .text-blue-200\/80 { color: hsl(var(--week-ink-muted)); }
 .dashboard-theme :is(.text-amber-200, .text-amber-300, .text-yellow-400) { color: hsl(var(--status-amber)); }
 .dashboard-theme :is(.text-green-300, .text-green-400, .text-emerald-300, .text-emerald-400) { color: hsl(var(--status-green)); }
 .dashboard-theme :is(.text-red-200, .text-red-300, .text-red-400) { color: hsl(var(--status-red)); }
