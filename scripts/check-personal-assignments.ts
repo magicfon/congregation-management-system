@@ -49,6 +49,26 @@ async function main() {
   assert.match(long, /\d{1,2}月\d{1,2}日（[日一二三四五六]）/)
   assert.equal(lineDate('2026-11-15'), '11月15日（日）')
   assert.equal(lineDate('2026-11-21'), '11月21日（六）')
+  // 公眾演講秩序表：講者（外地講者括號會眾）、週末主席、守望台誦讀；同週服務安排已有守望台朗讀就不重複
+  const talkRows = [
+    ['楠梓會衆 公衆演講秩序表'], ['日期', '', '講題', '講者', '主席', '守', '誦讀'],
+    ['10/18', '55', '你在上帝面前有怎樣的名聲？', '王小明', '陳小華', '劉', '王小明'],
+    ['10/25', '63', '你有傳福音的精神嗎？', '川鍋功太（屏東北部）A', '王小明', '柳', '陳小華'],
+    ['2027年'], ['1/17', '170', '誰有資格統治人類？', '王小明（本會眾）', '', '劉', ''],
+    ['1/31', '177', '你在苦難中可以向誰求助？', '陳小華', '', '劉', '王小明'],
+  ]
+  const talks = await personalAssignments(db, 'me', now, async () => talkRows)
+  const weekend = talks.upcoming.filter(i => i.category === '週末聚會')
+  assert.deepEqual(weekend.map(i => [i.date, i.title, i.role]), [
+    ['2026-10-18', '公眾演講 55 你在上帝面前有怎樣的名聲？', '講者'],
+    ['2026-10-25', '週末聚會主席', ''],
+    ['2027-01-17', '公眾演講 170 誰有資格統治人類？', '講者'],
+    ['2027-01-31', '守望台誦讀', ''],
+  ])
+  assert(weekend.every(i => i.kind === 'program' && i.href === '/bulletin/public-talks'))
+  const offline = await personalAssignments(db, 'me', now, async () => { throw new Error('offline') })
+  assert.match(offline.notices.join(''), /公眾演講秩序表/)
+  assert.equal(offline.upcoming.length, data.upcoming.length)
   const sunday = await personalAssignments(db, 'me', new Date('2026-10-18T15:59:59Z'))
   const monday = await personalAssignments(db, 'me', new Date('2026-10-18T16:00:00Z'))
   assert.equal(sunday.upcoming.length, 9)
@@ -82,6 +102,6 @@ async function main() {
   assert.match(assignmentsText(empty), /沒有本週/)
   active = false
   assert.match(await lineBotAnswer(db, 'uid', '我的委派', now), /停用/)
-  console.log('PASS: personal identity, published snapshots, all roles, stopped weeks, Taipei week boundary, duplicate names, LINE query and long replies')
+  console.log('PASS: personal identity, published snapshots, all roles, stopped weeks, Taipei week boundary, duplicate names, public talk sheet, LINE query and long replies')
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

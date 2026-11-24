@@ -65,11 +65,11 @@ function nearestYear(month: number, day: number, monday: string) {
 }
 const ymd = (year: number, month: number, day: number) => `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
-/** 找出本週（週一～週日）的公眾演講；沒有演講列時改用落在本週的活動整列文字 */
-export function findWeekTalks(rows: string[][], monday: string, sunday: string): PublicTalkEntry[] {
-  const talks: PublicTalkEntry[] = []
-  const events: PublicTalkEntry[] = []
-  const inWeek = (date: string) => date >= monday && date <= sunday
+type DatedRow = { kind: 'talk'; date: string; row: string[] } | { kind: 'event'; date: string; title: string }
+
+// 表上日期只有月/日：依參考週一推算年份，逐列標上完整日期（演講列 M/D、活動整列「M月D日…」）
+export function datedPublicTalkRows(rows: string[][], monday: string): DatedRow[] {
+  const out: DatedRow[] = []
   let year: number | null = null
   let lastMonth = 0
   const dated = (month: number, day: number) => {
@@ -84,19 +84,25 @@ export function findWeekTalks(rows: string[][], monday: string, sunday: string):
     const yearRow = first.match(/^(\d{4})年$/)
     if (yearRow && rest) { year = Number(yearRow[1]); lastMonth = 0; continue }
     const md = first.match(/^(\d{1,2})\/(\d{1,2})$/)
-    if (md) {
-      const date = dated(+md[1], +md[2])
-      const [number, title, speaker] = [row[1], row[2], row[3]].map(v => (v ?? '').trim())
-      if (inWeek(date) && (title || speaker)) talks.push({ date, number, title, speaker })
-      continue
-    }
+    if (md) { out.push({ kind: 'talk', date: dated(+md[1], +md[2]), row }); continue }
     const full = first.match(/^(?:(\d{4})年\s*)?(\d{1,2})月\s*(\d{1,2})日\s*(?:[（(][^）)]*[）)])?\s*/)
     if (full && rest) {
       if (full[1]) { year = Number(full[1]) }
-      const date = dated(+full[2], +full[3])
-      const title = first.slice(full[0].length).trim() || first
-      if (inWeek(date)) events.push({ date, number: '', title, speaker: '' })
+      out.push({ kind: 'event', date: dated(+full[2], +full[3]), title: first.slice(full[0].length).trim() || first })
     }
+  }
+  return out
+}
+
+/** 找出本週（週一～週日）的公眾演講；沒有演講列時改用落在本週的活動整列文字 */
+export function findWeekTalks(rows: string[][], monday: string, sunday: string): PublicTalkEntry[] {
+  const talks: PublicTalkEntry[] = []
+  const events: PublicTalkEntry[] = []
+  for (const item of datedPublicTalkRows(rows, monday)) {
+    if (item.date < monday || item.date > sunday) continue
+    if (item.kind === 'event') { events.push({ date: item.date, number: '', title: item.title, speaker: '' }); continue }
+    const [number, title, speaker] = [item.row[1], item.row[2], item.row[3]].map(v => (v ?? '').trim())
+    if (title || speaker) talks.push({ date: item.date, number, title, speaker })
   }
   return talks.length ? talks : events
 }

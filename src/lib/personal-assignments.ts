@@ -2,17 +2,24 @@ import type { PrismaClient } from '@prisma/client'
 import { taipeiDate } from './google-sheets'
 import { addDays, serviceRoles, type Assignments } from './service-roster'
 import { isCancelled, type MeetingRecord } from './midweek'
+import { datedPublicTalkRows, fetchPublicTalkRows } from './public-talk-reminder'
 
 export type AssignmentKind = 'service' | 'program'
 export type PersonalAssignment = { kind: AssignmentKind; id: string; date: string; endDate: string; category: string; title: string; role: string; href: string }
 export type PersonalAssignments = { showBrotherService: boolean; weekStart: string; weekEnd: string; upcoming: PersonalAssignment[]; past: PersonalAssignment[]; notices: string[] }
 
-export async function personalAssignments(db: PrismaClient, memberId: string, now = new Date()): Promise<PersonalAssignments> {
-  const [members, person, weeks, records] = await Promise.all([
+// 公眾演講秩序表欄位：日期、編號、講題、講者、主席、守（主持人只寫姓）、誦讀。ADR-0147
+const TALK_COL = { number: 1, title: 2, speaker: 3, chair: 4, reader: 6 } as const
+// 外地講者寫成「姓名（會眾）A」，只取括號前的姓名比對
+function sheetName(cell: string | undefined) { return (cell ?? '').trim().replace(/[（(].*$/, '').trim() }
+
+export async function personalAssignments(db: PrismaClient, memberId: string, now = new Date(), loadTalkRows: () => Promise<string[][]> = fetchPublicTalkRows): Promise<PersonalAssignments> {
+  const [members, person, weeks, records, talkRows] = await Promise.all([
     db.member.findMany({ where: { active: true, deletedAt: null }, select: { id: true, name: true, gender: true } }),
     db.servicePerson.findUnique({ where: { memberId }, select: { id: true } }),
     db.serviceWeek.findMany({ where: { stopped: false }, orderBy: { startDate: 'asc' } }),
     db.setting.findMany({ where: { key: { startsWith: 'midweek:record:' } } }),
+    loadTalkRows().catch(() => null),
   ])
   const today = taipeiDate(now)
   const monday = addDays(today, -((new Date(`${today}T04:00:00Z`).getUTCDay() + 6) % 7))
@@ -44,6 +51,20 @@ export async function personalAssignments(db: PrismaClient, memberId: string, no
       if (item.assistant.trim() === name) add(`${item.id}:assistant`, item.title, '助手')
     }
   }
+  if (uniqueName && talkRows) for (const row of datedPublicTalkRows(talkRows, monday)) {
+    if (row.kind !== 'talk') continue
+    const cells = row.row
+    const add = (id: string, title: string, role: string) => entries.push({ kind: 'program', id: `talk:${row.date}:${id}`, date: row.date, endDate: row.date, category: '週末聚會', title, role, href: '/bulletin/public-talks' })
+    if (sheetName(cells[TALK_COL.speaker]) === name) {
+      const number = (cells[TALK_COL.number] ?? '').trim()
+      add('speaker', ['公眾演講', /^\d+$/.test(number) ? number : '', (cells[TALK_COL.title] ?? '').trim()].filter(Boolean).join(' '), '講者')
+    }
+    if (sheetName(cells[TALK_COL.chair]) === name) add('chair', '週末聚會主席', '')
+    // 服務安排已排同一週守望台朗讀時不重複列
+    const rosterReader = entries.some(item => item.id.endsWith(':watchtower') && item.date <= row.date && item.endDate >= row.date)
+    if (sheetName(cells[TALK_COL.reader]) === name && !rosterReader) add('reader', '守望台誦讀', '')
+  }
+  if (!talkRows) notices.push('公眾演講秩序表暫時讀不到，週末聚會的講者、主席、誦讀委派可能沒有列出。')
   const isUpcoming = (item: PersonalAssignment) => item.category === '服務安排' ? item.endDate >= today : item.date >= monday
   entries.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
   const visible = entries.filter(item => showBrotherService || item.kind === 'program')
