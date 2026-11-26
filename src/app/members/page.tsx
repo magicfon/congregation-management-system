@@ -166,6 +166,8 @@ export default function MembersPage() {
     fetch('/api/me').then((r) => r.ok ? r.json() : null).then((u) => setIsAdmin(u?.isAdmin === true)).catch(() => setIsAdmin(false))
   }, [])
   const [members, setMembers] = useState<Member[]>([])
+  // 未搜尋時的完整名單，供「尚未連結 LINE」區塊使用，不受搜尋框影響。
+  const [allMembers, setAllMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [dispatchSaving, setDispatchSaving] = useState<string | null>(null)
@@ -179,7 +181,9 @@ export default function MembersPage() {
     if (search) params.set('search', search)
     const res = await fetch(`/api/members?${params}`)
     const data = await res.json()
-    setMembers(Array.isArray(data) ? data : [])
+    const list = Array.isArray(data) ? data : []
+    setMembers(list)
+    if (!search) setAllMembers(list)
     setLoading(false)
   }, [search])
 
@@ -262,6 +266,7 @@ export default function MembersPage() {
           </button>
         </div>
 
+        {isAdmin && <UnlinkedLineMembers members={allMembers} onPick={setSearch} />}
         {isAdmin && <PendingLinePanel onLinked={() => void fetchMembers()} />}
         {isAdmin && <LinePairingPanel onPaired={() => void fetchMembers()} />}
 
@@ -408,4 +413,26 @@ function HoldingStatus({ count }: { count: number }) {
   return <span className={`whitespace-nowrap rounded px-2 py-0.5 text-xs font-normal ${count > 0 ? 'bg-amber-400/10 text-amber-200' : 'text-mc-text/40'}`}>
     {count > 0 ? `持有 ${count} 張` : '未持有'}
   </span>
+}
+
+// 成員管理上方：列出啟用中、尚未連結 LINE 的成員（ADR-0149）。點姓名篩選下方名單。
+function UnlinkedLineMembers({ members, onPick }: { members: Member[]; onPick: (name: string) => void }) {
+  const unlinked = members.filter(m => m.active && !m.lineuid).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'))
+  if (members.length === 0) return null
+  return <section aria-labelledby="unlinked-line-title" className="mb-4 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3">
+    <h2 id="unlinked-line-title" className="text-sm font-medium text-amber-200">
+      <span aria-hidden="true">○ </span>尚未連結 LINE：{unlinked.length} 位
+    </h2>
+    {unlinked.length === 0
+      ? <p className="mt-1 text-xs text-mc-text/60">所有啟用中的成員都已連結 LINE。</p>
+      : <>
+        <ul className="mt-2 flex flex-wrap gap-2">
+          {unlinked.map(m => <li key={m.id}>
+            <button type="button" onClick={() => onPick(m.name)} aria-label={`在名單中顯示 ${m.name}`}
+              className="min-h-9 rounded-lg border border-amber-400/20 px-3 text-sm text-amber-100 hover:bg-amber-400/10">{m.name}</button>
+          </li>)}
+        </ul>
+        <p className="mt-2 text-xs text-mc-text/50">請成員用 LINE 登入本站，再於下方「待確認 LINE 帳號」連結到他的名字。點姓名可在名單中篩選。</p>
+      </>}
+  </section>
 }
