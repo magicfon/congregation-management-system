@@ -15,6 +15,7 @@ interface Member {
   phone: string | null
   lineuid?: string | null
   lineDisplayName?: string | null
+  lineNotificationsEnabled?: boolean
   showInDispatch?: boolean
   selfManagedReports?: boolean
   active: boolean
@@ -309,6 +310,7 @@ export default function MembersPage() {
                         {!m.active && <span className="text-xs text-mc-text/30">已停用</span>}
                       </div>
                       {isAdmin && <MemberLineDetails member={m} />}
+                      {isAdmin && <div className="text-xs"><LineNotificationStatus member={m} /></div>}
                       <div className="mt-2">{dispatchButton(m)}</div>
                     </div>
                   </div>
@@ -342,14 +344,15 @@ export default function MembersPage() {
                 <tr className="border-b border-white/5 bg-mc-accent/50">
                   <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">姓名</th>
                   {isAdmin && <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50">LINE 名稱</th>}
+                  {isAdmin && <th className="text-left px-5 py-3.5 text-xs font-medium text-mc-text/50 whitespace-nowrap">LINE 通知</th>}
                   <th className="text-right px-5 py-3.5 text-xs font-medium text-mc-text/50 uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {loading ? (
-                  <tr><td colSpan={isAdmin ? 3 : 2} className="text-center py-16 text-mc-text/30 text-sm">載入中…</td></tr>
+                  <tr><td colSpan={isAdmin ? 4 : 2} className="text-center py-16 text-mc-text/30 text-sm">載入中…</td></tr>
                 ) : members.length === 0 ? (
-                  <tr><td colSpan={isAdmin ? 3 : 2} className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</td></tr>
+                  <tr><td colSpan={isAdmin ? 4 : 2} className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</td></tr>
                 ) : (
                   members.map((m) => (
                     <tr key={m.id} className={`hover:bg-mc-accent/30 transition-colors ${!m.active ? 'opacity-50' : ''}`}>
@@ -365,6 +368,7 @@ export default function MembersPage() {
                         </div>
                       </td>
                       {isAdmin && <td className="px-5 py-4 max-w-64"><MemberLineDetails member={m} /></td>}
+                      {isAdmin && <td className="px-5 py-4 text-xs whitespace-nowrap"><LineNotificationStatus member={m} /></td>}
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {dispatchButton(m)}
@@ -435,4 +439,12 @@ function UnlinkedLineMembers({ members, onPick }: { members: Member[]; onPick: (
         <p className="mt-2 text-xs text-mc-text/50">請成員用 LINE 登入本站，再於下方「待確認 LINE 帳號」連結到他的名字。點姓名可在名單中篩選。</p>
       </>}
   </section>
+}
+
+// 成員個人的 LINE 主動通知開關（lineNotificationsEnabled，ADR-0150）；未連結 LINE 時無從通知。
+function LineNotificationStatus({ member }: { member: Member }) {
+  if (!member.lineuid) return <span className="text-mc-text/30" title="尚未連結 LINE">—</span>
+  return member.lineNotificationsEnabled === false
+    ? <span className="text-red-300"><span aria-hidden="true">✕ </span>通知已關閉</span>
+    : <span className="text-emerald-300"><span aria-hidden="true">✓ </span>通知開啟</span>
 }
