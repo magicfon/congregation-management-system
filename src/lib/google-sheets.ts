@@ -90,15 +90,34 @@ export async function updateValues(
   })
 }
 
-/** 在表格最後新增列（USER_ENTERED：日期／數字依 Sheet 格式解析，與表單回報相同） */
+/** 在表格最後新增列（USER_ENTERED：日期／數字依 Sheet 格式解析，與表單回報相同）。回傳寫入的範圍，例 '傳道區域回報'!A693:G694 */
 export async function appendValues(
   sheetId: string,
   range: string,
   values: (string | number)[][]
-): Promise<void> {
-  await call('POST', `${sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+): Promise<string> {
+  const data = await call('POST', `${sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
     values,
   })
+  return data?.updates?.updatedRange || ''
+}
+
+/** append 寫在篩選範圍之外時，篩選（表格框）不會自己延伸：把工作表的篩選範圍延伸到 lastRow（1 起算），保留排序與條件。 */
+export async function extendBasicFilter(sheetId: string, title: string, lastRow: number): Promise<boolean> {
+  const meta = await call('GET', `${sheetId}?fields=${encodeURIComponent('sheets(properties(sheetId,title),basicFilter)')}`)
+  const sheet = (meta.sheets || []).find((s: { properties: { title: string } }) => s.properties.title === title)
+  const filter = sheet?.basicFilter
+  if (!filter || (filter.range.endRowIndex ?? Infinity) >= lastRow) return false
+  // API 回傳的 criteria 是 filterSpecs 的舊寫法，兩者不能同時送
+  const { criteria: _, ...rest } = filter
+  await call('POST', `${sheetId}:batchUpdate`, { requests: [{ setBasicFilter: { filter: { ...rest, range: { ...filter.range, endRowIndex: lastRow } } } }] })
+  return true
+}
+
+/** '傳道區域回報'!A693:G694 → 694 */
+export function rangeLastRow(range: string): number {
+  const match = range.match(/(\d+)$/)
+  return match ? Number(match[1]) : 0
 }
 
 /** 批次多範圍寫入 */

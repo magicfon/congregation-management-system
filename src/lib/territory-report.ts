@@ -5,7 +5,8 @@ import { MAX_DO_NOT_VISIT_ADDRESS } from './do-not-visit-list'
 
 // 依 Sheet「傳道區域回報」歷史常用值整理；其他時段由使用者自填
 export const REPORT_TIMESLOTS = ['星期六早上', '星期日早上', '星期三早上', '星期一早上', '星期三晚上']
-export const REPORT_SHEET_RANGE = '傳道區域回報!A:G'
+export const REPORT_SHEET_NAME = '傳道區域回報'
+export const REPORT_SHEET_RANGE = `${REPORT_SHEET_NAME}!A:G`
 const DUPLICATE_WINDOW_MS = 10 * 60 * 1000
 export const MAX_REPORT_AREAS = 20
 // 尚未建立地圖的區號（ADR-0139）：可以回報，只寫入 Sheet「傳道區域回報」，不碰系統地圖與「區域狀態」

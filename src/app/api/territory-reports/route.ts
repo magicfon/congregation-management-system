@@ -4,8 +4,8 @@ import { prisma } from '../../../lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../lib/auth'
 import { allocationLabel, isAreaDispatched } from '../../../lib/allocation'
-import { appendValues, batchUpdate, readSnapshot, taipeiDate, updateSnapshot, DEFAULT_SHEET_ID } from '../../../lib/google-sheets'
-import { brothersOnlyBlocked, BROTHERS_ONLY_MESSAGE, parseReportInput, submitTerritoryReport, TerritoryReportError, MAX_REPORT_AREAS, REPORT_SHEET_RANGE, REPORT_TIMESLOTS, SHEET_ONLY_SHEET_NOS } from '../../../lib/territory-report'
+import { appendValues, batchUpdate, extendBasicFilter, rangeLastRow, readSnapshot, taipeiDate, updateSnapshot, DEFAULT_SHEET_ID } from '../../../lib/google-sheets'
+import { brothersOnlyBlocked, BROTHERS_ONLY_MESSAGE, parseReportInput, submitTerritoryReport, TerritoryReportError, MAX_REPORT_AREAS, REPORT_SHEET_NAME, REPORT_SHEET_RANGE, REPORT_TIMESLOTS, SHEET_ONLY_SHEET_NOS } from '../../../lib/territory-report'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -50,7 +50,10 @@ export async function POST(request: NextRequest) {
     const input = parseReportInput(body, new Date(), !user)
     const snapshot = await readSnapshot()
     if (snapshot.size !== 213 || Array.from({ length: 213 }, (_, i) => i + 1).some(no => !snapshot.has(no))) return respond({ error: '同步快照不完整，暫時不能回報，請稍後再試' }, 503)
-    const results = await submitTerritoryReport(prisma, user?.id ?? null, input, rows => appendValues(DEFAULT_SHEET_ID, REPORT_SHEET_RANGE, rows), new Date(), { admin: user?.admin, confirmed: body?.confirmed === true })
+    let appended = ''
+    const results = await submitTerritoryReport(prisma, user?.id ?? null, input, async rows => { appended = await appendValues(DEFAULT_SHEET_ID, REPORT_SHEET_RANGE, rows) }, new Date(), { admin: user?.admin, confirmed: body?.confirmed === true })
+    // 篩選範圍（表格框）延伸到新列；失敗不影響回報，下次回報會再補
+    if (appended) await extendBasicFilter(DEFAULT_SHEET_ID, REPORT_SHEET_NAME, rangeLastRow(appended)).catch(() => {})
     const returned = results.filter(result => result.action === 'return' || result.action === 'proxy').map(result => result.sheetNo)
     const pending = results.filter(result => result.action === 'confirm' || result.action === 'merge').map(result => result.sheetNo)
     let warning = ''
