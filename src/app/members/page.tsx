@@ -171,6 +171,8 @@ export default function MembersPage() {
   const [allMembers, setAllMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  // 只看已連結 LINE 但關閉通知的成員（ADR-0150 修訂）
+  const [notifOffOnly, setNotifOffOnly] = useState(false)
   const [dispatchSaving, setDispatchSaving] = useState<string | null>(null)
   const [dispatchError, setDispatchError] = useState('')
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -192,6 +194,9 @@ export default function MembersPage() {
     const t = setTimeout(fetchMembers, 300)
     return () => clearTimeout(t)
   }, [fetchMembers])
+
+  const notifOff = (m: Member) => !!m.lineuid && m.lineNotificationsEnabled === false
+  const shown = notifOffOnly ? members.filter(notifOff) : members
 
   async function handleToggleDispatch(member: Member) {
     if (!isAdmin || dispatchSaving) return
@@ -284,7 +289,10 @@ export default function MembersPage() {
               className="w-full pl-10 pr-4 py-3 md:py-2.5 rounded-lg bg-mc-card border border-white/5 text-mc-text placeholder-mc-text/30 focus:outline-none focus:border-blue-500/40 transition-colors text-sm min-h-[44px]"
             />
           </div>
-
+          {isAdmin && <button type="button" aria-pressed={notifOffOnly} onClick={() => setNotifOffOnly(v => !v)}
+            className={`min-h-[44px] rounded-lg border px-4 text-sm whitespace-nowrap ${notifOffOnly ? 'border-red-400/40 bg-red-400/10 text-red-200' : 'border-white/10 text-mc-text/60 hover:bg-mc-accent'}`}>
+            只看關閉通知（{members.filter(notifOff).length}）
+          </button>}
         </div>
 
         {dispatchError && <p role="alert" className="mb-3 text-sm text-red-300">{dispatchError}</p>}
@@ -292,10 +300,10 @@ export default function MembersPage() {
         <div className="md:hidden space-y-3">
           {loading ? (
             <div className="text-center py-16 text-mc-text/30 text-sm">載入中…</div>
-          ) : members.length === 0 ? (
-            <div className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</div>
+          ) : shown.length === 0 ? (
+            <div className="text-center py-16 text-mc-text/30 text-sm">{notifOffOnly ? '沒有關閉 LINE 通知的成員' : '找不到符合的成員'}</div>
           ) : (
-            members.map((m) => (
+            shown.map((m) => (
               <div key={m.id} className={`bg-mc-card border border-white/5 rounded-xl p-4 ${!m.active ? 'opacity-60' : ''}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0">
@@ -331,8 +339,8 @@ export default function MembersPage() {
               </div>
             ))
           )}
-          {!loading && members.length > 0 && (
-            <div className="text-xs text-mc-text/30 text-center py-2">共 {members.length} 位成員</div>
+          {!loading && shown.length > 0 && (
+            <div className="text-xs text-mc-text/30 text-center py-2">共 {shown.length} 位成員</div>
           )}
         </div>
 
@@ -351,10 +359,10 @@ export default function MembersPage() {
               <tbody className="divide-y divide-white/5">
                 {loading ? (
                   <tr><td colSpan={isAdmin ? 4 : 2} className="text-center py-16 text-mc-text/30 text-sm">載入中…</td></tr>
-                ) : members.length === 0 ? (
-                  <tr><td colSpan={isAdmin ? 4 : 2} className="text-center py-16 text-mc-text/30 text-sm">找不到符合的成員</td></tr>
+                ) : shown.length === 0 ? (
+                  <tr><td colSpan={isAdmin ? 4 : 2} className="text-center py-16 text-mc-text/30 text-sm">{notifOffOnly ? '沒有關閉 LINE 通知的成員' : '找不到符合的成員'}</td></tr>
                 ) : (
-                  members.map((m) => (
+                  shown.map((m) => (
                     <tr key={m.id} className={`hover:bg-mc-accent/30 transition-colors ${!m.active ? 'opacity-50' : ''}`}>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2.5">
@@ -388,9 +396,9 @@ export default function MembersPage() {
               </tbody>
             </table>
           </div>
-          {!loading && members.length > 0 && (
+          {!loading && shown.length > 0 && (
             <div className="px-5 py-3 border-t border-white/5 text-xs text-mc-text/30">
-              共 {members.length} 位成員
+              共 {shown.length} 位成員
             </div>
           )}
         </div>
