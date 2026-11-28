@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, ChevronDown, MapPinned, Settings2 } from 'lucide-react'
 import AdminTaskCenter from '../../components/dashboard/AdminTaskCenter'
-import AdminTaskReminder from '../../components/dashboard/AdminTaskReminder'
 import DashboardLayout from '../../components/layout/DashboardLayout'
 import LineBotStatus from '../../components/dashboard/LineBotStatus'
 import PublicTalkReminder from '../../components/dashboard/PublicTalkReminder'
@@ -72,7 +71,7 @@ export default function DashboardPage() {
       </nav>}
       <footer className="space-y-4">
         <LineNotificationPreference />
-        {data.isAdmin && <details className="group"><summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden"><Settings2 size={16} aria-hidden="true" />管理工具<ChevronDown size={16} aria-hidden="true" className="ml-auto transition-transform group-open:rotate-180" /></summary><div className="space-y-4 py-4"><SyncCheck /><PublicTalkReminder /><AdminTaskReminder /><LineBotStatus /></div></details>}
+        {data.isAdmin && <details className="group"><summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 text-sm text-mc-text/70 [&::-webkit-details-marker]:hidden"><Settings2 size={16} aria-hidden="true" />管理工具<ChevronDown size={16} aria-hidden="true" className="ml-auto transition-transform group-open:rotate-180" /></summary><div className="space-y-4 py-4"><SyncCheck /><PublicTalkReminder /><LineBotStatus /></div></details>}
       </footer>
     </>}
   </div></DashboardLayout>
